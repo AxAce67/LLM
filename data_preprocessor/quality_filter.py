@@ -3,6 +3,13 @@ import re
 from typing import Set
 
 
+_JA_CHAR_RE = re.compile(r"[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff]")
+_EMAIL_RE = re.compile(r"\b[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}\b")
+_PHONE_RE = re.compile(r"\b(?:\+?\d{1,3}[-\s]?)?(?:\d{2,4}[-\s]?){2,4}\d{2,4}\b")
+_JAPAN_POSTAL_RE = re.compile(r"\b\d{3}-\d{4}\b")
+_IPV4_RE = re.compile(r"\b(?:\d{1,3}\.){3}\d{1,3}\b")
+
+
 def normalize_text(text: str) -> str:
     text = text.replace("\r", "\n")
     text = re.sub(r"[ \t]+", " ", text)
@@ -32,6 +39,30 @@ def is_duplicate(text: str, seen_hashes: Set[str]) -> bool:
         return True
     seen_hashes.add(fp)
     return False
+
+
+def detect_language(text: str) -> str:
+    """
+    シンプルな言語判定（日本語/英語）。
+    収集時のlang属性が不正確なケースを補助する。
+    """
+    t = normalize_text(text or "")
+    if not t:
+        return "unknown"
+    ja_chars = len(_JA_CHAR_RE.findall(t))
+    ratio = ja_chars / max(1, len(t))
+    return "ja" if ratio >= 0.12 else "en"
+
+
+def contains_pii(text: str) -> bool:
+    """
+    メール・電話・郵便番号・IPv4のような個人/機微情報を簡易検知する。
+    """
+    t = text or ""
+    return any(
+        p.search(t)
+        for p in (_EMAIL_RE, _PHONE_RE, _JAPAN_POSTAL_RE, _IPV4_RE)
+    )
 
 
 def quality_score(text: str) -> float:

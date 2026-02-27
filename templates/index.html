@@ -6,6 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI Factory Engine Dashboard</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
     <link
         href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
         rel="stylesheet">
@@ -81,6 +82,103 @@
             border-bottom: 2px solid #cbd5e0;
         }
 
+        .dash-tab-btn {
+            border: 1px solid rgba(14, 116, 144, 0.18);
+            background: rgba(255, 255, 255, 0.65);
+            color: #35515a;
+            transition: all 0.2s ease;
+        }
+
+        .dash-tab-btn:hover {
+            background: rgba(14, 116, 144, 0.08);
+            color: #0e7490;
+        }
+
+        .dash-tab-btn.active {
+            background: linear-gradient(135deg, #0e7490, #f97316);
+            color: #fff;
+            border-color: transparent;
+            box-shadow: 0 8px 18px rgba(14, 116, 144, 0.25);
+        }
+
+        .help-dot {
+            width: 22px;
+            height: 22px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 999px;
+            font-size: 12px;
+            font-weight: 700;
+            color: #0e7490;
+            background: rgba(14, 116, 144, 0.12);
+            border: 1px solid rgba(14, 116, 144, 0.24);
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .help-dot:hover,
+        .help-dot:focus {
+            color: #fff;
+            background: #0e7490;
+            outline: none;
+        }
+
+        .help-tooltip {
+            position: relative;
+            display: inline-block;
+            z-index: 60;
+        }
+
+        .help-tooltip .help-body {
+            position: absolute;
+            right: 0;
+            top: calc(100% + 8px);
+            z-index: 999;
+            width: min(360px, 78vw);
+            margin-top: 8px;
+            font-size: 12px;
+            line-height: 1.55;
+            color: #46535b;
+            background: rgba(255, 255, 255, 0.85);
+            border: 1px solid rgba(20, 46, 52, 0.1);
+            border-radius: 10px;
+            padding: 10px 12px;
+            box-shadow: 0 12px 24px rgba(11, 33, 44, 0.14);
+            opacity: 0;
+            pointer-events: none;
+            transform: translateY(-4px);
+            transition: opacity 0.16s ease, transform 0.16s ease;
+        }
+
+        .help-tooltip[data-align="left"] .help-body {
+            left: 0;
+            right: auto;
+        }
+
+        .help-tooltip[data-align="center"] .help-body {
+            left: 50%;
+            right: auto;
+            transform: translate(-50%, -4px);
+        }
+
+        .help-tooltip[data-vertical="up"] .help-body {
+            top: auto;
+            bottom: calc(100% + 8px);
+        }
+
+        .help-tooltip:hover .help-body,
+        .help-tooltip:focus-within .help-body {
+            opacity: 1;
+            pointer-events: auto;
+            transform: translateY(0);
+        }
+
+        .help-tooltip[data-align="center"]:hover .help-body,
+        .help-tooltip[data-align="center"]:focus-within .help-body {
+            transform: translate(-50%, 0);
+        }
+
         /* ログウィンドウ */
         #log-container::-webkit-scrollbar,
         #chat-history::-webkit-scrollbar {
@@ -118,10 +216,10 @@
             <nav class="flex space-x-6 text-sm font-medium mt-1">
                 <button onclick="switchTab('dashboard')" id="tab-dashboard"
                     class="tab-btn active pb-1 focus:outline-none">
-                    Overview
+                    Dashboard
                 </button>
                 <button onclick="switchTab('chat')" id="tab-chat" class="tab-btn pb-1 focus:outline-none">
-                    AI Chat Inference
+                    AI Chat
                 </button>
             </nav>
         </div>
@@ -157,6 +255,13 @@
                 </svg>
                 <span id="master-toggle-text">Ignite All</span>
             </button>
+            <div class="help-tooltip">
+                <button type="button" class="help-dot" aria-label="システム起動停止の説明">?</button>
+                <div class="help-body">
+                    このボタンで親機の収集・学習ループを一括で開始/停止します。<br>
+                    停止中もダッシュボード閲覧は可能です。
+                </div>
+            </div>
         </div>
     </header>
 
@@ -164,28 +269,49 @@
 
         <!-- DASHBOARD VIEW -->
         <div id="view-dashboard" class="space-y-8 animate-fade-in block">
+            <section class="glass-panel rounded-2xl p-4">
+                <div class="flex flex-wrap gap-2">
+                    <button id="dash-tab-overview" onclick="switchDashboardSection('overview')"
+                        class="dash-tab-btn active text-xs font-semibold px-4 py-2 rounded-full">
+                        概要
+                    </button>
+                    <button id="dash-tab-nodes" onclick="switchDashboardSection('nodes')"
+                        class="dash-tab-btn text-xs font-semibold px-4 py-2 rounded-full">
+                        ノード運用
+                    </button>
+                    <button id="dash-tab-training" onclick="switchDashboardSection('training')"
+                        class="dash-tab-btn text-xs font-semibold px-4 py-2 rounded-full">
+                        学習とデータ
+                    </button>
+                    <button id="dash-tab-logs" onclick="switchDashboardSection('logs')"
+                        class="dash-tab-btn text-xs font-semibold px-4 py-2 rounded-full">
+                        ログ監視
+                    </button>
+                </div>
+            </section>
 
+            <div id="dash-section-overview" class="space-y-8">
             <!-- Top Metrics Row -->
             <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
                 <!-- System Phase -->
                 <div class="glass-panel p-6 rounded-2xl flex flex-col justify-center">
-                    <p class="text-xs font-semibold text-gray-500 tracking-wider mb-1 uppercase">Pipeline Phase</p>
+                    <p class="text-xs font-semibold text-gray-500 tracking-wider mb-1 uppercase">稼働フェーズ</p>
                     <h2 id="current-phase" class="text-2xl font-bold text-gray-800">Initializing</h2>
                 </div>
 
                 <!-- Swarm Workers Display (Master Calculated) -->
                 <div class="glass-panel p-6 rounded-2xl">
-                    <p class="text-xs font-semibold text-gray-500 tracking-wider mb-1 uppercase">Estimated Workers</p>
+                    <p class="text-xs font-semibold text-gray-500 tracking-wider mb-1 uppercase">稼働ワーカー推定</p>
                     <div class="flex items-baseline space-x-2">
                         <span id="active-workers" class="text-3xl font-bold gradient-text">0</span>
-                        <span class="text-sm text-gray-500 font-medium">calculated active</span>
+                        <span class="text-sm text-gray-500 font-medium">推定稼働数</span>
                     </div>
                 </div>
 
                 <!-- Master Node CPU -->
                 <div class="glass-panel p-6 rounded-2xl">
                     <div class="flex justify-between items-end mb-2">
-                        <p class="text-xs font-semibold text-gray-500 tracking-wider uppercase">Master CPU</p>
+                        <p class="text-xs font-semibold text-gray-500 tracking-wider uppercase">親機 CPU</p>
                         <span id="cpu-percent" class="text-lg font-bold text-gray-800">0%</span>
                     </div>
                     <div class="w-full bg-gray-200 rounded-full h-1.5 overflow-hidden">
@@ -198,7 +324,7 @@
                 <!-- Master Node RAM -->
                 <div class="glass-panel p-6 rounded-2xl">
                     <div class="flex justify-between items-end mb-2">
-                        <p class="text-xs font-semibold text-gray-500 tracking-wider uppercase">Master Memory</p>
+                        <p class="text-xs font-semibold text-gray-500 tracking-wider uppercase">親機 メモリ</p>
                         <span id="ram-percent" class="text-lg font-bold text-gray-800">0%</span>
                     </div>
                     <div class="w-full bg-gray-200 rounded-full h-1.5 overflow-hidden">
@@ -215,29 +341,53 @@
 
             <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div class="glass-panel rounded-xl p-4">
-                    <p class="text-[11px] text-gray-500 uppercase tracking-wider">Online Nodes</p>
+                    <p class="text-[11px] text-gray-500 uppercase tracking-wider">オンラインノード</p>
                     <p id="nodes-online" class="text-2xl font-bold text-gray-800">0</p>
                 </div>
                 <div class="glass-panel rounded-xl p-4">
-                    <p class="text-[11px] text-gray-500 uppercase tracking-wider">Running Nodes</p>
+                    <p class="text-[11px] text-gray-500 uppercase tracking-wider">稼働中ノード</p>
                     <p id="nodes-running" class="text-2xl font-bold text-green-600">0</p>
                 </div>
                 <div class="glass-panel rounded-xl p-4">
-                    <p class="text-[11px] text-gray-500 uppercase tracking-wider">Offline Nodes</p>
+                    <p class="text-[11px] text-gray-500 uppercase tracking-wider">オフラインノード</p>
                     <p id="nodes-offline" class="text-2xl font-bold text-gray-500">0</p>
                 </div>
                 <div class="glass-panel rounded-xl p-4">
-                    <p class="text-[11px] text-gray-500 uppercase tracking-wider">Worker Ratio</p>
+                    <p class="text-[11px] text-gray-500 uppercase tracking-wider">Worker比率</p>
                     <p id="nodes-worker-ratio" class="text-2xl font-bold text-indigo-600">0%</p>
                 </div>
             </div>
             <div class="glass-panel rounded-xl p-4">
-                <p class="text-[11px] text-gray-500 uppercase tracking-wider mb-1">Auto Profile</p>
+                <p class="text-[11px] text-gray-500 uppercase tracking-wider mb-1">自動プロファイル</p>
                 <p id="auto-profile-line" class="text-sm text-gray-700">Detecting runtime...</p>
             </div>
 
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div class="glass-panel rounded-2xl p-5 lg:col-span-2">
+                    <h3 class="text-xs uppercase tracking-wider text-gray-500 font-semibold mb-3">システム推移（CPU / RAM）</h3>
+                    <div class="h-64">
+                        <canvas id="chart-system"></canvas>
+                    </div>
+                </div>
+                <div class="glass-panel rounded-2xl p-5">
+                    <h3 class="text-xs uppercase tracking-wider text-gray-500 font-semibold mb-3">コーパス構成</h3>
+                    <div class="h-64">
+                        <canvas id="chart-corpus"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <div class="glass-panel rounded-2xl p-5">
+                <h3 class="text-xs uppercase tracking-wider text-gray-500 font-semibold mb-3">学習損失（Train / Val）</h3>
+                <div class="h-64">
+                    <canvas id="chart-training"></canvas>
+                </div>
+            </div>
+            </div>
+
             <!-- Connected Nodes Management (NEW) -->
-            <div class="glass-panel rounded-2xl overflow-hidden p-[1px]">
+            <div id="dash-section-nodes" class="hidden space-y-8">
+            <div class="glass-panel rounded-2xl overflow-visible p-[1px]">
                 <div class="bg-white/40 rounded-2xl p-6">
                     <div class="flex justify-between items-center border-b border-gray-200 pb-4 mb-4">
                         <div class="flex flex-col">
@@ -248,18 +398,18 @@
                                         d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 002-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10">
                                     </path>
                                 </svg>
-                                Connected Swarm Nodes
+                                接続中ノード一覧
                             </h3>
-                            <p class="text-xs text-gray-500 mt-1">Individual machine controls & telemetry</p>
+                            <p class="text-xs text-gray-500 mt-1">ノード単位の制御とテレメトリ</p>
                         </div>
                         <div class="flex items-center gap-2">
                             <button onclick="controlAllNodes('start', 'worker')"
                                 class="text-xs bg-green-50 border border-green-200 text-green-700 px-3 py-1.5 rounded-lg font-semibold">
-                                Start All Workers
+                                全Worker起動
                             </button>
                             <button onclick="controlAllNodes('stop', 'worker')"
                                 class="text-xs bg-rose-50 border border-rose-200 text-rose-700 px-3 py-1.5 rounded-lg font-semibold">
-                                Stop All Workers
+                                全Worker停止
                             </button>
                             <button onclick="fetchNodes()"
                                 class="text-xs text-accentBlue hover:text-accentPurple font-medium flex items-center">
@@ -269,8 +419,15 @@
                                         d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15">
                                     </path>
                                 </svg>
-                                Refresh
+                                更新
                             </button>
+                            <div class="help-tooltip">
+                                <button type="button" class="help-dot" aria-label="ノード一括操作の説明">?</button>
+                                <div class="help-body">
+                                    全Worker起動/停止は、接続中の worker ノードへ一括制御を送信します。<br>
+                                    offline ノードには適用されません。
+                                </div>
+                            </div>
                         </div>
                     </div>
 
@@ -297,11 +454,29 @@
                     </div>
                 </div>
             </div>
+            </div>
 
-            <div class="glass-panel rounded-2xl overflow-hidden p-[1px]">
+            <div id="dash-section-training" class="hidden space-y-8">
+            <section class="glass-panel rounded-2xl p-5">
+                <h3 class="text-sm font-bold text-gray-800 mb-2">学習とデータの見方</h3>
+                <p class="text-xs text-gray-600 leading-relaxed">
+                    まずは「データ量が増えているか」「Lossが長期的に下がるか」「評価スコアが改善しているか」を確認してください。
+                    各見出しの <span class="font-bold text-accentBlue">?</span> を押すと詳細説明を表示できます。
+                </p>
+            </section>
+
+            <div class="glass-panel rounded-2xl overflow-visible p-[1px]">
                 <div class="bg-white/40 rounded-2xl p-6">
                     <div class="flex justify-between items-center border-b border-gray-200 pb-3 mb-3">
-                        <h3 class="text-sm font-bold text-gray-800 uppercase tracking-widest">Migration Ops (HF / GGUF)</h3>
+                        <h3 class="text-sm font-bold text-gray-800 uppercase tracking-widest">学習・変換ジョブ (HF / GGUF)</h3>
+                        <div class="help-tooltip">
+                            <button type="button" class="help-dot" aria-label="学習・変換ジョブの説明">?</button>
+                            <div class="help-body">
+                                HF LoRA Train: 追加学習ジョブを開始します。<br>
+                                GGUF Export: 学習済みモデルを Ollama / LM Studio 用に変換します。<br>
+                                失敗時は各ステータス行にエラー概要が表示されます。
+                            </div>
+                        </div>
                     </div>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div class="rounded-xl border border-gray-200 bg-white/70 p-4">
@@ -413,15 +588,26 @@
                 <!-- Neural Net Training -->
                 <div class="glass-panel p-6 rounded-2xl flex flex-col justify-between">
                     <div>
-                        <h3 class="text-sm font-bold text-gray-800 mb-6 flex items-center uppercase tracking-widest">
-                            <svg class="w-4 h-4 mr-2 text-accentBlue" fill="none" stroke="currentColor"
+                        <div class="mb-6 flex items-center justify-between">
+                            <h3 class="text-sm font-bold text-gray-800 flex items-center uppercase tracking-widest">
+                                <svg class="w-4 h-4 mr-2 text-accentBlue" fill="none" stroke="currentColor"
                                 viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                     d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z">
-                                </path>
-                            </svg>
-                            Training Diagnostics
-                        </h3>
+                                    </path>
+                                </svg>
+                                学習診断
+                            </h3>
+                            <div class="help-tooltip">
+                                <button type="button" class="help-dot" aria-label="学習診断の説明">?</button>
+                                <div class="help-body">
+                                    Epoch: 学習の進行量。<br>
+                                    Train Loss: 学習データへの誤差。<br>
+                                    Val Loss: 未学習データへの誤差。<br>
+                                    基本は「Train/Val が中長期で下がる」状態が良好です。
+                                </div>
+                            </div>
+                        </div>
                         <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                             <div class="rounded-xl border border-gray-200 bg-white/70 p-4">
                                 <p class="text-[11px] text-gray-500 uppercase tracking-wider mb-1">Epoch</p>
@@ -450,15 +636,24 @@
                 </div>
             </div>
 
-            <div class="glass-panel rounded-2xl overflow-hidden p-[1px]">
+            <div class="glass-panel rounded-2xl overflow-visible p-[1px]">
                 <div class="bg-white/40 rounded-2xl p-6">
                     <div class="flex justify-between items-center border-b border-gray-200 pb-3 mb-3">
-                        <h3 class="text-sm font-bold text-gray-800 uppercase tracking-widest">Evaluation History</h3>
+                        <div class="flex items-center gap-2">
+                            <h3 class="text-sm font-bold text-gray-800 uppercase tracking-widest">評価履歴</h3>
+                            <div class="help-tooltip">
+                                <button type="button" class="help-dot" aria-label="評価履歴の説明">?</button>
+                                <div class="help-body">
+                                    モデルごとの評価結果です。平均スコアが高いほど実運用品質が高い傾向です。<br>
+                                    学習後は必ず Eval を回し、前回スコアと比較してください。
+                                </div>
+                            </div>
+                        </div>
                         <div class="flex items-center gap-2">
                             <button onclick="runEvaluation()"
-                                class="text-xs bg-accentBlue text-white px-3 py-1.5 rounded-lg font-semibold">Run Eval</button>
+                                class="text-xs bg-accentBlue text-white px-3 py-1.5 rounded-lg font-semibold">評価実行</button>
                             <button onclick="fetchEvaluations()"
-                                class="text-xs text-accentBlue hover:text-accentPurple font-medium">Refresh</button>
+                                class="text-xs text-accentBlue hover:text-accentPurple font-medium">更新</button>
                         </div>
                     </div>
                     <p id="eval-status-line" class="text-xs text-gray-500 mb-2">Eval status: idle</p>
@@ -482,17 +677,26 @@
                 </div>
             </div>
 
-            <div class="glass-panel rounded-2xl overflow-hidden p-[1px]">
+            <div class="glass-panel rounded-2xl overflow-visible p-[1px]">
                 <div class="bg-white/40 rounded-2xl p-6">
                     <div class="flex justify-between items-center border-b border-gray-200 pb-3 mb-3">
-                        <h3 class="text-sm font-bold text-gray-800 uppercase tracking-widest">Model Registry</h3>
+                        <div class="flex items-center gap-2">
+                            <h3 class="text-sm font-bold text-gray-800 uppercase tracking-widest">モデル履歴</h3>
+                            <div class="help-tooltip">
+                                <button type="button" class="help-dot" aria-label="モデル履歴の説明">?</button>
+                                <div class="help-body">
+                                    学習成果物の履歴です。<br>
+                                    「Bestを本番昇格」を押すと、基準を満たしたモデルを推論用に固定します。
+                                </div>
+                            </div>
+                        </div>
                         <div class="flex items-center gap-2">
                             <button id="promote-model-btn" onclick="promoteBestModel()"
                                 class="text-xs bg-emerald-600 text-white px-3 py-1.5 rounded-lg font-semibold">
-                                Promote Best -> Production
+                                Bestを本番昇格
                             </button>
                             <button onclick="fetchModels()"
-                                class="text-xs text-accentBlue hover:text-accentPurple font-medium">Refresh</button>
+                                class="text-xs text-accentBlue hover:text-accentPurple font-medium">更新</button>
                         </div>
                     </div>
                     <p id="model-status-line" class="text-xs text-gray-500 mb-2">Model status: idle</p>
@@ -517,11 +721,11 @@
                 </div>
             </div>
 
-            <div class="glass-panel rounded-2xl overflow-hidden p-[1px]">
+            <div class="glass-panel rounded-2xl overflow-visible p-[1px]">
                 <div class="bg-white/40 rounded-2xl p-6">
                     <div class="flex justify-between items-center border-b border-gray-200 pb-3 mb-3">
-                        <h3 class="text-sm font-bold text-gray-800 uppercase tracking-widest">Source Policies</h3>
-                        <button onclick="fetchPolicies()" class="text-xs text-accentBlue hover:text-accentPurple font-medium">Refresh</button>
+                        <h3 class="text-sm font-bold text-gray-800 uppercase tracking-widest">ソースポリシー</h3>
+                        <button onclick="fetchPolicies()" class="text-xs text-accentBlue hover:text-accentPurple font-medium">更新</button>
                     </div>
                     <div class="grid grid-cols-1 md:grid-cols-6 gap-2 mb-3">
                         <input id="policy-domain" type="text" placeholder="domain (e.g. example.com)" class="md:col-span-2 border border-gray-200 rounded px-2 py-1 text-xs">
@@ -558,11 +762,20 @@
                 </div>
             </div>
 
-            <div class="glass-panel rounded-2xl overflow-hidden p-[1px]">
+            <div class="glass-panel rounded-2xl overflow-visible p-[1px]">
                 <div class="bg-white/40 rounded-2xl p-6">
                     <div class="flex justify-between items-center border-b border-gray-200 pb-3 mb-3">
-                        <h3 class="text-sm font-bold text-gray-800 uppercase tracking-widest">Dataset Versions</h3>
-                        <button onclick="fetchDatasets()" class="text-xs text-accentBlue hover:text-accentPurple font-medium">Refresh</button>
+                        <div class="flex items-center gap-2">
+                            <h3 class="text-sm font-bold text-gray-800 uppercase tracking-widest">データセット版履歴</h3>
+                            <div class="help-tooltip">
+                                <button type="button" class="help-dot" aria-label="データセット版履歴の説明">?</button>
+                                <div class="help-body">
+                                    学習前処理の実績です。<br>
+                                    Docs/Token数に加えて、blocked/filtered/duplicate の傾向を監視すると品質低下を早期発見できます。
+                                </div>
+                            </div>
+                        </div>
+                        <button onclick="fetchDatasets()" class="text-xs text-accentBlue hover:text-accentPurple font-medium">更新</button>
                     </div>
                     <div class="overflow-x-auto">
                         <table class="w-full text-left text-sm">
@@ -582,8 +795,10 @@
                     </div>
                 </div>
             </div>
+            </div>
 
             <!-- Read-Only Terminal log -->
+            <div id="dash-section-logs" class="hidden">
             <div class="glass-panel rounded-2xl overflow-hidden mt-6">
                 <div class="bg-gray-100/80 px-4 py-2 flex space-x-2 border-b border-gray-200 shadow-inner">
                     <div class="w-3 h-3 rounded-full bg-red-400"></div>
@@ -604,6 +819,7 @@
                         <!-- Logs will be appended here -->
                     </div>
                 </div>
+            </div>
             </div>
 
         </div> <!-- End Dashboard View -->
@@ -659,6 +875,15 @@
                             <input id="gen-max-tokens" type="number" min="1" max="256" value="120"
                                 class="w-24 border border-gray-200 rounded-lg px-2 py-1 text-sm text-gray-700 bg-white">
                             <span id="gen-max-tokens-hint" class="text-xs text-gray-400">limit 256</span>
+                            <div class="help-tooltip">
+                                <button type="button" class="help-dot" aria-label="生成パラメータの説明">?</button>
+                                <div class="help-body">
+                                    Max Tokens: 1回答の最大長。<br>
+                                    Temperature: 高いほど多様、低いほど安定。<br>
+                                    Top-p: 候補語の絞り込み。<br>
+                                    Repetition penalty: 同語反復の抑制。
+                                </div>
+                            </div>
                         </div>
                     </div>
                     <div class="grid grid-cols-3 gap-2 mb-3">
@@ -705,6 +930,17 @@
             production_checkpoint_exists: false
         };
         let adminToken = localStorage.getItem("admin_api_token") || "";
+        let dashboardSection = "overview";
+        let systemChart = null;
+        let trainingChart = null;
+        let corpusChart = null;
+        const chartHistory = {
+            labels: [],
+            cpu: [],
+            ram: [],
+            trainLoss: [],
+            valLoss: []
+        };
 
         function adminHeaders() {
             const headers = { 'Content-Type': 'application/json' };
@@ -732,7 +968,163 @@
             document.getElementById(`tab-${tabId}`).classList.add('active');
 
             if (tabId === 'dashboard') {
+                switchDashboardSection(dashboardSection);
                 fetchNodes(); // Refresh nodes immediately on switch
+            }
+        }
+
+        function switchDashboardSection(sectionId) {
+            dashboardSection = sectionId;
+            const sections = ['overview', 'nodes', 'training', 'logs'];
+            sections.forEach((id) => {
+                document.getElementById(`dash-section-${id}`).classList.add('hidden');
+                document.getElementById(`dash-tab-${id}`).classList.remove('active');
+            });
+            document.getElementById(`dash-section-${sectionId}`).classList.remove('hidden');
+            document.getElementById(`dash-tab-${sectionId}`).classList.add('active');
+        }
+
+        function initCharts() {
+            if (typeof Chart === 'undefined') return;
+            const commonOptions = {
+                responsive: true,
+                maintainAspectRatio: false,
+                animation: false,
+                plugins: {
+                    legend: { labels: { boxWidth: 12, usePointStyle: true } }
+                },
+                scales: {
+                    x: { grid: { color: 'rgba(20,46,52,0.08)' } },
+                    y: { grid: { color: 'rgba(20,46,52,0.08)' } }
+                }
+            };
+
+            const systemCtx = document.getElementById('chart-system');
+            if (systemCtx) {
+                systemChart = new Chart(systemCtx, {
+                    type: 'line',
+                    data: {
+                        labels: [],
+                        datasets: [
+                            { label: 'CPU %', data: [], borderColor: '#0e7490', backgroundColor: 'rgba(14,116,144,0.16)', tension: 0.25 },
+                            { label: 'RAM %', data: [], borderColor: '#f97316', backgroundColor: 'rgba(249,115,22,0.16)', tension: 0.25 }
+                        ]
+                    },
+                    options: {
+                        ...commonOptions,
+                        scales: { ...commonOptions.scales, y: { min: 0, max: 100, grid: { color: 'rgba(20,46,52,0.08)' } } }
+                    }
+                });
+            }
+
+            const trainingCtx = document.getElementById('chart-training');
+            if (trainingCtx) {
+                trainingChart = new Chart(trainingCtx, {
+                    type: 'line',
+                    data: {
+                        labels: [],
+                        datasets: [
+                            { label: 'Train Loss', data: [], borderColor: '#ef4444', backgroundColor: 'rgba(239,68,68,0.12)', tension: 0.25 },
+                            { label: 'Val Loss', data: [], borderColor: '#22c55e', backgroundColor: 'rgba(34,197,94,0.12)', tension: 0.25 }
+                        ]
+                    },
+                    options: commonOptions
+                });
+            }
+
+            const corpusCtx = document.getElementById('chart-corpus');
+            if (corpusCtx) {
+                corpusChart = new Chart(corpusCtx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Wiki', 'Web', 'RSS', 'News', 'arXiv', 'Docs'],
+                        datasets: [{
+                            data: [0, 0, 0, 0, 0, 0],
+                            backgroundColor: ['#22c55e', '#0ea5e9', '#14b8a6', '#f59e0b', '#8b5cf6', '#f97316']
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        animation: false,
+                        plugins: { legend: { position: 'bottom' } }
+                    }
+                });
+            }
+        }
+
+        function pushHistory(target, value, maxLen = 30) {
+            target.push(value);
+            if (target.length > maxLen) target.shift();
+        }
+
+        function adjustTooltipPosition(tooltip) {
+            const body = tooltip.querySelector('.help-body');
+            if (!body) return;
+
+            delete tooltip.dataset.align;
+            delete tooltip.dataset.vertical;
+
+            const margin = 8;
+            let rect = body.getBoundingClientRect();
+
+            // first pass: horizontal
+            if (rect.right > window.innerWidth - margin) {
+                tooltip.dataset.align = 'left';
+                rect = body.getBoundingClientRect();
+            }
+            if (rect.left < margin) {
+                tooltip.dataset.align = 'center';
+                rect = body.getBoundingClientRect();
+            }
+
+            // vertical flip
+            if (rect.bottom > window.innerHeight - margin) {
+                tooltip.dataset.vertical = 'up';
+            }
+        }
+
+        function setupHelpTooltips() {
+            document.querySelectorAll('.help-tooltip').forEach((tooltip) => {
+                const handler = () => adjustTooltipPosition(tooltip);
+                tooltip.addEventListener('mouseenter', handler);
+                tooltip.addEventListener('focusin', handler);
+            });
+            window.addEventListener('resize', () => {
+                document.querySelectorAll('.help-tooltip').forEach(adjustTooltipPosition);
+            });
+        }
+
+        function updateChartsFromStatus(data) {
+            const label = new Date().toLocaleTimeString([], { minute: '2-digit', second: '2-digit' });
+            pushHistory(chartHistory.labels, label);
+            pushHistory(chartHistory.cpu, Number(data.system?.cpu_percent || 0));
+            pushHistory(chartHistory.ram, Number(data.system?.ram_percent || 0));
+            pushHistory(chartHistory.trainLoss, Number(data.stats?.current_loss || 0));
+            pushHistory(chartHistory.valLoss, Number(data.stats?.current_val_loss || 0));
+
+            if (systemChart) {
+                systemChart.data.labels = [...chartHistory.labels];
+                systemChart.data.datasets[0].data = [...chartHistory.cpu];
+                systemChart.data.datasets[1].data = [...chartHistory.ram];
+                systemChart.update();
+            }
+            if (trainingChart) {
+                trainingChart.data.labels = [...chartHistory.labels];
+                trainingChart.data.datasets[0].data = [...chartHistory.trainLoss];
+                trainingChart.data.datasets[1].data = [...chartHistory.valLoss];
+                trainingChart.update();
+            }
+            if (corpusChart) {
+                corpusChart.data.datasets[0].data = [
+                    Number(data.stats?.collected_docs_wiki || 0),
+                    Number(data.stats?.collected_docs_web || 0),
+                    Number(data.stats?.collected_docs_rss || 0),
+                    Number(data.stats?.collected_docs_news || 0),
+                    Number(data.stats?.collected_docs_arxiv || 0),
+                    Number(data.stats?.collected_docs_docs || 0)
+                ];
+                corpusChart.update();
             }
         }
 
@@ -800,17 +1192,17 @@
 
                 if (isRunning) {
                     statusDot.className = "w-2.5 h-2.5 rounded-full bg-green-500 animate-pulse";
-                    statusText.textContent = "ONLINE & LEARNING";
+                    statusText.textContent = "稼働中";
                     statusText.className = "text-sm font-bold text-green-600 uppercase tracking-widest";
-                    masterToggleText.textContent = "Shutdown System";
+                    masterToggleText.textContent = "システム停止";
                     masterToggleIcon.innerHTML = `<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8 7a1 1 0 00-1 1v4a1 1 0 001 1h4a1 1 0 001-1V8a1 1 0 00-1-1H8z" clip-rule="evenodd"></path>`;
                     masterToggleIcon.className = "w-4 h-4 text-red-500";
                     currentPhase.className = "text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-accentBlue to-accentPurple";
                 } else {
                     statusDot.className = "w-2.5 h-2.5 rounded-full bg-gray-400";
-                    statusText.textContent = "IDLE / PAUSED";
+                    statusText.textContent = "停止中";
                     statusText.className = "text-sm font-bold text-gray-500 uppercase tracking-widest";
-                    masterToggleText.textContent = "Ignite System";
+                    masterToggleText.textContent = "システム起動";
                     masterToggleIcon.innerHTML = `<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd"></path>`;
                     masterToggleIcon.className = "w-4 h-4 text-green-500";
                     currentPhase.className = "text-2xl font-bold text-gray-400";
@@ -842,13 +1234,14 @@
                 document.getElementById('ram-percent').textContent = data.system.ram_percent.toFixed(1) + "%";
                 document.getElementById('cpu-bar').style.width = data.system.cpu_percent + "%";
                 document.getElementById('ram-bar').style.width = data.system.ram_percent + "%";
+                updateChartsFromStatus(data);
 
                 const alertBox = document.getElementById('system-alert');
                 if (data.system.ram_percent >= 92) {
-                    alertBox.textContent = `Memory usage is critical (${data.system.ram_percent.toFixed(1)}%). Reduce workers or pause inference.`;
+                    alertBox.textContent = `メモリ使用率が高すぎます (${data.system.ram_percent.toFixed(1)}%)。Worker数削減または推論停止を検討してください。`;
                     alertBox.classList.remove('hidden');
                 } else if (data.system.cpu_percent >= 95) {
-                    alertBox.textContent = `CPU usage is very high (${data.system.cpu_percent.toFixed(1)}%). Throughput may degrade.`;
+                    alertBox.textContent = `CPU使用率が非常に高いです (${data.system.cpu_percent.toFixed(1)}%)。処理性能が低下する可能性があります。`;
                     alertBox.classList.remove('hidden');
                 } else {
                     alertBox.classList.add('hidden');
@@ -878,7 +1271,7 @@
 
             } catch (error) {
                 console.error("Failed to fetch status:", error);
-                document.getElementById('status-text').textContent = "CONNECTION ERROR";
+                document.getElementById('status-text').textContent = "接続エラー";
                 document.getElementById('status-dot').className = "w-2.5 h-2.5 rounded-full bg-red-500";
             }
         }
@@ -1360,6 +1753,9 @@
         setInterval(fetchGgufExportStatus, 5000);
 
         // Initial Fetch
+        switchDashboardSection('overview');
+        initCharts();
+        setupHelpTooltips();
         fetchRuntimeConfig();
         fetchStatus();
         fetchNodes();

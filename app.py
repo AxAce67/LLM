@@ -27,6 +27,10 @@ POSTGRES_PASSWORD = os.environ.get("POSTGRES_PASSWORD", "")
 BOOTSTRAP_TOKEN = os.environ.get("BOOTSTRAP_TOKEN", "")
 ALLOW_BOOTSTRAP_PASSWORD = os.environ.get("ALLOW_BOOTSTRAP_PASSWORD", "0") == "1"
 ADMIN_API_TOKEN = os.environ.get("ADMIN_API_TOKEN", "").strip()
+ADMIN_API_TOKEN_REQUIRED = os.environ.get(
+    "ADMIN_API_TOKEN_REQUIRED",
+    "1" if SYSTEM_ROLE == "master" else "0",
+) == "1"
 
 # メインコントローラーの状態管理オブジェクト（ダッシュボード閲覧・操作専用モード）
 state_manager = main_controller.SystemState(is_dashboard=True)
@@ -73,6 +77,8 @@ _gguf_export_last_error = ""
 
 def _is_admin_request(request: Request) -> bool:
     if not ADMIN_API_TOKEN:
+        if ADMIN_API_TOKEN_REQUIRED:
+            return False
         return True
     token = request.headers.get("x-admin-token", "").strip()
     if not token:
@@ -164,7 +170,7 @@ async def runtime_config():
         "db_ui_url": DB_UI_URL,
         "system_role": SYSTEM_ROLE,
         "postgres_host": POSTGRES_HOST,
-        "admin_token_required": bool(ADMIN_API_TOKEN),
+        "admin_token_required": bool(ADMIN_API_TOKEN_REQUIRED),
         "use_production_model": os.environ.get("USE_PRODUCTION_MODEL", "1") == "1",
         "production_checkpoint_exists": os.path.exists(production_ckpt),
         "auto_profile": profile,
@@ -223,7 +229,10 @@ def _run_eval_task():
     try:
         completed = subprocess.run(cmd, capture_output=True, text=True, cwd=base_dir, timeout=1800)
         _eval_last_output = (completed.stdout or "").strip()
-        _eval_last_error = (completed.stderr or "").strip()
+        if completed.returncode != 0:
+            _eval_last_error = (completed.stderr or completed.stdout or f"eval failed (rc={completed.returncode})").strip()
+        else:
+            _eval_last_error = (completed.stderr or "").strip()
     except Exception as e:
         _eval_last_output = ""
         _eval_last_error = str(e)
@@ -245,7 +254,10 @@ def _run_hf_train_task(base_model: str, train_text: str, output_dir: str):
     try:
         completed = subprocess.run(cmd, capture_output=True, text=True, cwd=base_dir, timeout=7200, env=env)
         _hf_train_last_output = (completed.stdout or "").strip()
-        _hf_train_last_error = (completed.stderr or "").strip()
+        if completed.returncode != 0:
+            _hf_train_last_error = (completed.stderr or completed.stdout or f"hf train failed (rc={completed.returncode})").strip()
+        else:
+            _hf_train_last_error = (completed.stderr or "").strip()
     except Exception as e:
         _hf_train_last_output = ""
         _hf_train_last_error = str(e)
@@ -269,7 +281,10 @@ def _run_gguf_export_task(llama_cpp_dir: str, hf_model: str, out_gguf: str, quan
     try:
         completed = subprocess.run(cmd, capture_output=True, text=True, cwd=base_dir, timeout=1800, env=env)
         _gguf_export_last_output = (completed.stdout or "").strip()
-        _gguf_export_last_error = (completed.stderr or "").strip()
+        if completed.returncode != 0:
+            _gguf_export_last_error = (completed.stderr or completed.stdout or f"gguf export failed (rc={completed.returncode})").strip()
+        else:
+            _gguf_export_last_error = (completed.stderr or "").strip()
     except Exception as e:
         _gguf_export_last_output = ""
         _gguf_export_last_error = str(e)

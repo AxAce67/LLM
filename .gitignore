@@ -24,3 +24,4 @@ system_status.json
 dataset/
 models/
 checkpoints/
+Modelfile

@@ -2,8 +2,8 @@
 set -euo pipefail
 
 if [[ $# -lt 3 ]]; then
-  echo "Usage: $0 <llama_cpp_dir> <hf_model_dir_or_id> <output_gguf>"
-  echo "Example: $0 ~/llama.cpp Qwen/Qwen2.5-1.5B-Instruct ./models/qwen2.5-1.5b.gguf"
+  echo "Usage: $0 <llama_cpp_dir> <hf_model_local_dir> <output_gguf>"
+  echo "Example: $0 ~/llama.cpp ./models/hf_base/qwen2.5-1.5b-instruct ./models/qwen2.5-1.5b.gguf"
   exit 1
 fi
 
@@ -17,6 +17,11 @@ QBIN="${LLAMA_CPP_DIR}/llama-quantize"
 
 if [[ ! -f "${PY}" ]]; then
   echo "convert_hf_to_gguf.py not found: ${PY}"
+  exit 1
+fi
+
+if [[ ! -d "${HF_MODEL}" ]]; then
+  echo "HF model path must be a local directory: ${HF_MODEL}"
   exit 1
 fi
 

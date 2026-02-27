@@ -7,6 +7,15 @@
 
 set -e
 
+DRY_RUN=0
+for arg in "$@"; do
+    case "$arg" in
+        --dry-run)
+            DRY_RUN=1
+            ;;
+    esac
+done
+
 # ------------------------------------------------------------------------------
 
 # --- 1. 既存親機の自動検知 ---
@@ -146,6 +155,23 @@ else
 fi
 
 echo -e "\n[✓] PostgreSQL設定を一時記憶しました。"
+
+if [ "$DRY_RUN" -eq 1 ]; then
+    echo -e "\n[Dry Run] 実際のインストールは行いません。予定内容のみ表示します。"
+    echo "  - role: ${SYSTEM_ROLE}"
+    echo "  - postgres host: ${POSTGRES_HOST}:${POSTGRES_PORT}"
+    echo "  - postgres db/user: ${POSTGRES_DB} / ${POSTGRES_USER}"
+    if [[ "$SYSTEM_ROLE" == "master" ]]; then
+        echo "  - profiles: ${DOCKER_PROFILE}"
+        echo "  - adminer port: ${ADMINER_PORT}"
+    fi
+    echo "  - next actions:"
+    echo "    1) Docker存在確認（不足時は自動インストール）"
+    echo "    2) リポジトリ最新化（git fetch/pull）"
+    echo "    3) .env生成"
+    echo "    4) docker compose up -d --build"
+    exit 0
+fi
 
 # --- 4. Docker のインストール確認と自動導入 (Ubuntu/Debian系想定) ---
 SUDO=""

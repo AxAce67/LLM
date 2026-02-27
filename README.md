@@ -34,6 +34,11 @@ curl -sL https://raw.githubusercontent.com/AxAce67/LLM/main/setup.sh | bash
 # すでにファイル群をダウンロード済みのディレクトリで起動する場合
 chmod +x setup.sh
 ./setup.sh
+
+# 実行前に中身を確認してから実行する場合（推奨）
+curl -fsSL -o setup.sh https://raw.githubusercontent.com/AxAce67/LLM/main/setup.sh
+less setup.sh
+bash setup.sh
 ```
 
 ※ インストール実行時、ターミナル上で対話的に以下の入力が求められます。
@@ -170,6 +175,7 @@ chmod +x setup.sh
 ## 管理API認証
 
 - `ADMIN_API_TOKEN` を設定すると管理系APIでトークン必須
+- `ADMIN_API_TOKEN_REQUIRED=1`（既定: masterで有効）により、トークン未設定時の管理API操作を拒否
 - ヘッダー: `x-admin-token: <token>`
 - 対象:
 - `POST /api/control`
@@ -194,6 +200,9 @@ chmod +x setup.sh
 
 - `ENABLE_TEXT_DEDUP=1`
 - `MIN_TRAIN_CHARS=120`
+- `MAX_TRAIN_CHARS=20000`
+- `TRAIN_LANG_ONLY=ja`（`any` で無効）
+- `ENABLE_PII_FILTER=1`（メール/電話/郵便番号/IPを含む文書を除外）
 - `SOURCE_WEIGHT_WIKIPEDIA=1.4`
 - `SOURCE_WEIGHT_ARXIV=1.35`
 - `SOURCE_WEIGHT_DOCS=1.3`
@@ -291,8 +300,10 @@ OUTPUT_DIR=models/hf_lora \
 ./migration_hf/run_train_auto.sh
 
 # 4) GGUF変換（llama.cppが必要）
-./migration_hf/export_gguf.sh ~/llama.cpp Qwen/Qwen2.5-1.5B-Instruct ./models/qwen2.5-1.5b.gguf
+./migration_hf/export_gguf.sh ~/llama.cpp ./models/hf_base/qwen2.5-1.5b-instruct ./models/qwen2.5-1.5b.gguf
 ```
+
+※ `export_gguf.sh` の第2引数はHFモデルIDではなく「ローカルディレクトリ」です。
 
 注記:
 - これは移行の第一段（学習・変換の土台）です。
@@ -324,3 +335,9 @@ OUTPUT_DIR=models/hf_lora \
 - `TRAIN_SEED=42` で乱数を固定
 - `ckpt_latest.pt` に加えて、検証ロス改善時に `ckpt_best.pt` を保存
 - ダッシュボードで `Train Loss` と `Val / Best` を確認可能
+
+## 安全運用ドキュメント
+
+- 収集ポリシーと法的配慮: `docs/crawling_policy.md`
+- 親機/子機/DBの構成図と責務: `docs/architecture.md`
+- 環境変数テンプレート: `.env.example`
