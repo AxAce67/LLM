@@ -48,11 +48,16 @@ done
 echo -e "\n[✓] 接続情報を一時記憶しました。"
 
 # --- 4. Docker のインストール確認と自動導入 (Ubuntu/Debian系想定) ---
+SUDO=""
+if [ "$(id -u)" -ne 0 ]; then
+    SUDO="sudo "
+fi
+
 echo -e "\n[1/3] 🐳 Docker環境のチェックとインストール..."
 if ! command -v docker &> /dev/null; then
     echo "Dockerがインストールされていません。自動インストールを開始します（数分かかります）..."
     curl -fsSL https://get.docker.com -o get-docker.sh
-    sh get-docker.sh
+    ${SUDO}sh get-docker.sh
     rm get-docker.sh
     echo "Dockerのインストールが完了しました。"
 else
@@ -88,10 +93,10 @@ else
 fi
 
 # 最新版の互換性のため docker compose V2 コマンドを確認
-DOCKER_COMPOSE_CMD="docker compose"
-if ! docker compose version &> /dev/null; then
+DOCKER_COMPOSE_CMD="${SUDO}docker compose"
+if ! ${SUDO}docker compose version &> /dev/null; then
     if command -v docker-compose &> /dev/null; then
-         DOCKER_COMPOSE_CMD="docker-compose"
+         DOCKER_COMPOSE_CMD="${SUDO}docker-compose"
     else
          echo "警告: docker-composeが見つかりません。セットアップが失敗する可能性があります。"
     fi
