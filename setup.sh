@@ -59,6 +59,34 @@ else
     echo "Dockerは既にインストールされています。スキップします。"
 fi
 
+# --- 4. ソースコードの同期と最新化 (Auto-Update) ---
+echo -e "\n[2/4] 📥 ソースコードの取得・最新化..."
+REPO_URL="https://github.com/AxAce67/LLM.git"
+TARGET_DIR="llm-factory-engine"
+
+# setup.sh が単独で（ディレクトリ外で）実行された場合や初回セットアップ時
+if [ ! -d ".git" ]; then
+    if [ ! -d "$TARGET_DIR" ]; then
+        echo "リポジトリをクローンします..."
+        git clone "$REPO_URL" "$TARGET_DIR"
+    fi
+    # クローン先のディレクトリに移動
+    cd "$TARGET_DIR" || exit
+fi
+
+# 既にGit管理下（またはクローン直後）の場合は最新コードを引っ張ってくる
+echo "最新のアップデートを確認しています..."
+git fetch
+LOCAL=$(git rev-parse HEAD)
+REMOTE=$(git rev-parse @{u} 2>/dev/null || git rev-parse origin/main)
+
+if [ "$LOCAL" != "$REMOTE" ]; then
+    echo "🚀 更新が見つかりました！最新のコードを適応します。"
+    git pull origin main
+else
+    echo "✓ コードはすでに最新です。"
+fi
+
 # 最新版の互換性のため docker compose V2 コマンドを確認
 DOCKER_COMPOSE_CMD="docker compose"
 if ! docker compose version &> /dev/null; then
