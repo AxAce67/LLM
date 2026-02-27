@@ -21,3 +21,6 @@ crawled_data/
 model_checkpoint.pth
 system_status.json
 *.log
+dataset/
+models/
+checkpoints/
