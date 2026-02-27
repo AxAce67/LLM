@@ -59,11 +59,12 @@ def train_step(max_steps=50):
         return 0, 0.0 # epoch, loss
         
     # ハイパーパラメータの設定
-    # ※ 本格的な学習時はもっと大きくする（VRAM容量と応相談）
-    B = 4   # バッチサイズ
-    T = 128 # コンテキスト長
-    learning_rate = 6e-4
-    vocab_size = 8000 # 今回は小規模な設定
+    # 本格的な中規模LLM設定（GPT-2 Small 相当 / 約117Mパラメータ）
+    # CPU / 小メモリ環境での動作を考慮したバランス設定
+    B = 4           # バッチサイズ（VRAM/RAM が多い場合は増やせる: 8, 16）
+    T = 512         # コンテキスト長（一度に読める最大文字数）
+    learning_rate = 3e-4  # 中規模モデルでは少し抑えた学習率
+    vocab_size = 8000     # トークナイザの語彙数（prepare_dataset.py と合わせる）
     
     # デバイスの自動判別（MacならMPS、Windows/LinuxならCUDA、なければCPU）
     device = 'cpu'
@@ -81,7 +82,19 @@ def train_step(max_steps=50):
          return 0, 0.0
 
     # LLMモデルの生成
-    config = GPTConfig(vocab_size=vocab_size, block_size=T, n_layer=4, n_head=4, n_embd=128)
+    # GPT-2 Small 相当の本格設定 (n_layer=12, n_head=12, n_embd=768 → 約117M params)
+    # ※ より強力にしたい場合:
+    #    Medium (345M): n_layer=24, n_head=16, n_embd=1024
+    #    Large  (762M): n_layer=36, n_head=20, n_embd=1280  ← GPU必須
+    config = GPTConfig(
+        vocab_size=vocab_size,
+        block_size=T,
+        n_layer=12,   # 層の数（深さ）
+        n_head=12,    # アテンションヘッド数
+        n_embd=768,   # 埋め込み次元数（思考の広さ）
+        dropout=0.0,  # 初期学習はdropoutなし（データが多くなったら0.1程度に）
+        bias=False    # GPT-2では通例False（軽量化）
+    )
     model = GPT(config)
     model.to(device)
     
@@ -94,12 +107,17 @@ def train_step(max_steps=50):
         print(f"Loading checkpoint from {checkpoint_path}...")
         try:
             checkpoint = torch.load(checkpoint_path, map_location=device, weights_only=False)
-            model.load_state_dict(checkpoint['model_state_dict'])
-            optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
-            start_step = checkpoint['step']
-            print(f"Resumed from step {start_step}")
+            # チェックポイントのモデル設定を復元（アーキテクチャが変わった場合はスキップ）
+            saved_config = checkpoint.get('config')
+            if saved_config and saved_config.n_embd == config.n_embd and saved_config.n_layer == config.n_layer:
+                model.load_state_dict(checkpoint['model_state_dict'])
+                optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+                start_step = checkpoint['step']
+                print(f"Resumed from step {start_step}")
+            else:
+                print("[Info] Architecture changed. Starting from scratch (old checkpoint ignored).")
         except Exception as e:
-            print(f"Failed to load checkpoint: {e}")
+            print(f"Failed to load checkpoint (starting fresh): {e}")
         
     # PyTorch 2.0の高速化機能 (macのmpsでは動作が不安定な場合があるため除外)
     if hasattr(torch, 'compile') and device != 'mps' and sys.platform != 'win32':
