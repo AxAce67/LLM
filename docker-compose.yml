@@ -1,0 +1,45 @@
+version: '3.8'
+
+# 子機・親機などシステム全体を構成するコンテナ群の定義
+# 注意：このファイルは setup.sh によって自動的に動的設定（環境変数）が読み込まれます。
+
+services:
+  # 分散クローラー本体 (親機・子機共通で動くコアエンジン)
+  crawler_engine:
+    build: .
+    # コンテナ名 (見分けやすくするため)
+    container_name: llm_engine
+    restart: always # OS再起動時やクラッシュ時に自動で復帰する
+    # host側のディレクトリをマウントしてデータを永続化
+    volumes:
+      - ./dataset:/app/dataset
+      - ./checkpoints:/app/checkpoints
+      - ./system_status.json:/app/system_status.json
+    environment:
+      # setup.shで作成した .env から読み込まれるDB接続情報
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_KEY=${SUPABASE_KEY}
+      # 親機/子機の役割 ("master" or "worker")
+      - SYSTEM_ROLE=${SYSTEM_ROLE:-worker}
+    # バックグラウンド起動時の実行コマンド
+    command: python3 main_controller.py
+
+  # ※ 開発用オプション: ダッシュボードサーバー (親機として起動した場合のみ動作するように制御予定)
+  dashboard:
+    build: .
+    container_name: llm_dashboard
+    restart: always
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./dataset:/app/dataset
+      - ./system_status.json:/app/system_status.json
+    environment:
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_KEY=${SUPABASE_KEY}
+      - SYSTEM_ROLE=${SYSTEM_ROLE:-worker}
+    # uvicorn を用いて Fast API (app.py) を起動
+    command: uvicorn app:app --host 0.0.0.0 --port 8000
+    # 子機(worker)の場合は起動させないための設定 (プロファイルの活用)
+    profiles:
+      - master

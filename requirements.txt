@@ -1,0 +1,28 @@
+# Core Machine Learning Framework
+torch
+torchvision
+torchaudio
+
+# Data processing
+numpy
+pandas
+tqdm
+sentencepiece
+
+# Web Scraping & Data Collection
+requests
+beautifulsoup4
+wikiextractor
+
+# Database (Supabase)
+supabase
+python-dotenv
+
+# Web Dashboard (FastAPI)
+fastapi
+uvicorn
+jinja2
+python-multipart
+
+# Utilities
+psutil

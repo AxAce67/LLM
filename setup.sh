@@ -1,0 +1,104 @@
+#!/bin/bash
+# ==============================================================================
+# 自作LLM分散収集システム（Docker）完全自動インストーラー
+# 使い方: curl -sL https://raw.githubusercontent.com/.../setup.sh | bash
+#         または bash setup.sh [--master]
+# ==============================================================================
+
+set -e
+
+# ------------------------------------------------------------------------------
+
+# 親機(Master)フラグの判定
+SYSTEM_ROLE="worker"
+DOCKER_PROFILE=""
+if [[ "$1" == "--master" ]]; then
+    SYSTEM_ROLE="master"
+    DOCKER_PROFILE="--profile master"
+    echo -e "\n[🌟 Master Mode] 親機(ダッシュボード稼働)としてインストールを開始します。"
+else
+    echo -e "\n[🤖 Worker Mode] 子機(データ収集専用)としてインストールを開始します。"
+fi
+
+# --- 2. クラウドDB（Supabase）接続情報の設定 ---
+echo -e "\n============================================="
+echo -e " LLM Data Collector 自動セットアップウィザード"
+echo -e "=============================================\n"
+echo -e "[設定] データを保存・共有するためのSupabase接続情報を入力してください。"
+echo -e "※この情報はあなたのPC内にのみ保存され（.env）、外部には送信されません。"
+
+while true; do
+    read -p "Supabase URL: " SUPABASE_URL
+    if [ -n "$SUPABASE_URL" ]; then
+        break
+    else
+        echo "[!] URLは必須です。もう一度入力してください。"
+    fi
+done
+
+while true; do
+    read -p "Supabase ANON KEY: " SUPABASE_KEY
+    if [ -n "$SUPABASE_KEY" ]; then
+        break
+    else
+        echo "[!] KEYは必須です。もう一度入力してください。"
+    fi
+done
+
+echo -e "\n[✓] 接続情報を一時記憶しました。"
+
+# --- 4. Docker のインストール確認と自動導入 (Ubuntu/Debian系想定) ---
+echo -e "\n[1/3] 🐳 Docker環境のチェックとインストール..."
+if ! command -v docker &> /dev/null; then
+    echo "Dockerがインストールされていません。自動インストールを開始します（数分かかります）..."
+    curl -fsSL https://get.docker.com -o get-docker.sh
+    sh get-docker.sh
+    rm get-docker.sh
+    echo "Dockerのインストールが完了しました。"
+else
+    echo "Dockerは既にインストールされています。スキップします。"
+fi
+
+# 最新版の互換性のため docker compose V2 コマンドを確認
+DOCKER_COMPOSE_CMD="docker compose"
+if ! docker compose version &> /dev/null; then
+    if command -v docker-compose &> /dev/null; then
+         DOCKER_COMPOSE_CMD="docker-compose"
+    else
+         echo "警告: docker-composeが見つかりません。セットアップが失敗する可能性があります。"
+    fi
+fi
+
+# --- 4. プロジェクトの確保 (カレントディレクトリ) ---
+# ※ このスクリプト自体が git clone されたディレクトリに存在するか、
+# URL実行された場合は自動でリポジトリを落とすといった処理を書く。
+# 今回は既にコード群があるディレクトリ（または展開済み）で実行される前提とする。
+echo -e "\n[2/3] ⚙️ 環境変数ファイル(.env)の生成..."
+cat << EOF > .env
+SUPABASE_URL=${SUPABASE_URL}
+SUPABASE_KEY=${SUPABASE_KEY}
+SYSTEM_ROLE=${SYSTEM_ROLE}
+EOF
+echo ".env を作成・更新しました。"
+
+# システムが未稼働の場合にエラーになるのを防ぐためダミーのjsonを作っておく
+if [ ! -f system_status.json ]; then
+    echo '{"is_running": false}' > system_status.json
+fi
+
+# --- 5. バックグラウンド起動 ---
+echo -e "\n[3/3] 🚀 LLMエンジンのビルドおよびバックグラウンド起動..."
+# Masterならダッシュボードも立ち上がる / Workerならクローラーだけ
+eval "$DOCKER_COMPOSE_CMD $DOCKER_PROFILE up -d --build"
+
+echo -e "\n============================================="
+echo -e "🎉 インストールと起動がすべて完了しました！"
+if [[ "$SYSTEM_ROLE" == "master" ]]; then
+    echo -e "📡 ブラウザから http://<このPCのIPアドレス>:8000 にアクセスして"
+    echo -e "   稼働状況ダッシュボードを確認できます。"
+else
+    echo -e "🤖 この子機はバックグラウンドで黙々と自動クロールを続けます。"
+    echo -e "   親機のダッシュボードから、世界中の子機の働きを一括確認できます。"
+fi
+echo -e "💡 停止する場合はコマンド: $DOCKER_COMPOSE_CMD $DOCKER_PROFILE down"
+echo -e "=============================================\n"

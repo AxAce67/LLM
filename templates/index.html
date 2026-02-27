@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Factory Engine Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+        rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Outfit', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    },
+                    colors: {
+                        surface: 'rgba(255, 255, 255, 0.7)',
+                        surfaceBorder: 'rgba(200, 210, 220, 0.4)',
+                        accentBlue: '#007AFF',
+                        accentPurple: '#5856D6',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background: radial-gradient(circle at top right, #f0f4f8 0%, #e1e8ed 100%);
+            min-height: 100vh;
+            color: #1a202c;
+        }
+
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.65);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.8);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+        }
+
+        .gradient-text {
+            background: linear-gradient(135deg, #007AFF 0%, #5856D6 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .tab-btn {
+            transition: all 0.3s ease;
+        }
+
+        .tab-btn.active {
+            color: #007AFF;
+            border-bottom: 2px solid #007AFF;
+        }
+
+        .tab-btn:not(.active) {
+            color: #718096;
+            border-bottom: 2px solid transparent;
+        }
+
+        .tab-btn:hover:not(.active) {
+            color: #4a5568;
+            border-bottom: 2px solid #cbd5e0;
+        }
+
+        /* ログウィンドウ */
+        #log-container::-webkit-scrollbar,
+        #chat-history::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        #log-container::-webkit-scrollbar-track,
+        #chat-history::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.05);
+            border-radius: 4px;
+        }
+
+        #log-container::-webkit-scrollbar-thumb,
+        #chat-history::-webkit-scrollbar-thumb {
+            background: rgba(0, 0, 0, 0.15);
+            border-radius: 4px;
+        }
+    </style>
+</head>
+
+<body class="antialiased selection:bg-accentBlue selection:text-white pb-12">
+
+    <!-- Header Navigation -->
+    <header
+        class="glass-panel sticky top-0 z-50 border-b border-surfaceBorder/50 mb-8 items-center px-8 py-4 flex justify-between">
+        <div class="flex items-center space-x-3 gap-8">
+            <h1 class="text-2xl font-bold tracking-tight text-gray-800">
+                AI Factory <span class="gradient-text">Engine</span>
+            </h1>
+
+            <!-- Tabs -->
+            <nav class="flex space-x-6 text-sm font-medium mt-1">
+                <button onclick="switchTab('dashboard')" id="tab-dashboard"
+                    class="tab-btn active pb-1 focus:outline-none">
+                    Overview
+                </button>
+                <button onclick="switchTab('chat')" id="tab-chat" class="tab-btn pb-1 focus:outline-none">
+                    AI Chat Inference
+                </button>
+            </nav>
+        </div>
+
+        <div class="flex items-center space-x-4">
+            <div id="status-indicator"
+                class="flex items-center space-x-2 bg-white/50 px-4 py-2 rounded-full border border-gray-200">
+                <span class="w-2.5 h-2.5 rounded-full bg-gray-400" id="status-dot"></span>
+                <span id="status-text"
+                    class="text-sm font-medium text-gray-700 uppercase tracking-widest">Connecting...</span>
+            </div>
+
+            <button id="master-toggle-btn" onclick="togglePipeline()"
+                class="bg-white hover:bg-gray-50 text-gray-800 font-semibold py-2 px-6 rounded-full shadow-sm border border-gray-200 transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-accentBlue focus:ring-opacity-50 flex items-center space-x-2">
+                <svg id="master-toggle-icon" class="w-4 h-4 text-green-500" fill="currentColor" viewBox="0 0 20 20"
+                    xmlns="http://www.w3.org/2000/svg">
+                    <path fill-rule="evenodd"
+                        d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z"
+                        clip-rule="evenodd"></path>
+                </svg>
+                <span id="master-toggle-text">Ignite All</span>
+            </button>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-6">
+
+        <!-- DASHBOARD VIEW -->
+        <div id="view-dashboard" class="space-y-8 animate-fade-in block">
+
+            <!-- Top Metrics Row -->
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+                <!-- System Phase -->
+                <div class="glass-panel p-6 rounded-2xl flex flex-col justify-center">
+                    <p class="text-xs font-semibold text-gray-500 tracking-wider mb-1 uppercase">Pipeline Phase</p>
+                    <h2 id="current-phase" class="text-2xl font-bold text-gray-800">Initializing</h2>
+                </div>
+
+                <!-- Swarm Workers Display (Master Calculated) -->
+                <div class="glass-panel p-6 rounded-2xl">
+                    <p class="text-xs font-semibold text-gray-500 tracking-wider mb-1 uppercase">Estimated Workers</p>
+                    <div class="flex items-baseline space-x-2">
+                        <span id="active-workers" class="text-3xl font-bold gradient-text">0</span>
+                        <span class="text-sm text-gray-500 font-medium">calculated active</span>
+                    </div>
+                </div>
+
+                <!-- Master Node CPU -->
+                <div class="glass-panel p-6 rounded-2xl">
+                    <div class="flex justify-between items-end mb-2">
+                        <p class="text-xs font-semibold text-gray-500 tracking-wider uppercase">Master CPU</p>
+                        <span id="cpu-percent" class="text-lg font-bold text-gray-800">0%</span>
+                    </div>
+                    <div class="w-full bg-gray-200 rounded-full h-1.5 overflow-hidden">
+                        <div id="cpu-bar"
+                            class="bg-gradient-to-r from-accentBlue to-accentPurple h-1.5 rounded-full transition-all duration-500"
+                            style="width: 0%"></div>
+                    </div>
+                </div>
+
+                <!-- Master Node RAM -->
+                <div class="glass-panel p-6 rounded-2xl">
+                    <div class="flex justify-between items-end mb-2">
+                        <p class="text-xs font-semibold text-gray-500 tracking-wider uppercase">Master Memory</p>
+                        <span id="ram-percent" class="text-lg font-bold text-gray-800">0%</span>
+                    </div>
+                    <div class="w-full bg-gray-200 rounded-full h-1.5 overflow-hidden">
+                        <div id="ram-bar"
+                            class="bg-gradient-to-r from-accentBlue to-accentPurple h-1.5 rounded-full transition-all duration-500"
+                            style="width: 0%"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Connected Nodes Management (NEW) -->
+            <div class="glass-panel rounded-2xl overflow-hidden p-[1px]">
+                <div class="bg-white/40 rounded-2xl p-6">
+                    <div class="flex justify-between items-center border-b border-gray-200 pb-4 mb-4">
+                        <div class="flex flex-col">
+                            <h3 class="text-sm font-bold text-gray-800 flex items-center uppercase tracking-widest">
+                                <svg class="w-4 h-4 mr-2 text-accentBlue" fill="none" stroke="currentColor"
+                                    viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 002-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10">
+                                    </path>
+                                </svg>
+                                Connected Swarm Nodes
+                            </h3>
+                            <p class="text-xs text-gray-500 mt-1">Individual machine controls & telemetry</p>
+                        </div>
+                        <button onclick="fetchNodes()"
+                            class="text-xs text-accentBlue hover:text-accentPurple font-medium flex items-center">
+                            <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                                xmlns="http://www.w3.org/2000/svg">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15">
+                                </path>
+                            </svg>
+                            Refresh
+                        </button>
+                    </div>
+
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-sm">
+                            <thead>
+                                <tr class="text-gray-500 uppercase text-xs tracking-wider border-b border-gray-200">
+                                    <th class="pb-3 pr-4 font-semibold">Node ID</th>
+                                    <th class="pb-3 px-4 font-semibold">Role</th>
+                                    <th class="pb-3 px-4 font-semibold">Status</th>
+                                    <th class="pb-3 px-4 font-semibold">CPU</th>
+                                    <th class="pb-3 px-4 font-semibold">Memory</th>
+                                    <th class="pb-3 px-4 font-semibold">Last Seen</th>
+                                    <th class="pb-3 pl-4 font-semibold text-right">Control</th>
+                                </tr>
+                            </thead>
+                            <tbody id="nodes-table-body" class="divide-y divide-gray-100">
+                                <!-- Nodes will be dynamically injected here -->
+                                <tr>
+                                    <td colspan="7" class="py-6 text-center text-gray-400">Loading nodes...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Stats & Logs Row -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <!-- Data Storage Stats -->
+                <div class="glass-panel p-6 rounded-2xl flex flex-col justify-between">
+                    <div>
+                        <h3 class="text-sm font-bold text-gray-800 mb-6 flex items-center uppercase tracking-widest">
+                            <svg class="w-4 h-4 mr-2 text-accentPurple" fill="none" stroke="currentColor"
+                                viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4">
+                                </path>
+                            </svg>
+                            Corpus Storage
+                        </h3>
+                        <div class="space-y-4">
+                            <div
+                                class="flex justify-between items-center p-4 rounded-xl border border-gray-100 bg-white/50">
+                                <span class="text-gray-600 font-serif italic text-lg">W</span>
+                                <div class="text-right">
+                                    <span id="docs-wiki" class="text-xl font-bold text-gray-800">0</span>
+                                    <span class="text-xs text-gray-400 block ml-1 uppercase">Wikipedia Docs</span>
+                                </div>
+                            </div>
+                            <div
+                                class="flex justify-between items-center p-4 rounded-xl border border-gray-100 bg-white/50">
+                                <span class="text-accentBlue font-bold text-lg text-center">Web</span>
+                                <div class="text-right">
+                                    <span id="docs-web" class="text-xl font-bold text-gray-800">0</span>
+                                    <span class="text-xs text-gray-400 block uppercase ml-1">General Web Crawls</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mt-6 pt-4 border-t border-gray-200 flex justify-between items-center">
+                        <span class="text-sm text-gray-500 font-medium">Total Volume Size</span>
+                        <span id="dataset-size"
+                            class="text-2xl font-bold bg-gray-100 px-3 py-1 rounded-lg text-gray-800 border border-gray-200 shadow-inner">0.00
+                            MB</span>
+                    </div>
+                </div>
+
+                <!-- Neural Net Training -->
+                <div class="glass-panel p-6 rounded-2xl flex flex-col justify-between">
+                    <div>
+                        <h3 class="text-sm font-bold text-gray-800 mb-6 flex items-center uppercase tracking-widest">
+                            <svg class="w-4 h-4 mr-2 text-accentBlue" fill="none" stroke="currentColor"
+                                viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z">
+                                </path>
+                            </svg>
+                            Neural Net Training
+                        </h3>
+                        <div class="flex justify-center items-center h-full min-h-[160px]">
+                            <div class="text-center px-8 border-r border-gray-200">
+                                <p class="text-xs text-gray-400 uppercase tracking-widest mb-2 font-medium">Generations
+                                    (Epochs)</p>
+                                <p id="current-epoch" class="text-6xl font-light text-gray-800">0</p>
+                            </div>
+                            <div class="text-center px-8">
+                                <p class="text-xs text-gray-400 uppercase tracking-widest mb-2 font-medium">
+                                    Cross-Entropy Loss</p>
+                                <p id="current-loss"
+                                    class="text-5xl font-bold text-rose-500 font-mono tracking-tighter">0.0000</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Read-Only Terminal log -->
+            <div class="glass-panel rounded-2xl overflow-hidden mt-6">
+                <div class="bg-gray-100/80 px-4 py-2 flex space-x-2 border-b border-gray-200 shadow-inner">
+                    <div class="w-3 h-3 rounded-full bg-red-400"></div>
+                    <div class="w-3 h-3 rounded-full bg-yellow-400"></div>
+                    <div class="w-3 h-3 rounded-full bg-green-400"></div>
+                    <span class="text-xs font-mono text-gray-500 ml-4">supervisor.log — master@engine:~</span>
+                </div>
+                <div class="bg-white/90 p-1">
+                    <div id="log-container" class="font-mono text-sm p-4 h-64 overflow-y-auto text-gray-700 space-y-1">
+                        <!-- Logs will be appended here -->
+                    </div>
+                </div>
+            </div>
+
+        </div> <!-- End Dashboard View -->
+
+        <!-- CHAT VIEW -->
+        <div id="view-chat" class="hidden animate-fade-in flex flex-col items-center">
+            <div class="glass-panel w-full max-w-4xl rounded-2xl overflow-hidden border border-gray-200 shadow-xl mt-4">
+                <div class="bg-gray-50 border-b border-gray-200 px-6 py-4 flex justify-between items-center">
+                    <h3 class="text-sm font-bold text-gray-800 flex items-center uppercase tracking-widest">
+                        <svg class="w-4 h-4 mr-2 text-accentBlue" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z">
+                            </path>
+                        </svg>
+                        Neural Inference Engine
+                    </h3>
+                    <span
+                        class="text-xs bg-accentBlue text-white px-2 py-1 rounded font-medium shadow-sm">SELF-REGRESSIVE</span>
+                </div>
+
+                <div class="bg-white p-6">
+                    <div id="chat-history"
+                        class="h-96 overflow-y-auto mb-4 border border-gray-100 rounded-xl p-4 bg-gray-50 flex flex-col space-y-4 shadow-inner relative">
+                        <!-- Placeholder -->
+                        <div id="chat-placeholder"
+                            class="absolute inset-0 flex items-center justify-center pointer-events-none opacity-40">
+                            <p class="text-sm text-gray-500 italic text-center leading-relaxed">
+                                System initialized.<br>
+                                Input a prompt to synthesize data from your custom corpus model.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div
+                        class="flex space-x-3 bg-white border border-gray-200 rounded-xl p-2 shadow-sm focus-within:ring-2 focus-within:ring-accentBlue/20 focus-within:border-accentBlue transition-all">
+                        <input type="text" id="prompt-input"
+                            class="flex-1 bg-transparent border-none text-gray-800 focus:ring-0 placeholder-gray-400 font-sans"
+                            placeholder="e.g. 宇宙について教えてください..." onkeypress="if(event.key === 'Enter') generateText()">
+                        <button onclick="generateText()"
+                            class="bg-gradient-to-r from-accentBlue to-accentPurple hover:opacity-90 text-white p-3 rounded-lg transition-all duration-300 shadow-md">
+                            <svg class="w-5 h-5 transform -rotate-45" fill="none" stroke="currentColor"
+                                viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div> <!-- End Chat View -->
+
+    </main>
+
+    <script>
+        let isRunning = false;
+
+        // ---------- Tab Management ----------
+        function switchTab(tabId) {
+            document.getElementById('view-dashboard').classList.add('hidden');
+            document.getElementById('view-chat').classList.add('hidden');
+
+            document.getElementById('tab-dashboard').classList.remove('active');
+            document.getElementById('tab-chat').classList.remove('active');
+
+            document.getElementById(`view-${tabId}`).classList.remove('hidden');
+            document.getElementById(`tab-${tabId}`).classList.add('active');
+
+            if (tabId === 'dashboard') {
+                fetchNodes(); // Refresh nodes immediately on switch
+            }
+        }
+
+        // ---------- System Overview Polling ----------
+        async function fetchStatus() {
+            try {
+                const response = await fetch('/api/status');
+                const data = await response.json();
+
+                isRunning = data.is_running;
+                const statusDot = document.getElementById('status-dot');
+                const statusText = document.getElementById('status-text');
+                const masterToggleText = document.getElementById('master-toggle-text');
+                const masterToggleIcon = document.getElementById('master-toggle-icon');
+                const currentPhase = document.getElementById('current-phase');
+
+                if (isRunning) {
+                    statusDot.className = "w-2.5 h-2.5 rounded-full bg-green-500 animate-pulse";
+                    statusText.textContent = "ONLINE & LEARNING";
+                    statusText.className = "text-sm font-bold text-green-600 uppercase tracking-widest";
+                    masterToggleText.textContent = "Shutdown System";
+                    masterToggleIcon.innerHTML = `<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8 7a1 1 0 00-1 1v4a1 1 0 001 1h4a1 1 0 001-1V8a1 1 0 00-1-1H8z" clip-rule="evenodd"></path>`;
+                    masterToggleIcon.className = "w-4 h-4 text-red-500";
+                    currentPhase.className = "text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-accentBlue to-accentPurple";
+                } else {
+                    statusDot.className = "w-2.5 h-2.5 rounded-full bg-gray-400";
+                    statusText.textContent = "IDLE / PAUSED";
+                    statusText.className = "text-sm font-bold text-gray-500 uppercase tracking-widest";
+                    masterToggleText.textContent = "Ignite System";
+                    masterToggleIcon.innerHTML = `<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd"></path>`;
+                    masterToggleIcon.className = "w-4 h-4 text-green-500";
+                    currentPhase.className = "text-2xl font-bold text-gray-400";
+                }
+
+                currentPhase.textContent = data.current_phase;
+                document.getElementById('docs-wiki').textContent = data.stats.collected_docs_wiki;
+                document.getElementById('docs-web').textContent = data.stats.collected_docs_web;
+                document.getElementById('dataset-size').textContent = data.stats.dataset_size_mb + " MB";
+                document.getElementById('current-epoch').textContent = data.stats.current_epoch;
+                document.getElementById('current-loss').textContent = data.stats.current_loss.toFixed(4);
+
+                // 動的ワーカー＆ハードウェア表示（Master自身分）
+                const activeWorkersSpan = document.getElementById('active-workers');
+                if (data.stats.active_workers > 0) {
+                    activeWorkersSpan.textContent = data.stats.active_workers;
+                } else {
+                    activeWorkersSpan.textContent = "0";
+                }
+
+                document.getElementById('cpu-percent').textContent = data.system.cpu_percent.toFixed(1) + "%";
+                document.getElementById('ram-percent').textContent = data.system.ram_percent.toFixed(1) + "%";
+                document.getElementById('cpu-bar').style.width = data.system.cpu_percent + "%";
+                document.getElementById('ram-bar').style.width = data.system.ram_percent + "%";
+
+                // ログの更新
+                const logContainer = document.getElementById('log-container');
+                logContainer.innerHTML = '';
+                [...data.logs].reverse().forEach(log => {
+                    const line = document.createElement('div');
+                    line.className = "py-0.5 whitespace-pre-wrap break-all";
+                    // Colorize basic log patterns
+                    let formattedLog = log
+                        .replace(/\[Error\]|error/gi, '<span class="text-rose-600 font-semibold">$&</span>')
+                        .replace(/\[Network\]/g, '<span class="text-accentBlue font-semibold">$&</span>')
+                        .replace(/Phase changed to:/g, '<span class="text-accentPurple font-semibold">$&</span>');
+                    line.innerHTML = formattedLog;
+                    logContainer.appendChild(line);
+                });
+
+            } catch (error) {
+                console.error("Failed to fetch status:", error);
+                document.getElementById('status-text').textContent = "CONNECTION ERROR";
+                document.getElementById('status-dot').className = "w-2.5 h-2.5 rounded-full bg-red-500";
+            }
+        }
+
+        // ---------- Node Management Polling ----------
+        async function fetchNodes() {
+            try {
+                const response = await fetch('/api/nodes');
+                const data = await response.json();
+
+                if (data.status === 'success') {
+                    const tbody = document.getElementById('nodes-table-body');
+                    tbody.innerHTML = ''; // Clear existing
+
+                    if (data.nodes.length === 0) {
+                        tbody.innerHTML = '<tr><td colspan="7" class="py-6 text-center text-gray-400">No nodes connected.</td></tr>';
+                        return;
+                    }
+
+                    // 時間計算用（オフライン検知）
+                    const nowTS = new Date().getTime();
+
+                    data.nodes.forEach(node => {
+                        const tr = document.createElement('tr');
+
+                        // Offline判定 (最終報告から30秒以上経過)
+                        let lastSeenDate = new Date(node.last_heartbeat);
+                        let isOffline = (nowTS - lastSeenDate.getTime()) > 30000;
+                        let displayStatus = isOffline ? 'offline' : node.status;
+
+                        // Status Badge Color
+                        let statusColor = "bg-gray-100 text-gray-500 border-gray-200"; // default/offline
+                        if (displayStatus === 'running') statusColor = "bg-green-100 text-green-700 border-green-200";
+                        if (displayStatus === 'paused') statusColor = "bg-yellow-100 text-yellow-700 border-yellow-200";
+
+                        const roleBadge = node.role === 'master'
+                            ? `<span class="bg-indigo-100 text-indigo-700 font-semibold px-2 py-0.5 rounded text-[11px] leading-tight uppercase align-middle">Master</span>`
+                            : `<span class="bg-slate-100 text-slate-600 font-medium px-2 py-0.5 rounded text-[11px] leading-tight uppercase align-middle">Worker</span>`;
+
+                        // UI Row Create
+                        tr.innerHTML = `
+                            <td class="py-3 pr-4 font-mono text-gray-600 text-xs">...${node.node_id.substring(node.node_id.length - 8)}</td>
+                            <td class="py-3 px-4">${roleBadge}</td>
+                            <td class="py-3 px-4">
+                                <span class="px-2 py-1 rounded-md text-xs font-bold uppercase tracking-wider border ${statusColor}">
+                                    ${displayStatus}
+                                </span>
+                            </td>
+                            <td class="py-3 px-4 font-mono text-xs ${isOffline ? 'text-gray-300' : 'text-gray-700'}">${isOffline ? '--' : node.cpu_usage.toFixed(1) + '%'}</td>
+                            <td class="py-3 px-4 font-mono text-xs ${isOffline ? 'text-gray-300' : 'text-gray-700'}">${isOffline ? '--' : node.ram_usage.toFixed(1) + '%'}</td>
+                            <td class="py-3 px-4 text-xs text-gray-400" title="${lastSeenDate.toLocaleString()}">${lastSeenDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</td>
+                            <td class="py-3 pl-4 text-right space-x-1">
+                                <button onclick="controlNode('${node.node_id}', 'start')" class="p-1.5 rounded-md hover:bg-green-50 text-gray-400 hover:text-green-600 transition disabled:opacity-30 disabled:hover:bg-transparent" title="Start Engine" ${isOffline ? 'disabled' : ''}>
+                                    <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd"></path></svg>
+                                </button>
+                                <button onclick="controlNode('${node.node_id}', 'stop')" class="p-1.5 rounded-md hover:bg-red-50 text-gray-400 hover:text-red-500 transition disabled:opacity-30 disabled:hover:bg-transparent" title="Pause Engine" ${isOffline ? 'disabled' : ''}>
+                                    <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8 7a1 1 0 00-1 1v4a1 1 0 001 1h4a1 1 0 001-1V8a1 1 0 00-1-1H8z" clip-rule="evenodd"></path></svg>
+                                </button>
+                            </td>
+                        `;
+                        tbody.appendChild(tr);
+                    });
+                }
+            } catch (error) {
+                console.error("Failed to fetch nodes:", error);
+            }
+        }
+
+        // ---------- Control Actions ----------
+        async function togglePipeline() {
+            const action = isRunning ? 'stop' : 'start';
+            await fetch('/api/control', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: action })
+            });
+            fetchStatus();
+        }
+
+        async function controlNode(nodeId, action) {
+            try {
+                const response = await fetch(`/api/nodes/${nodeId}/control`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: action })
+                });
+                const res = await response.json();
+                console.log(res.message);
+                // Immediately refresh table to feel responsive
+                setTimeout(fetchNodes, 500);
+            } catch (e) {
+                console.error("Control failed:", e);
+            }
+        }
+
+        // ---------- Inference Chat ----------
+        async function generateText() {
+            const inputEl = document.getElementById('prompt-input');
+            const prompt = inputEl.value.trim();
+            if (!prompt) return;
+
+            document.getElementById('chat-placeholder').style.display = 'none';
+            const chatHistory = document.getElementById('chat-history');
+
+            // Append User Question
+            const userDiv = document.createElement('div');
+            userDiv.className = 'w-[85%] self-end bg-accentBlue text-white p-4 rounded-tl-xl rounded-tr-sm rounded-bl-xl rounded-br-xl shadow-sm text-sm';
+            userDiv.textContent = prompt;
+            chatHistory.appendChild(userDiv);
+
+            inputEl.value = '';
+            chatHistory.scrollTop = chatHistory.scrollHeight;
+
+            // Optional Loading Bubbles
+            const aiDiv = document.createElement('div');
+            aiDiv.className = 'w-[85%] self-start bg-white border border-gray-200 text-gray-800 p-4 rounded-tl-sm rounded-tr-xl rounded-bl-xl rounded-br-xl shadow-sm text-sm';
+            aiDiv.innerHTML = '<span class="text-gray-400 italic">Thinking...</span>';
+            chatHistory.appendChild(aiDiv);
+            chatHistory.scrollTop = chatHistory.scrollHeight;
+
+            try {
+                const response = await fetch('/api/generate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ prompt: prompt, max_tokens: 150 })
+                });
+
+                const data = await response.json();
+
+                if (data.status === 'success') {
+                    aiDiv.innerHTML = '<span class="font-bold text-accentBlue mb-1 block">Agent Response:</span>' + data.text.replace(/\n/g, '<br>');
+                } else {
+                    aiDiv.innerHTML = `<span class="text-rose-500 font-bold">Error:</span> ${data.message}`;
+                }
+            } catch (err) {
+                aiDiv.innerHTML = `<span class="text-rose-500 font-bold">Error:</span> Failed to connect to inference server.`;
+            }
+            chatHistory.scrollTop = chatHistory.scrollHeight;
+        }
+
+        // ---------- Setup & Loops ----------
+        setInterval(fetchStatus, 2000);
+        setInterval(fetchNodes, 5000); // Node table needs less frequent updates
+
+        // Initial Fetch
+        fetchStatus();
+        fetchNodes();
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Environment
+.env
+venv/
+env/
+.venv/
+.python-version
+
+# IDE / OS Files
+.vscode/
+.idea/
+.DS_Store
+
+# Data / Model checkpoints (Large files or DB)
+crawled_data/
+model_checkpoint.pth
+system_status.json
+*.log
