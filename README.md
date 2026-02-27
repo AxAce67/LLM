@@ -34,6 +34,11 @@ curl -sL https://raw.githubusercontent.com/AxAce67/LLM/main/setup.sh | bash
 # すでにファイル群をダウンロード済みのディレクトリで起動する場合
 chmod +x setup.sh
 ./setup.sh
+
+# 実行前に中身を確認してから実行する場合（推奨）
+curl -fsSL -o setup.sh https://raw.githubusercontent.com/AxAce67/LLM/main/setup.sh
+less setup.sh
+bash setup.sh
 ```
 
 ※ インストール実行時、ターミナル上で対話的に以下の入力が求められます。
@@ -170,6 +175,7 @@ chmod +x setup.sh
 ## 管理API認証
 
 - `ADMIN_API_TOKEN` を設定すると管理系APIでトークン必須
+- `ADMIN_API_TOKEN_REQUIRED=1`（既定: masterで有効）により、トークン未設定時の管理API操作を拒否
 - ヘッダー: `x-admin-token: <token>`
 - 対象:
 - `POST /api/control`
@@ -194,6 +200,9 @@ chmod +x setup.sh
 
 - `ENABLE_TEXT_DEDUP=1`
 - `MIN_TRAIN_CHARS=120`
+- `MAX_TRAIN_CHARS=20000`
+- `TRAIN_LANG_ONLY=ja`（`any` で無効）
+- `ENABLE_PII_FILTER=1`（メール/電話/郵便番号/IPを含む文書を除外）
 - `SOURCE_WEIGHT_WIKIPEDIA=1.4`
 - `SOURCE_WEIGHT_ARXIV=1.35`
 - `SOURCE_WEIGHT_DOCS=1.3`
@@ -267,8 +276,68 @@ BASE_URL=http://localhost:8000 ./ops/e2e_pipeline.sh
 - `migration-ollama`: Ollama/LM Studio互換化の移行ブランチ
 - 詳細: `docs/migration_branch_strategy.md`
 
+## Ollama / LM Studio 移行（第1段）
+
+最小フロー:
+
+```bash
+# 1) 依存導入
+pip install -r requirements-migration.txt
+
+# 2) 既存DBからHF学習テキスト生成
+python3 migration_hf/prepare_hf_text.py
+
+# 3) LoRA学習（例: Qwen2.5 1.5B）
+python3 migration_hf/train_lora.py \
+  --base_model Qwen/Qwen2.5-1.5B-Instruct \
+  --train_text dataset/hf/train.txt \
+  --output_dir models/hf_lora
+
+# 3-b) 実行場所は自分で選び、自動判定で学習設定を調整（推奨）
+BASE_MODEL=Qwen/Qwen2.5-1.5B-Instruct \
+TRAIN_TEXT=dataset/hf/train.txt \
+OUTPUT_DIR=models/hf_lora \
+./migration_hf/run_train_auto.sh
+
+# 4) GGUF変換（llama.cppが必要）
+./migration_hf/export_gguf.sh ~/llama.cpp ./models/hf_base/qwen2.5-1.5b-instruct ./models/qwen2.5-1.5b.gguf
+```
+
+※ `export_gguf.sh` の第2引数はHFモデルIDではなく「ローカルディレクトリ」です。
+
+注記:
+- これは移行の第一段（学習・変換の土台）です。
+- 本番配布前に推論品質評価とモデルカード整備を行ってください。
+- 「学習場所（ローカル/VPS）」は手動選択、`run_train_auto.sh` がそのマシン上で自動チューニングを適用します。
+
+### 実行場所の選び方（ローカル / VPS）
+
+1. ローカルで学習したい場合:
+- そのPCで上記コマンドを実行
+
+2. VPSで学習したい場合:
+- VPSへこのリポジトリを配置して同じコマンドを実行
+- `BASE_MODEL` などはVPS側で指定
+
+共通:
+- 場所は手動選択
+- 設定は自動判定（CPU/GPU/RAM）
+
+### ダッシュボード統合（Migration Ops）
+
+- `Migration Ops (HF / GGUF)` パネルから以下を実行可能:
+- HF LoRA学習開始
+- GGUF変換開始
+- 進捗ステータス確認
+
 ## 学習再現性と検証
 
 - `TRAIN_SEED=42` で乱数を固定
 - `ckpt_latest.pt` に加えて、検証ロス改善時に `ckpt_best.pt` を保存
 - ダッシュボードで `Train Loss` と `Val / Best` を確認可能
+
+## 安全運用ドキュメント
+
+- 収集ポリシーと法的配慮: `docs/crawling_policy.md`
+- 親機/子機/DBの構成図と責務: `docs/architecture.md`
+- 環境変数テンプレート: `.env.example`

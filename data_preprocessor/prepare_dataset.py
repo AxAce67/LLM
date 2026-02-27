@@ -9,7 +9,13 @@ import time
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from data_collector.db_manager import DBManager
 from data_preprocessor.tokenizer_builder import TokenizerBuilder, TOKENIZER_DIR, WIKI_DIR
-from data_preprocessor.quality_filter import normalize_text, is_low_quality, is_duplicate
+from data_preprocessor.quality_filter import (
+    contains_pii,
+    detect_language,
+    is_duplicate,
+    is_low_quality,
+    normalize_text,
+)
 
 DATASET_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "dataset")
 
@@ -72,8 +78,14 @@ def prepare_dataset(vocab_size=32000, val_ratio=0.05):
     expanded_docs = 0
     filtered_docs = 0
     duplicate_docs = 0
+    lang_filtered_docs = 0
+    pii_filtered_docs = 0
+    too_long_docs = 0
     seen_hashes = set()
     source_doc_counts = {}
+    lang_only = (os.environ.get("TRAIN_LANG_ONLY", "ja") or "ja").lower()
+    max_train_chars = int(os.environ.get("MAX_TRAIN_CHARS", "20000"))
+    enable_pii_filter = os.environ.get("ENABLE_PII_FILTER", "1") == "1"
 
     open(train_bin_path, "wb").close()
     open(val_bin_path, "wb").close()
@@ -91,13 +103,32 @@ def prepare_dataset(vocab_size=32000, val_ratio=0.05):
 
     blocked_docs = 0
 
-    def write_document_tokens(text: str, source_type: str = "web", quality: float = 0.5, allowed_for_training: bool = True):
+    def write_document_tokens(
+        text: str,
+        source_type: str = "web",
+        quality: float = 0.5,
+        allowed_for_training: bool = True,
+        language: str = "",
+    ):
         nonlocal train_count, val_count, total_docs, expanded_docs, filtered_docs, duplicate_docs
+        nonlocal lang_filtered_docs, pii_filtered_docs, too_long_docs
         nonlocal blocked_docs
         if not allowed_for_training:
             blocked_docs += 1
             return
         cleaned = normalize_text(text)
+        if len(cleaned) > max_train_chars:
+            too_long_docs += 1
+            return
+        lang = (language or "").lower().strip()
+        if lang not in ("ja", "en"):
+            lang = detect_language(cleaned)
+        if lang_only not in ("", "any", "all") and lang != lang_only:
+            lang_filtered_docs += 1
+            return
+        if enable_pii_filter and contains_pii(cleaned):
+            pii_filtered_docs += 1
+            return
         if is_low_quality(cleaned, min_chars=int(os.environ.get("MIN_TRAIN_CHARS", "120"))):
             filtered_docs += 1
             return
@@ -137,6 +168,7 @@ def prepare_dataset(vocab_size=32000, val_ratio=0.05):
             write_document_tokens(
                 row.get("content", ""),
                 source_type=row.get("source_type", "web"),
+                language=row.get("language", ""),
                 quality=row.get("quality_score", 0.5),
                 allowed_for_training=row.get("allowed_for_training", True),
             )
@@ -153,14 +185,21 @@ def prepare_dataset(vocab_size=32000, val_ratio=0.05):
                         with open(file_path, "r", encoding="utf-8") as f:
                             text = f.read().strip()
                             if text:
-                                write_document_tokens(text, source_type="wikipedia", quality=0.95, allowed_for_training=True)
+                                write_document_tokens(
+                                    text,
+                                    source_type="wikipedia",
+                                    quality=0.95,
+                                    allowed_for_training=True,
+                                    language="ja",
+                                )
                     except Exception as e:
                         print(f"Error reading file {file}: {e}")
 
     flush_buffers(force=True)
     total_tokens = train_count + val_count
     print(
-        f"Processed {total_docs:,} docs (expanded={expanded_docs:,}, blocked={blocked_docs:,}, filtered={filtered_docs:,}, duplicates={duplicate_docs:,}). "
+        f"Processed {total_docs:,} docs (expanded={expanded_docs:,}, blocked={blocked_docs:,}, filtered={filtered_docs:,}, duplicates={duplicate_docs:,}, "
+        f"lang_filtered={lang_filtered_docs:,}, pii_filtered={pii_filtered_docs:,}, too_long={too_long_docs:,}). "
         f"Total tokens: {total_tokens:,}"
     )
 
@@ -188,6 +227,12 @@ def prepare_dataset(vocab_size=32000, val_ratio=0.05):
                 "vocab_size": sp.get_piece_size(),
                 "val_ratio": val_ratio,
                 "dedup": os.environ.get("ENABLE_TEXT_DEDUP", "1"),
+                "lang_only": lang_only,
+                "max_train_chars": max_train_chars,
+                "enable_pii_filter": enable_pii_filter,
+                "lang_filtered_docs": lang_filtered_docs,
+                "pii_filtered_docs": pii_filtered_docs,
+                "too_long_docs": too_long_docs,
             },
         )
         print(f"Dataset version recorded: {dataset_tag}")
@@ -202,6 +247,9 @@ def prepare_dataset(vocab_size=32000, val_ratio=0.05):
         "blocked_docs": blocked_docs,
         "filtered_docs": filtered_docs,
         "duplicate_docs": duplicate_docs,
+        "lang_filtered_docs": lang_filtered_docs,
+        "pii_filtered_docs": pii_filtered_docs,
+        "too_long_docs": too_long_docs,
     }
 
 if __name__ == "__main__":

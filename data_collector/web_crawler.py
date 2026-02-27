@@ -62,6 +62,19 @@ def _respect_domain_rate_limit(domain: str):
         _domain_last_request[domain] = time.time()
 
 
+def _is_same_domain(base_domain: str, candidate_url: str) -> bool:
+    try:
+        cand = urlparse(candidate_url).netloc
+        if not cand:
+            return False
+        allow_subdomains = os.environ.get("CRAWLER_ALLOW_SUBDOMAINS", "0") == "1"
+        if allow_subdomains:
+            return cand == base_domain or cand.endswith("." + base_domain)
+        return cand == base_domain
+    except Exception:
+        return False
+
+
 def crawl_url(url, db_manager):
     """単一のURLをクロールしてPostgreSQLに保存し、ページ内のリンクを返す"""
     if db_manager.is_url_crawled(url):
@@ -132,7 +145,7 @@ def crawl_url(url, db_manager):
         href = a_tag['href']
         full_url = urljoin(url, href)
         # 外部ツール等への迷惑を防ぐため、今回は「同一ドメイン内」を優先的に辿る安全な設計
-        if full_url.startswith("http") and domain in full_url:
+        if full_url.startswith("http") and _is_same_domain(domain, full_url):
             # フラグメント（#）を取り除く
             clean_url = full_url.split('#')[0]
             new_links.append(clean_url)
