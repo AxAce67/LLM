@@ -47,9 +47,9 @@ def download_wikipedia_dump(language: str = "ja") -> int:
         print(f"[WikiDL] Wikipedia data already exists ({existing_files} files). Skipping download.")
         return existing_files
 
-    # 最新のWikipedia圧縮ダンプのURL（全記事 / 1つのbz2ファイル）
-    dump_url = f"https://dumps.wikimedia.org/{language}wiki/latest/{language}wiki-latest-pages-articles1.xml.bz2"
-    dump_path = os.path.join(DATASET_DIR, f"{language}wiki-latest-pages-articles1.xml.bz2")
+    # 最新のWikipedia圧縮ダンプのURL（全記事 / 単一bz2ファイル）
+    dump_url = f"https://dumps.wikimedia.org/{language}wiki/latest/{language}wiki-latest-pages-articles.xml.bz2"
+    dump_path = os.path.join(DATASET_DIR, f"{language}wiki-latest-pages-articles.xml.bz2")
 
     print(f"[WikiDL] Downloading Wikipedia dump from: {dump_url}")
     print("[WikiDL] This may take several minutes to hours depending on network speed...")
