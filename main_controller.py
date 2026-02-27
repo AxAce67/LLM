@@ -8,6 +8,7 @@ import psutil
 import sys
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from data_collector import web_crawler
+from data_collector import wiki_downloader
 from data_collector.db_manager import DBManager
 
 # 状態保存用のファイルパス
@@ -125,6 +126,7 @@ def run_pipeline(state: SystemState):
     メインの処理ループ。バックグラウンドスレッドで実行される。
     """
     state.log("Pipeline started.")
+    wiki_downloaded = False  # 初回のみWikiダンプをダウンロードするフラグ
     
     while True:
         state.load() # 外部からの操作（停止命令など）を読み込む
@@ -135,6 +137,18 @@ def run_pipeline(state: SystemState):
             continue
             
         try:
+            # ---------------------------------------------------------
+            # フェーズ0: Wikipedia ダンプの一括ダウンロード（初回起動時のみ）
+            # ---------------------------------------------------------
+            if not wiki_downloaded:
+                state.update_phase("Downloading Wikipedia")
+                state.log("[Phase 0] Starting Wikipedia dump download (first-time only)...")
+                try:
+                    article_count = wiki_downloader.download_wikipedia_dump("ja")
+                    state.log(f"[Phase 0] Wikipedia download complete. Total articles available: {article_count}")
+                except Exception as e:
+                    state.log(f"[Phase 0] Wikipedia download error (skipping): {e}")
+                wiki_downloaded = True  # 成功・失敗に関わらず次サイクルはスキップ
             # ---------------------------------------------------------
             # フェーズ1: データ収集 (Web Crawl)
             # ---------------------------------------------------------
