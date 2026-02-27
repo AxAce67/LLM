@@ -13,12 +13,8 @@ import main_controller
 app = FastAPI(title="LLM Builder Dashboard")
 templates = Jinja2Templates(directory="templates")
 
-# メインコントローラーの状態管理オブジェクト
-state_manager = main_controller.SystemState()
-
-# バックグラウンドスレッドでメインパイプラインを起動（最初は停止状態）
-pipeline_thread = threading.Thread(target=main_controller.run_pipeline, args=(state_manager,), daemon=True)
-pipeline_thread.start()
+# メインコントローラーの状態管理オブジェクト（ダッシュボード閲覧・操作専用モード）
+state_manager = main_controller.SystemState(is_dashboard=True)
 
 class ControlRequest(BaseModel):
     action: str

@@ -14,8 +14,9 @@ from data_collector.db_manager import DBManager
 STATUS_FILE = "system_status.json"
 
 class SystemState:
-    def __init__(self):
+    def __init__(self, is_dashboard=False):
         import uuid
+        self.is_dashboard = is_dashboard
         # マスター(親機)かワーカー(子機)かの判定。環境変数で切り替える
         self.role = os.environ.get("SYSTEM_ROLE", "master").lower()
         self.node_id = str(uuid.uuid4())
@@ -91,27 +92,28 @@ class SystemState:
             pass
 
         # --- Node Heartbeat & Remote Control ---
-        try:
-            current_status = "running" if self.state.get("is_running") else "paused"
-            self.db_manager.upsert_node_heartbeat(
-                node_id=self.node_id,
-                role=self.role,
-                status=current_status,
-                cpu_usage=cpu_usage,
-                ram_usage=ram_usage
-            )
-            
-            target = self.db_manager.get_my_target_status(self.node_id)
-            if target == "start" and not self.state["is_running"]:
-                self.log(f"[Network] Received remote command: START for node {self.node_id[-4:]}")
-                self.set_running(True)
-                self.db_manager.set_node_target_status(self.node_id, "unspecified")
-            elif target == "stop" and self.state["is_running"]:
-                self.log(f"[Network] Received remote command: STOP for node {self.node_id[-4:]}")
-                self.set_running(False)
-                self.db_manager.set_node_target_status(self.node_id, "unspecified")
-        except Exception as e:
-            print(f"Heartbeat error: {e}")
+        if not self.is_dashboard:
+            try:
+                current_status = "running" if self.state.get("is_running") else "paused"
+                self.db_manager.upsert_node_heartbeat(
+                    node_id=self.node_id,
+                    role=self.role,
+                    status=current_status,
+                    cpu_usage=cpu_usage,
+                    ram_usage=ram_usage
+                )
+                
+                target = self.db_manager.get_my_target_status(self.node_id)
+                if target == "start" and not self.state["is_running"]:
+                    self.log(f"[Network] Received remote command: START for node {self.node_id[-4:]}")
+                    self.set_running(True)
+                    self.db_manager.set_node_target_status(self.node_id, "unspecified")
+                elif target == "stop" and self.state["is_running"]:
+                    self.log(f"[Network] Received remote command: STOP for node {self.node_id[-4:]}")
+                    self.set_running(False)
+                    self.db_manager.set_node_target_status(self.node_id, "unspecified")
+            except Exception as e:
+                print(f"Heartbeat error: {e}")
 
     def set_running(self, running: bool):
         self.state["is_running"] = running
