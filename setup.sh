@@ -28,7 +28,7 @@ echo -e "[設定] データを保存・共有するためのSupabase接続情報
 echo -e "※この情報はあなたのPC内にのみ保存され（.env）、外部には送信されません。"
 
 while true; do
-    read -p "Supabase URL: " SUPABASE_URL
+    read -p "Supabase URL: " SUPABASE_URL < /dev/tty
     if [ -n "$SUPABASE_URL" ]; then
         break
     else
@@ -37,7 +37,7 @@ while true; do
 done
 
 while true; do
-    read -p "Supabase ANON KEY: " SUPABASE_KEY
+    read -p "Supabase ANON KEY: " SUPABASE_KEY < /dev/tty
     if [ -n "$SUPABASE_KEY" ]; then
         break
     else
