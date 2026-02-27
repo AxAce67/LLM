@@ -161,10 +161,46 @@ def run_pipeline(state: SystemState):
             state.log(f"[Auto-Scale] CPU Usage:{cpu_usage}%, Free Mem:{available_mem_gb:.1f}GB -> Launching {target_workers} workers.")
             
             # 分散ワーカーの起動：複数のシードURLからクローリング開始
-            seeds = ["https://ja.wikipedia.org/wiki/Python", "https://ja.wikipedia.org/wiki/Linux", "https://ja.wikipedia.org/wiki/Docker"]
+            seeds = [
+                # テクノロジー系
+                "https://ja.wikipedia.org/wiki/Python",
+                "https://ja.wikipedia.org/wiki/Linux",
+                "https://ja.wikipedia.org/wiki/Docker",
+                "https://ja.wikipedia.org/wiki/%E6%A9%9F%E6%A2%B0%E5%AD%A6%E7%BF%92",
+                "https://ja.wikipedia.org/wiki/%E4%BA%BA%E5%B7%A5%E7%9F%A5%E8%83%BD",
+                "https://ja.wikipedia.org/wiki/%E6%B7%B1%E5%B1%A4%E5%AD%A6%E7%BF%92",
+                "https://ja.wikipedia.org/wiki/%E3%83%8B%E3%83%A5%E3%83%BC%E3%83%A9%E3%83%AB%E3%83%8D%E3%83%83%E3%83%88%E3%83%AF%E3%83%BC%E3%82%AF",
+                "https://ja.wikipedia.org/wiki/%E8%87%AA%E7%84%B6%E8%A8%80%E8%AA%9E%E5%87%A6%E7%90%86",
+                "https://ja.wikipedia.org/wiki/%E3%83%88%E3%83%A9%E3%83%B3%E3%82%B9%E3%83%95%E3%82%A9%E3%83%BC%E3%83%9E%E3%83%BC_(%E6%A9%9F%E6%A2%B0%E5%AD%A6%E7%BF%92%E3%83%A2%E3%83%87%E3%83%AB)",
+                "https://ja.wikipedia.org/wiki/%E3%82%AF%E3%83%A9%E3%82%A6%E3%83%89%E3%82%B3%E3%83%B3%E3%83%94%E3%83%A5%E3%83%BC%E3%83%86%E3%82%A3%E3%83%B3%E3%82%B0",
+                "https://ja.wikipedia.org/wiki/Kubernetes",
+                "https://ja.wikipedia.org/wiki/Rust_(%E3%83%97%E3%83%AD%E3%82%B0%E3%83%A9%E3%83%9F%E3%83%B3%E3%82%B0%E8%A8%80%E8%AA%9E)",
+                "https://ja.wikipedia.org/wiki/Go_(%E3%83%97%E3%83%AD%E3%82%B0%E3%83%A9%E3%83%9F%E3%83%B3%E3%82%B0%E8%A8%80%E8%AA%9E)",
+                "https://ja.wikipedia.org/wiki/JavaScript",
+                "https://ja.wikipedia.org/wiki/TypeScript",
+                "https://ja.wikipedia.org/wiki/TensorFlow",
+                "https://ja.wikipedia.org/wiki/PyTorch",
+                "https://ja.wikipedia.org/wiki/OpenAI",
+                "https://ja.wikipedia.org/wiki/%E3%82%B3%E3%83%B3%E3%83%94%E3%83%A5%E3%83%BC%E3%82%BF%E3%83%93%E3%82%B8%E3%83%A7%E3%83%B3",
+                "https://ja.wikipedia.org/wiki/GPU",
+                # 科学・数学
+                "https://ja.wikipedia.org/wiki/%E7%B5%B1%E8%A8%88%E5%AD%A6",
+                "https://ja.wikipedia.org/wiki/%E7%B7%9A%E5%BD%A2%E4%BB%A3%E6%95%B0",
+                "https://ja.wikipedia.org/wiki/%E5%BE%AE%E7%A9%8D%E5%88%86%E5%AD%A6",
+                "https://ja.wikipedia.org/wiki/%E7%A2%BA%E7%8E%87%E8%AB%96",
+                "https://ja.wikipedia.org/wiki/%E9%87%8F%E5%AD%90%E5%8A%9B%E5%AD%A6",
+                "https://ja.wikipedia.org/wiki/%E7%9B%B8%E5%AF%BE%E6%80%A7%E7%90%86%E8%AB%96",
+                "https://ja.wikipedia.org/wiki/%E5%8C%96%E5%AD%A6",
+                "https://ja.wikipedia.org/wiki/%E7%94%9F%E7%89%A9%E5%AD%A6",
+                # 歴史・文化
+                "https://ja.wikipedia.org/wiki/%E6%97%A5%E6%9C%AC%E3%81%AE%E6%AD%B4%E5%8F%B2",
+                "https://ja.wikipedia.org/wiki/%E7%AC%AC%E4%BA%8C%E6%AC%A1%E4%B8%96%E7%95%8C%E5%A4%A7%E6%88%A6",
+                "https://ja.wikipedia.org/wiki/%E5%93%B2%E5%AD%A6",
+                "https://ja.wikipedia.org/wiki/%E7%B5%8C%E6%B8%88%E5%AD%A6",
+            ]
             try:
                 # 動的に計算された target_workers スレッドで並列実行
-                web_crawler.start_crawler(seeds, max_workers=target_workers, max_pages=15)
+                web_crawler.start_crawler(seeds, max_workers=target_workers, max_pages=200)
             except Exception as e:
                 state.log(f"Crawler error: {e}")
             

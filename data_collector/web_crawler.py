@@ -42,6 +42,9 @@ def crawl_url(url, db_manager):
     # 日本語か英語か簡易判定 (平仮名が含まれていれば日本語とする)
     language = "ja" if any('\u3040' <= c <= '\u309F' for c in text_content) else "en"
     
+    # WikipediaかWebかを自動判定
+    source_type = "wikipedia" if "wikipedia.org" in url else "web"
+    
     # 意味のある長さ（例えば100文字以上）のテキストのみSupabaseに保存
     if len(text_content) > 100:
         success = db_manager.insert_crawled_data(
@@ -49,7 +52,7 @@ def crawl_url(url, db_manager):
             domain=domain,
             title=title,
             content=text_content,
-            source_type="web",
+            source_type=source_type,
             language=language
         )
         if success:
