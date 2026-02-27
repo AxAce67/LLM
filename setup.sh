@@ -9,16 +9,35 @@ set -e
 
 # ------------------------------------------------------------------------------
 
-# 親機(Master)フラグの判定
-SYSTEM_ROLE="worker"
-DOCKER_PROFILE=""
-if [[ "$1" == "--master" ]]; then
-    SYSTEM_ROLE="master"
-    DOCKER_PROFILE="--profile master"
-    echo -e "\n[🌟 Master Mode] 親機(ダッシュボード稼働)としてインストールを開始します。"
-else
-    echo -e "\n[🤖 Worker Mode] 子機(データ収集専用)としてインストールを開始します。"
-fi
+# --- 1. システムの役割（Role）選択 ---
+echo -e "\n============================================="
+echo -e " LLM Data Collector 自動セットアップウィザード"
+echo -e "=============================================\n"
+
+echo -e "このマシンの役割（Role）を選択してください。"
+echo -e "  1) 子機 / Worker (データ収集専用・推奨)"
+echo -e "  2) 親機 / Master (ダッシュボード稼働・データ収集兼任)"
+
+while true; do
+    read -p "番号を入力 (1 または 2): " ROLE_CHOICE < /dev/tty
+    case $ROLE_CHOICE in
+        1)
+            SYSTEM_ROLE="worker"
+            DOCKER_PROFILE=""
+            echo -e "\n[🤖 Worker Mode] 子機としてインストールを開始します。"
+            break
+            ;;
+        2)
+            SYSTEM_ROLE="master"
+            DOCKER_PROFILE="--profile master"
+            echo -e "\n[🌟 Master Mode] 親機としてインストールを開始します。"
+            break
+            ;;
+        *)
+            echo "[!] 無効な入力です。1 または 2 を入力してください。"
+            ;;
+    esac
+done
 
 # --- 2. クラウドDB（Supabase）接続情報の設定 ---
 echo -e "\n============================================="
