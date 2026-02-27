@@ -1,6 +1,5 @@
 import os
 import sentencepiece as spm
-from pathlib import Path
 import tempfile
 import sys
 
@@ -22,23 +21,16 @@ class TokenizerBuilder:
 
     def _export_db_text(self, output_file_path):
         """Supabaseに貯まったWebクロールデータを抽出し、学習用の一時ファイルに書き出す"""
-        print("Extracting text data from Supabase DB...")
+        print("Extracting text data from DB (streaming)...")
         try:
-            # 今回はメモリ節約のため、1万件ずつ取得する手抜き実装ではなく
-            # まずは全件取得（数万件程度なら数MB〜数十MBなので十分可能）
-            response = self.db_manager.supabase.table("crawled_data").select("content").execute()
-            data = response.data
-            
+            doc_count = 0
             written_chars = 0
             with open(output_file_path, "a", encoding="utf-8") as f:
-                for row in data:
-                    text = row.get("content", "").strip()
-                    if text:
-                        # NFKC正規化などのクリーニング処理（文字の半角・全角統一など）をここに入れる余地あり
-                        f.write(text + "\n\n")
-                        written_chars += len(text)
-            
-            print(f"Extracted {len(data)} documents ({written_chars} characters) from DB.")
+                for text in self.db_manager.stream_crawled_contents(batch_size=1000):
+                    f.write(text + "\n\n")
+                    written_chars += len(text)
+                    doc_count += 1
+            print(f"Extracted {doc_count} documents ({written_chars} characters) from DB.")
         except Exception as e:
             print(f"[Error] Failed to extract from DB: {e}")
 
@@ -57,9 +49,10 @@ class TokenizerBuilder:
                         file_path = os.path.join(root, file)
                         try:
                             with open(file_path, "r", encoding="utf-8") as in_f:
-                                content = in_f.read().strip()
-                                out_f.write(content + "\n\n")
-                                written_chars += len(content)
+                                for line in in_f:
+                                    out_f.write(line)
+                                    written_chars += len(line)
+                            out_f.write("\n\n")
                         except Exception as e:
                             print(f"Error reading wiki file {file}: {e}")
         
@@ -95,6 +88,7 @@ class TokenizerBuilder:
             # --vocab_size: 語彙数(32000), --model_type: bpe (Byte-Pair Encoding) もしくは unigram
             # --character_coverage: カバー率 (日本語等は0.9995等にする)
             print("Training SentencePiece model... (This may take a while depending on data size)")
+            sp_threads = max(1, int(os.environ.get("SPM_NUM_THREADS", str(max(1, (os.cpu_count() or 2) - 1)))))
             spm.SentencePieceTrainer.train(
                 input=temp_path,
                 model_prefix=self.model_prefix,
@@ -105,6 +99,7 @@ class TokenizerBuilder:
                 unk_id=1,
                 bos_id=2, # Begin of sentence
                 eos_id=3, # End of sentence
+                num_threads=sp_threads,
             )
             
             print(f"Tokenizer training complete! Model saved to:\n  - {self.model_prefix}.model\n  - {self.model_prefix}.vocab")

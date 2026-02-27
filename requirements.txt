@@ -1,28 +1,28 @@
 # Core Machine Learning Framework
-torch
-torchvision
-torchaudio
+torch==2.2.2
+torchvision==0.17.2
+torchaudio==2.2.2
 
 # Data processing
-numpy
-pandas
-tqdm
-sentencepiece
+numpy==1.26.4
+pandas==2.2.2
+tqdm==4.66.4
+sentencepiece==0.2.0
 
 # Web Scraping & Data Collection
-requests
-beautifulsoup4
-wikiextractor
+requests==2.32.3
+beautifulsoup4==4.12.3
+wikiextractor==3.0.6
 
-# Database (Supabase)
-supabase
-python-dotenv
+# Database
+psycopg2-binary==2.9.9
+python-dotenv==1.0.1
 
 # Web Dashboard (FastAPI)
-fastapi
-uvicorn
-jinja2
-python-multipart
+fastapi==0.115.2
+uvicorn==0.30.6
+jinja2==3.1.4
+python-multipart==0.0.9
 
 # Utilities
-psutil
+psutil==6.0.0

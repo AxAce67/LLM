@@ -1,0 +1,8 @@
+{"id":"qa_db_001","category":"qa","prompt":"PostgreSQLとSQLiteの主な違いを2つ教えてください。","expected_keywords":["同時接続","サーバー","軽量"]}
+{"id":"qa_ops_001","category":"qa","prompt":"学習中にメモリ使用率が高い時、最初に確認すべき項目を3つ挙げてください。","expected_keywords":["バッチサイズ","ワーカー","シーケンス長"]}
+{"id":"sum_001","category":"summarize","prompt":"次の文章を3文で要約してください: 大規模言語モデルの学習ではデータ品質が性能を左右し、単なるデータ量だけでは高品質な応答は得られない。","expected_keywords":["要約","データ品質","性能"]}
+{"id":"sum_002","category":"summarize","prompt":"次の内容を短く要約してください: 分散収集では親機と子機で役割分担し、重複クロールを避けるためにURLシャーディングを行う。","expected_keywords":["要約","親機","子機","シャーディング"]}
+{"id":"fact_001","category":"factual","prompt":"HTTP 404 と 500 の違いを説明してください。","expected_keywords":["Not Found","Server Error","クライアント","サーバー"]}
+{"id":"fact_002","category":"factual","prompt":"機械学習で訓練データと検証データを分ける理由を説明してください。","expected_keywords":["過学習","汎化","評価"]}
+{"id":"code_001","category":"code","prompt":"Pythonでリストの重複を削除する関数を書いてください。","expected_keywords":["def","return","set","list"]}
+{"id":"code_002","category":"code","prompt":"PostgreSQLへ接続するPythonコード例を短く示してください。","expected_keywords":["psycopg2","connect","cursor","execute"]}

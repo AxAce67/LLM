@@ -1,6 +1,6 @@
 # 自作LLM自動収集システム用 Dockerfile
 # より軽量で安定した環境を構築するためslimイメージを使用
-FROM python:3.10-slim
+FROM python:3.10.14-slim
 
 # コンテナ内の作業ディレクトリ設定
 WORKDIR /app

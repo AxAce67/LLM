@@ -3,31 +3,100 @@ import requests
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin, urlparse
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from urllib.robotparser import RobotFileParser
 import sys
 import os
+import threading
 
 # ルートディレクトリのモジュールをインポートするためのパス設定
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from data_collector.db_manager import DBManager
 
+_robots_cache = {}
+_robots_lock = threading.Lock()
+_domain_last_request = {}
+_domain_time_lock = threading.Lock()
+_domain_locks = {}
+_domain_locks_lock = threading.Lock()
+
+
+def _get_domain_lock(domain: str):
+    with _domain_locks_lock:
+        if domain not in _domain_locks:
+            _domain_locks[domain] = threading.Semaphore(max(1, int(os.environ.get("CRAWLER_DOMAIN_CONCURRENCY", "2"))))
+        return _domain_locks[domain]
+
+
+def _allowed_by_robots(url: str, user_agent: str = "DIY-LLM-Crawler") -> bool:
+    if os.environ.get("CRAWLER_RESPECT_ROBOTS", "1") != "1":
+        return True
+    parsed = urlparse(url)
+    key = f"{parsed.scheme}://{parsed.netloc}"
+    with _robots_lock:
+        rp = _robots_cache.get(key)
+        if rp is None:
+            rp = RobotFileParser()
+            rp.set_url(f"{key}/robots.txt")
+            try:
+                rp.read()
+            except Exception:
+                # robotsが取れない場合は保守的に許可（収集停止を避ける）
+                pass
+            _robots_cache[key] = rp
+    try:
+        return rp.can_fetch(user_agent, url)
+    except Exception:
+        return True
+
+
+def _respect_domain_rate_limit(domain: str):
+    min_interval = float(os.environ.get("CRAWLER_DOMAIN_MIN_INTERVAL_SEC", "0.5"))
+    if min_interval <= 0:
+        return
+    with _domain_time_lock:
+        now = time.time()
+        last = _domain_last_request.get(domain, 0.0)
+        wait_sec = (last + min_interval) - now
+        if wait_sec > 0:
+            time.sleep(wait_sec)
+        _domain_last_request[domain] = time.time()
+
+
 def crawl_url(url, db_manager):
-    """単一のURLをクロールしてSupabaseに保存し、ページ内のリンクを返す"""
+    """単一のURLをクロールしてPostgreSQLに保存し、ページ内のリンクを返す"""
     if db_manager.is_url_crawled(url):
         print(f"[Skip] Already crawled: {url}")
         return []
 
+    parsed = urlparse(url)
+    domain = parsed.netloc
+    if not _allowed_by_robots(url):
+        print(f"[Skip] robots.txt disallow: {url}")
+        return []
+
+    domain_lock = _get_domain_lock(domain)
+    acquired = domain_lock.acquire(timeout=2.0)
+    if not acquired:
+        print(f"[Skip] domain semaphore busy: {url}")
+        return []
+
     print(f"[Crawl] Fetching: {url}")
     try:
+        _respect_domain_rate_limit(domain)
         # User-Agentを設定してブロックを回避しやすくする
         headers = {
             "User-Agent": "Mozilla/5.0 (compatible; DIY-LLM-Crawler/1.0)",
             "Accept-Language": "ja,en-US;q=0.9,en;q=0.8"
         }
-        response = requests.get(url, headers=headers, timeout=10)
+        response = requests.get(url, headers=headers, timeout=10, allow_redirects=True)
         response.raise_for_status()
     except Exception as e:
         print(f"[Error] Failed to fetch {url}: {e}")
         return []
+    finally:
+        # response 成功/失敗に関係なくロック解放
+        if acquired:
+            domain_lock.release()
 
     # HTMLのパース
     soup = BeautifulSoup(response.content, "html.parser")
@@ -36,7 +105,6 @@ def crawl_url(url, db_manager):
     paragraphs = soup.find_all('p')
     text_content = "\n".join([p.get_text(strip=True) for p in paragraphs if p.get_text(strip=True)])
 
-    domain = urlparse(url).netloc
     title = soup.title.string.strip() if soup.title and soup.title.string else ""
     
     # 日本語か英語か簡易判定 (平仮名が含まれていれば日本語とする)
@@ -45,7 +113,7 @@ def crawl_url(url, db_manager):
     # WikipediaかWebかを自動判定
     source_type = "wikipedia" if "wikipedia.org" in url else "web"
     
-    # 意味のある長さ（例えば100文字以上）のテキストのみSupabaseに保存
+    # 意味のある長さ（例えば100文字以上）のテキストのみDBに保存
     if len(text_content) > 100:
         success = db_manager.insert_crawled_data(
             url=url,
@@ -108,7 +176,7 @@ def start_crawler(seed_urls, max_workers=5, max_pages=50):
                     print(f"[Worker Error] {e}")
                     
             # サーバーに優しくするためバッチごとに少し待機
-            time.sleep(1)
+            time.sleep(float(os.environ.get("CRAWLER_BATCH_SLEEP_SEC", "0.6")))
             
     print(f"Crawling finished. Processed {crawled_count} pages.")
 

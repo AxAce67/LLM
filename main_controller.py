@@ -3,16 +3,30 @@ import json
 import os
 import threading
 import psutil
+import hashlib
+import shutil
+from contextlib import contextmanager
+
+try:
+    import fcntl
+except ImportError:
+    fcntl = None
 
 # ルートディレクトリのモジュールをインポートするためのパス設定
 import sys
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from data_collector import web_crawler
 from data_collector import wiki_downloader
+from data_collector import rss_collector
+from data_collector import news_collector
+from data_collector import auto_discovery
+from data_collector import arxiv_collector
+from data_collector import docs_collector
 from data_collector.db_manager import DBManager
+from runtime.auto_tuner import detect_runtime_profile
 
 # 状態保存用のファイルパス
-STATUS_FILE = "system_status.json"
+STATUS_FILE = os.environ.get("STATUS_FILE", "system_status.json")
 
 class SystemState:
     def __init__(self, is_dashboard=False):
@@ -31,18 +45,44 @@ class SystemState:
             "stats": {
                 "collected_docs_wiki": 0,
                 "collected_docs_web": 0,
+                "collected_docs_rss": 0,
+                "collected_docs_news": 0,
+                "collected_docs_arxiv": 0,
+                "collected_docs_docs": 0,
+                "blocked_docs": 0,
                 "dataset_size_mb": 0.0,
                 "current_epoch": 0,
                 "current_loss": 0.0,
+                "current_val_loss": 0.0,
+                "best_val_loss": 0.0,
                 "active_workers": 0
             },
             "system": {
                 "cpu_percent": 0.0,
-                "ram_percent": 0.0
+                "ram_percent": 0.0,
+                "cpu_cores": 0,
+                "total_ram_gb": 0.0,
+                "available_ram_gb": 0.0,
+                "suggested_model_size": "small",
+                "suggested_max_tokens": 256,
             }
         }
         self.db_manager = DBManager()
+        self.status_lock_path = f"{STATUS_FILE}.lock"
         self.save()
+
+    @contextmanager
+    def _status_file_lock(self):
+        lock_handle = None
+        try:
+            if fcntl is not None:
+                lock_handle = open(self.status_lock_path, "w", encoding="utf-8")
+                fcntl.flock(lock_handle.fileno(), fcntl.LOCK_EX)
+            yield
+        finally:
+            if fcntl is not None and lock_handle is not None:
+                fcntl.flock(lock_handle.fileno(), fcntl.LOCK_UN)
+                lock_handle.close()
 
     def update_phase(self, phase):
         self.state["current_phase"] = phase
@@ -59,16 +99,18 @@ class SystemState:
 
     def save(self):
         try:
-            with open(STATUS_FILE, "w", encoding="utf-8") as f:
-                json.dump(self.state, f, ensure_ascii=False, indent=2)
+            with self._status_file_lock():
+                with open(STATUS_FILE, "w", encoding="utf-8") as f:
+                    json.dump(self.state, f, ensure_ascii=False, indent=2)
         except Exception as e:
             print(f"Error saving status: {e}")
 
     def load(self):
         if os.path.exists(STATUS_FILE):
             try:
-                with open(STATUS_FILE, "r", encoding="utf-8") as f:
-                    self.state = json.load(f)
+                with self._status_file_lock():
+                    with open(STATUS_FILE, "r", encoding="utf-8") as f:
+                        self.state = json.load(f)
             except Exception as e:
                 print(f"Error loading status: {e}")
                 
@@ -77,6 +119,11 @@ class SystemState:
             db_stats = self.db_manager.get_stats()
             self.state["stats"]["collected_docs_wiki"] = db_stats["collected_docs_wiki"]
             self.state["stats"]["collected_docs_web"]  = db_stats["collected_docs_web"]
+            self.state["stats"]["collected_docs_rss"]  = db_stats.get("collected_docs_rss", 0)
+            self.state["stats"]["collected_docs_news"] = db_stats.get("collected_docs_news", 0)
+            self.state["stats"]["collected_docs_arxiv"] = db_stats.get("collected_docs_arxiv", 0)
+            self.state["stats"]["collected_docs_docs"] = db_stats.get("collected_docs_docs", 0)
+            self.state["stats"]["blocked_docs"] = db_stats.get("blocked_docs", 0)
             self.state["stats"]["dataset_size_mb"]     = db_stats["dataset_size_mb"]
         except Exception as e:
             print(f"Stats check error: {e}")
@@ -87,8 +134,14 @@ class SystemState:
             import psutil
             cpu_usage = psutil.cpu_percent()
             ram_usage = psutil.virtual_memory().percent
+            profile = detect_runtime_profile()
             self.state["system"]["cpu_percent"] = cpu_usage
             self.state["system"]["ram_percent"] = ram_usage
+            self.state["system"]["cpu_cores"] = profile["cpu_cores"]
+            self.state["system"]["total_ram_gb"] = profile["total_ram_gb"]
+            self.state["system"]["available_ram_gb"] = profile["available_ram_gb"]
+            self.state["system"]["suggested_model_size"] = profile["model_size"]
+            self.state["system"]["suggested_max_tokens"] = profile["max_generate_tokens"]
         except:
             pass
 
@@ -119,6 +172,67 @@ class SystemState:
     def set_running(self, running: bool):
         self.state["is_running"] = running
         self.save()
+
+
+def _stable_hash(value: str) -> int:
+    return int(hashlib.sha1(value.encode("utf-8")).hexdigest(), 16)
+
+
+def _assign_seed_urls_to_node(seed_urls: list[str], node_id: str, active_node_ids: list[str]) -> list[str]:
+    if not seed_urls:
+        return []
+    node_ids = sorted(set([n for n in active_node_ids if n]))
+    if node_id not in node_ids:
+        node_ids.append(node_id)
+        node_ids.sort()
+    total = max(1, len(node_ids))
+    my_index = node_ids.index(node_id)
+    assigned = [u for u in seed_urls if (_stable_hash(u) % total) == my_index]
+    if assigned:
+        return assigned
+    # シードが少ない場合に空割り当てを避ける
+    fallback_idx = my_index % len(seed_urls)
+    return [seed_urls[fallback_idx]]
+
+
+def _checkpoint_paths() -> tuple[str, str]:
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    checkpoint_dir = os.path.join(base_dir, "checkpoints")
+    os.makedirs(checkpoint_dir, exist_ok=True)
+    latest = os.path.join(checkpoint_dir, "ckpt_latest.pt")
+    backup = os.path.join(checkpoint_dir, "ckpt_latest.pretrain.bak.pt")
+    return latest, backup
+
+
+def _run_training_with_retry(state: SystemState, max_steps: int):
+    from model import trainer
+
+    retries = max(0, int(os.environ.get("TRAIN_RETRY_MAX", "2")))
+    latest_ckpt, backup_ckpt = _checkpoint_paths()
+    if os.path.exists(latest_ckpt):
+        try:
+            shutil.copy2(latest_ckpt, backup_ckpt)
+            state.log("[TrainJob] Backed up latest checkpoint before training.")
+        except Exception as e:
+            state.log(f"[TrainJob] Backup warning: {e}")
+
+    attempt = 0
+    while True:
+        attempt += 1
+        try:
+            state.log(f"[TrainJob] Attempt {attempt}/{retries + 1}")
+            return trainer.train_step(max_steps=max_steps)
+        except Exception as e:
+            state.log(f"[TrainJob] Attempt {attempt} failed: {e}")
+            if os.path.exists(backup_ckpt):
+                try:
+                    shutil.copy2(backup_ckpt, latest_ckpt)
+                    state.log("[TrainJob] Rolled back ckpt_latest.pt from backup.")
+                except Exception as restore_err:
+                    state.log(f"[TrainJob] Rollback error: {restore_err}")
+            if attempt > retries:
+                raise
+            time.sleep(float(os.environ.get("TRAIN_RETRY_BACKOFF_SEC", "2.0")))
 
 
 def run_pipeline(state: SystemState):
@@ -161,12 +275,18 @@ def run_pipeline(state: SystemState):
             available_mem_gb = mem_info.available / (1024 ** 3)
             
             # 基準: CPU空き5%につき1ワーカー、メモリ空き0.2GBにつき1ワーカーとし、厳しい方を採用
-            # (最小1スレッド、最大40スレッドに安全制限)
+            # (最小1スレッド、最大は環境変数 MAX_CRAWLER_WORKERS で制限)
             allowed_by_cpu = max(1, int((100.0 - cpu_usage) / 5.0))
             allowed_by_mem = max(1, int(available_mem_gb / 0.2))
             
             target_workers = min(allowed_by_cpu, allowed_by_mem)
-            target_workers = min(40, max(1, target_workers))
+            realtime_tune = os.environ.get("AUTO_TUNE_REALTIME", "1") == "1"
+            if realtime_tune:
+                profile = detect_runtime_profile()
+                max_workers_limit = int(os.environ.get("MAX_CRAWLER_WORKERS", str(profile["max_crawler_workers"])))
+            else:
+                max_workers_limit = int(os.environ.get("MAX_CRAWLER_WORKERS", "8"))
+            target_workers = min(max_workers_limit, max(1, target_workers))
             
             # ダッシュボード表示用に現在決定したワーカー数を記録
             state.state["stats"]["active_workers"] = target_workers
@@ -212,11 +332,75 @@ def run_pipeline(state: SystemState):
                 "https://ja.wikipedia.org/wiki/%E5%93%B2%E5%AD%A6",
                 "https://ja.wikipedia.org/wiki/%E7%B5%8C%E6%B8%88%E5%AD%A6",
             ]
+            if os.environ.get("ENABLE_AUTO_DISCOVERY", "1") == "1":
+                try:
+                    discovered = auto_discovery.discover_seed_urls(
+                        max_urls=int(os.environ.get("AUTO_DISCOVERY_SEEDS_PER_CYCLE", "24")),
+                        max_results_per_query=int(os.environ.get("AUTO_DISCOVERY_RESULTS_PER_QUERY", "8")),
+                    )
+                    if discovered:
+                        seeds.extend(discovered)
+                        state.log(f"[AutoDiscovery] Added {len(discovered)} web seeds from live search.")
+                except Exception as e:
+                    state.log(f"Auto discovery error: {e}")
             try:
-                # 動的に計算された target_workers スレッドで並列実行
-                web_crawler.start_crawler(seeds, max_workers=target_workers, max_pages=200)
+                include_master = os.environ.get("COLLECTION_INCLUDE_MASTER", "1") == "1"
+                active_nodes = state.db_manager.get_active_collector_nodes(
+                    online_window_sec=int(os.environ.get("COLLECTION_NODE_WINDOW_SEC", "60")),
+                    include_master=include_master,
+                )
+                active_node_ids = [n.get("node_id") for n in active_nodes if n.get("node_id")]
+                assigned_seeds = _assign_seed_urls_to_node(seeds, state.node_id, active_node_ids)
+                max_pages_total = int(os.environ.get("MAX_CRAWL_PAGES_PER_CYCLE", "200"))
+                node_count = max(1, len(set(active_node_ids + [state.node_id])))
+                max_pages_for_this_node = max(20, max_pages_total // node_count)
+                state.log(
+                    f"[Shard] node={state.node_id[-8:]} assigned_seeds={len(assigned_seeds)}/{len(seeds)} "
+                    f"active_nodes={node_count} max_pages={max_pages_for_this_node}"
+                )
+                web_crawler.start_crawler(
+                    assigned_seeds,
+                    max_workers=target_workers,
+                    max_pages=max_pages_for_this_node,
+                )
             except Exception as e:
                 state.log(f"Crawler error: {e}")
+
+            # RSSソースの追加収集（Wikipedia以外）
+            if os.environ.get("ENABLE_RSS_COLLECTOR", "1") == "1":
+                try:
+                    rss_saved = rss_collector.collect_from_rss(
+                        max_items_per_feed=int(os.environ.get("RSS_ITEMS_PER_FEED", "5"))
+                    )
+                    state.log(f"[Data Source] RSS collector saved {rss_saved} articles.")
+                except Exception as e:
+                    state.log(f"RSS collector error: {e}")
+
+            if os.environ.get("ENABLE_NEWS_COLLECTOR", "1") == "1":
+                try:
+                    news_saved = news_collector.collect_news(
+                        max_items_per_feed=int(os.environ.get("NEWS_ITEMS_PER_FEED", "5")),
+                        max_hn_items=int(os.environ.get("HN_ITEMS", "15")),
+                    )
+                    state.log(f"[Data Source] News collector saved {news_saved} articles.")
+                except Exception as e:
+                    state.log(f"News collector error: {e}")
+
+            if os.environ.get("ENABLE_ARXIV_COLLECTOR", "1") == "1":
+                try:
+                    arxiv_saved = arxiv_collector.collect_arxiv(
+                        max_results=int(os.environ.get("ARXIV_MAX_RESULTS", "30"))
+                    )
+                    state.log(f"[Data Source] arXiv collector saved {arxiv_saved} abstracts.")
+                except Exception as e:
+                    state.log(f"arXiv collector error: {e}")
+
+            if os.environ.get("ENABLE_DOCS_COLLECTOR", "1") == "1":
+                try:
+                    docs_saved = docs_collector.collect_docs()
+                    state.log(f"[Data Source] Docs collector saved {docs_saved} pages.")
+                except Exception as e:
+                    state.log(f"Docs collector error: {e}")
             
             # ---------------------------------------------------------
             # フェーズ2以降（マスターノードのみ実行）
@@ -235,7 +419,15 @@ def run_pipeline(state: SystemState):
             try:
                 from data_preprocessor import prepare_dataset
                 # 取得済みのデータを集めて学習用の高速バイナリ(train.bin)に変換する
-                prepare_dataset.prepare_dataset(vocab_size=8000)
+                prep_result = prepare_dataset.prepare_dataset(vocab_size=int(os.environ.get("TRAIN_VOCAB_SIZE", "8000")))
+                if isinstance(prep_result, dict):
+                    state.log(
+                        "[Dataset] "
+                        f"docs={prep_result.get('total_docs', 0)} "
+                        f"blocked={prep_result.get('blocked_docs', 0)} "
+                        f"filtered={prep_result.get('filtered_docs', 0)} "
+                        f"dedup={prep_result.get('duplicate_docs', 0)}"
+                    )
             except Exception as e:
                 state.log(f"Preprocess error: {e}")
 
@@ -247,13 +439,25 @@ def run_pipeline(state: SystemState):
             state.log("Running training loop for a few steps...")
             
             try:
-                from model import trainer
                 # 設定されたステップ数だけ学習し、重み情報（チェックポイント）を保存して帰ってくる
-                epoch, loss = trainer.train_step(max_steps=50)
-                
-                # 統計情報の更新
-                state.state["stats"]["current_epoch"] = epoch
-                state.state["stats"]["current_loss"] = round(loss, 4) if loss else 0.0
+                train_result = _run_training_with_retry(
+                    state,
+                    max_steps=int(os.environ.get("TRAIN_STEPS_PER_CYCLE", "50")),
+                )
+
+                # 旧戻り値(tuple)との互換を維持
+                if isinstance(train_result, dict):
+                    state.state["stats"]["current_epoch"] = train_result.get("epoch", 0)
+                    train_loss = train_result.get("train_loss")
+                    val_loss = train_result.get("val_loss")
+                    best_val = train_result.get("best_val_loss")
+                    state.state["stats"]["current_loss"] = round(train_loss, 4) if train_loss is not None else 0.0
+                    state.state["stats"]["current_val_loss"] = round(val_loss, 4) if val_loss is not None else 0.0
+                    state.state["stats"]["best_val_loss"] = round(best_val, 4) if best_val is not None else 0.0
+                else:
+                    epoch, loss = train_result
+                    state.state["stats"]["current_epoch"] = epoch
+                    state.state["stats"]["current_loss"] = round(loss, 4) if loss else 0.0
                 state.save()
             except Exception as e:
                 import traceback
