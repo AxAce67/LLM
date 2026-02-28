@@ -6,6 +6,8 @@ services:
     image: postgres:16-alpine
     container_name: llm_postgres
     restart: unless-stopped
+    env_file:
+      - .env
     environment:
       - POSTGRES_DB=${POSTGRES_DB:-llm}
       - POSTGRES_USER=${POSTGRES_USER:-llm_user}
@@ -27,6 +29,8 @@ services:
     image: adminer:4.8.1
     container_name: llm_db_ui
     restart: unless-stopped
+    env_file:
+      - .env
     ports:
       - "${ADMINER_PORT:-8080}:8080"
     environment:
@@ -47,6 +51,8 @@ services:
       - ./dataset:/app/dataset
       - ./checkpoints:/app/checkpoints
       - ./system_status.json:/app/system_status.json
+    env_file:
+      - .env
     environment:
       - DATABASE_URL=${DATABASE_URL:-postgresql://${POSTGRES_USER:-llm_user}:${POSTGRES_PASSWORD:-llm_pass}@postgres:5432/${POSTGRES_DB:-llm}}
       # 親機/子機の役割 ("master" or "worker")
@@ -67,6 +73,8 @@ services:
       - ./dataset:/app/dataset
       - ./checkpoints:/app/checkpoints
       - ./system_status.json:/app/system_status.json
+    env_file:
+      - .env
     environment:
       - DATABASE_URL=${DATABASE_URL:-postgresql://${POSTGRES_USER:-llm_user}:${POSTGRES_PASSWORD:-llm_pass}@postgres:5432/${POSTGRES_DB:-llm}}
       - SYSTEM_ROLE=${SYSTEM_ROLE:-worker}
