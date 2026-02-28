@@ -11,6 +11,27 @@ from model.transformer import GPT, GPTConfig
 from model.train_config import load_train_config
 from runtime.auto_tuner import detect_runtime_profile
 
+_THREADS_TUNED = False
+
+
+def _configure_torch_threads(cpu_threads: int):
+    """
+    Thread設定はプロセス初期化時に1回だけ行う。
+    set_num_interop_threads は並列処理開始後に再設定すると RuntimeError になる。
+    """
+    global _THREADS_TUNED
+    if _THREADS_TUNED:
+        return
+    torch.set_num_threads(cpu_threads)
+    if hasattr(torch, "set_num_interop_threads"):
+        try:
+            torch.set_num_interop_threads(max(1, cpu_threads // 2))
+        except RuntimeError:
+            # 既に並列実行が始まっている場合は再設定不可のため無視
+            pass
+    _THREADS_TUNED = True
+
+
 class DataLoaderLite:
     """
     数GBに及ぶ巨大なバイナリデータ(train.binなど)からバッチサイズ分のデータを
@@ -90,10 +111,8 @@ def train_step(max_steps=50):
     learning_rate = cfg.learning_rate
     vocab_size = cfg.vocab_size
 
-    # CPU利用率改善: 明示的にスレッド数を設定
-    torch.set_num_threads(cfg.cpu_threads)
-    if hasattr(torch, "set_num_interop_threads"):
-        torch.set_num_interop_threads(max(1, cfg.cpu_threads // 2))
+    # CPU利用率改善: スレッド数設定（プロセスで1回のみ）
+    _configure_torch_threads(cfg.cpu_threads)
     
     # デバイスの自動判別（MacならMPS、Windows/LinuxならCUDA、なければCPU）
     device = 'cpu'

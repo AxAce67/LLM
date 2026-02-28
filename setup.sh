@@ -85,6 +85,8 @@ POSTGRES_PASSWORD="llm_pass"
 ADMINER_PORT="8080"
 BOOTSTRAP_TOKEN=""
 ALLOW_BOOTSTRAP_PASSWORD="0"
+ADMIN_API_TOKEN=""
+ADMIN_API_TOKEN_REQUIRED="0"
 
 read -p "Postgres DB名 [llm]: " INPUT_DB < /dev/tty
 read -p "Postgres ユーザー [llm_user]: " INPUT_USER < /dev/tty
@@ -97,6 +99,16 @@ if [[ "$SYSTEM_ROLE" == "master" ]]; then
     POSTGRES_HOST="postgres"
     POSTGRES_PORT="5432"
     DOCKER_PROFILE="$DOCKER_PROFILE --profile localdb"
+    ADMIN_API_TOKEN_REQUIRED="1"
+    while true; do
+        read -p "管理APIトークン(必須・長いランダム文字列推奨): " INPUT_ADMIN_API_TOKEN < /dev/tty
+        if [ -z "$INPUT_ADMIN_API_TOKEN" ]; then
+            echo "[!] 親機では管理APIトークンが必須です。"
+        else
+            ADMIN_API_TOKEN="${INPUT_ADMIN_API_TOKEN}"
+            break
+        fi
+    done
     read -p "DB Web UI(Adminer)ポート [8080]: " INPUT_ADMINER_PORT < /dev/tty
     ADMINER_PORT="${INPUT_ADMINER_PORT:-8080}"
     read -p "Worker自動設定用Bootstrap token (空欄で無効): " INPUT_BOOTSTRAP_TOKEN < /dev/tty
@@ -164,6 +176,7 @@ if [ "$DRY_RUN" -eq 1 ]; then
     if [[ "$SYSTEM_ROLE" == "master" ]]; then
         echo "  - profiles: ${DOCKER_PROFILE}"
         echo "  - adminer port: ${ADMINER_PORT}"
+        echo "  - admin api token required: ${ADMIN_API_TOKEN_REQUIRED}"
     fi
     echo "  - next actions:"
     echo "    1) Docker存在確認（不足時は自動インストール）"
@@ -265,6 +278,8 @@ VAL_EVAL_BATCHES=20
 EARLY_STOPPING_PATIENCE=6
 BOOTSTRAP_TOKEN=${BOOTSTRAP_TOKEN}
 ALLOW_BOOTSTRAP_PASSWORD=${ALLOW_BOOTSTRAP_PASSWORD}
+ADMIN_API_TOKEN=${ADMIN_API_TOKEN}
+ADMIN_API_TOKEN_REQUIRED=${ADMIN_API_TOKEN_REQUIRED}
 EOF
 echo ".env を作成・更新しました。"
 
