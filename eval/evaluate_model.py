@@ -1,5 +1,8 @@
 import json
 import os
+import re
+import unicodedata
+from difflib import SequenceMatcher
 from typing import List, Dict
 
 import torch
@@ -21,12 +24,64 @@ def load_benchmarks(path: str) -> List[Dict]:
     return rows
 
 
+def _normalize_text(text: str) -> str:
+    text = unicodedata.normalize("NFKC", text or "")
+    text = text.lower()
+    text = re.sub(r"\s+", " ", text).strip()
+    return text
+
+
+def _extract_terms(text: str) -> List[str]:
+    # 日本語・英数字をざっくり単語化
+    return re.findall(r"[a-z0-9_]+|[ぁ-んァ-ン一-龥ー]{2,}", text)
+
+
+def _fuzzy_keyword_hit(keyword: str, terms: List[str]) -> float:
+    if not terms:
+        return 0.0
+    best = 0.0
+    for term in terms:
+        ratio = SequenceMatcher(None, keyword, term).ratio()
+        if ratio > best:
+            best = ratio
+    return best
+
+
 def score_keywords(text: str, keywords: List[str]) -> float:
     if not keywords:
         return 0.0
-    lower = text.lower()
-    matched = sum(1 for k in keywords if k.lower() in lower)
-    return matched / len(keywords)
+
+    normalized = _normalize_text(text)
+    if not normalized:
+        return 0.0
+
+    terms = _extract_terms(normalized)
+    exact_hits = 0
+    fuzzy_sum = 0.0
+
+    for kw in keywords:
+        key = _normalize_text(kw)
+        if not key:
+            continue
+        if key in normalized:
+            exact_hits += 1
+            fuzzy_sum += 1.0
+            continue
+
+        # 完全一致で取れない場合も、語形ゆれに部分点を与える
+        fuzzy = _fuzzy_keyword_hit(key, terms)
+        fuzzy_sum += min(1.0, max(0.0, fuzzy))
+
+    exact_score = exact_hits / len(keywords)
+    fuzzy_score = fuzzy_sum / len(keywords)
+
+    # exactを重視しつつ、fuzzyで0点張り付き回避
+    score = (0.7 * exact_score) + (0.3 * fuzzy_score)
+
+    # 短すぎる応答は減点
+    if len(normalized) < 40:
+        score *= 0.6
+    return max(0.0, min(1.0, score))
 
 
 def main():
