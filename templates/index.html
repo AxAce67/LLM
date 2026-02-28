@@ -301,7 +301,7 @@
 
                 <!-- Swarm Workers Display (Master Calculated) -->
                 <div class="glass-panel p-6 rounded-2xl">
-                    <p class="text-xs font-semibold text-gray-500 tracking-wider mb-1 uppercase">稼働ワーカー推定</p>
+                    <p class="text-xs font-semibold text-gray-500 tracking-wider mb-1 uppercase">稼働ワーカー推定（全ノード）</p>
                     <div class="flex items-baseline space-x-2">
                         <span id="active-workers" class="text-3xl font-bold gradient-text">0</span>
                         <span class="text-sm text-gray-500 font-medium">推定稼働数</span>
@@ -1222,13 +1222,7 @@
                 document.getElementById('current-val-loss').textContent = (data.stats.current_val_loss || 0).toFixed(4);
                 document.getElementById('best-val-loss').textContent = `best: ${(data.stats.best_val_loss || 0).toFixed(4)}`;
 
-                // 動的ワーカー＆ハードウェア表示（Master自身分）
-                const activeWorkersSpan = document.getElementById('active-workers');
-                if (data.stats.active_workers > 0) {
-                    activeWorkersSpan.textContent = data.stats.active_workers;
-                } else {
-                    activeWorkersSpan.textContent = "0";
-                }
+                // 稼働ワーカー推定は /api/nodes 集計結果を優先表示
 
                 document.getElementById('cpu-percent').textContent = data.system.cpu_percent.toFixed(1) + "%";
                 document.getElementById('ram-percent').textContent = data.system.ram_percent.toFixed(1) + "%";
@@ -1297,6 +1291,7 @@
                     let runningCount = 0;
                     let offlineCount = 0;
                     let workerCount = 0;
+                    let onlineWorkerSlots = 0;
 
                     data.nodes.forEach(node => {
                         const tr = document.createElement('tr');
@@ -1308,6 +1303,9 @@
                         if (isOffline) offlineCount += 1; else onlineCount += 1;
                         if (displayStatus === 'running') runningCount += 1;
                         if (node.role === 'worker') workerCount += 1;
+                        if (!isOffline) {
+                            onlineWorkerSlots += Number(node.active_workers || 0);
+                        }
 
                         // Status Badge Color
                         let statusColor = "bg-gray-100 text-gray-500 border-gray-200"; // default/offline
@@ -1349,6 +1347,10 @@
                     document.getElementById('nodes-worker-ratio').textContent = totalNodes > 0
                         ? `${Math.round((workerCount / totalNodes) * 100)}%`
                         : '0%';
+                    const activeWorkersSpan = document.getElementById('active-workers');
+                    if (activeWorkersSpan) {
+                        activeWorkersSpan.textContent = String(onlineWorkerSlots);
+                    }
                 }
             } catch (error) {
                 console.error("Failed to fetch nodes:", error);

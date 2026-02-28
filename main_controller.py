@@ -111,6 +111,7 @@ class SystemState:
                         status=current_status,
                         cpu_usage=cpu_usage,
                         ram_usage=ram_usage,
+                        active_workers=int(self.state.get("stats", {}).get("active_workers", 0)),
                     )
                 except Exception as e:
                     print(f"Heartbeat thread error: {e}")
@@ -202,7 +203,8 @@ class SystemState:
                     role=self.role,
                     status=current_status,
                     cpu_usage=cpu_usage,
-                    ram_usage=ram_usage
+                    ram_usage=ram_usage,
+                    active_workers=int(self.state.get("stats", {}).get("active_workers", 0)),
                 )
                 
                 target = self.db_manager.get_my_target_status(self.node_id)

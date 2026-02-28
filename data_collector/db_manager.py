@@ -60,6 +60,7 @@ class DBManager:
             status VARCHAR(32) NOT NULL DEFAULT 'paused',
             cpu_usage DOUBLE PRECISION NOT NULL DEFAULT 0,
             ram_usage DOUBLE PRECISION NOT NULL DEFAULT 0,
+            active_workers INTEGER NOT NULL DEFAULT 0,
             target_status VARCHAR(32) NOT NULL DEFAULT 'unspecified',
             last_heartbeat TIMESTAMPTZ NOT NULL DEFAULT NOW()
         );
@@ -121,6 +122,7 @@ class DBManager:
                 cur.execute("ALTER TABLE system_nodes ADD COLUMN IF NOT EXISTS status VARCHAR(32) NOT NULL DEFAULT 'paused'")
                 cur.execute("ALTER TABLE system_nodes ADD COLUMN IF NOT EXISTS cpu_usage DOUBLE PRECISION NOT NULL DEFAULT 0")
                 cur.execute("ALTER TABLE system_nodes ADD COLUMN IF NOT EXISTS ram_usage DOUBLE PRECISION NOT NULL DEFAULT 0")
+                cur.execute("ALTER TABLE system_nodes ADD COLUMN IF NOT EXISTS active_workers INTEGER NOT NULL DEFAULT 0")
                 cur.execute("ALTER TABLE system_nodes ADD COLUMN IF NOT EXISTS target_status VARCHAR(32) NOT NULL DEFAULT 'unspecified'")
                 cur.execute("ALTER TABLE system_nodes ADD COLUMN IF NOT EXISTS last_heartbeat TIMESTAMPTZ NOT NULL DEFAULT NOW()")
             conn.commit()
@@ -394,17 +396,26 @@ class DBManager:
             print(f"[DB Error] Failed to list source policies: {e}")
             return []
 
-    def upsert_node_heartbeat(self, node_id: str, role: str, status: str, cpu_usage: float, ram_usage: float):
+    def upsert_node_heartbeat(
+        self,
+        node_id: str,
+        role: str,
+        status: str,
+        cpu_usage: float,
+        ram_usage: float,
+        active_workers: int = 0,
+    ):
         """自身の稼働状態（Heartbeat）とリソース状況を書き込む・更新する"""
         try:
             query = """
-            INSERT INTO system_nodes (node_id, role, status, cpu_usage, ram_usage, last_heartbeat)
-            VALUES (%s, %s, %s, %s, %s, %s)
+            INSERT INTO system_nodes (node_id, role, status, cpu_usage, ram_usage, active_workers, last_heartbeat)
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
             ON CONFLICT (node_id) DO UPDATE
             SET role = EXCLUDED.role,
                 status = EXCLUDED.status,
                 cpu_usage = EXCLUDED.cpu_usage,
                 ram_usage = EXCLUDED.ram_usage,
+                active_workers = EXCLUDED.active_workers,
                 last_heartbeat = EXCLUDED.last_heartbeat
             """
             with self._connect() as conn:
@@ -417,6 +428,7 @@ class DBManager:
                             status,
                             cpu_usage,
                             ram_usage,
+                            int(max(0, active_workers)),
                             datetime.datetime.now(datetime.timezone.utc),
                         ),
                     )
@@ -444,7 +456,7 @@ class DBManager:
                 with conn.cursor(cursor_factory=DictCursor) as cur:
                     cur.execute(
                         """
-                        SELECT node_id, role, status, cpu_usage, ram_usage, target_status, last_heartbeat
+                        SELECT node_id, role, status, cpu_usage, ram_usage, active_workers, target_status, last_heartbeat
                         FROM system_nodes
                         WHERE last_heartbeat >= (NOW() - (%s || ' hours')::interval)
                         ORDER BY last_heartbeat DESC
