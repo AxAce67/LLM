@@ -106,9 +106,23 @@ class DBManager:
         with self._connect() as conn:
             with conn.cursor() as cur:
                 cur.execute(query)
+                # Backward-compatible schema fixes for existing deployments
                 cur.execute("ALTER TABLE crawled_data ADD COLUMN IF NOT EXISTS quality_score DOUBLE PRECISION NOT NULL DEFAULT 0.0")
                 cur.execute("ALTER TABLE crawled_data ADD COLUMN IF NOT EXISTS license_tag TEXT NOT NULL DEFAULT 'unknown'")
                 cur.execute("ALTER TABLE crawled_data ADD COLUMN IF NOT EXISTS allowed_for_training BOOLEAN NOT NULL DEFAULT TRUE")
+                cur.execute("ALTER TABLE source_policies ADD COLUMN IF NOT EXISTS source_type VARCHAR(32) NOT NULL DEFAULT 'web'")
+                cur.execute("ALTER TABLE source_policies ADD COLUMN IF NOT EXISTS license_tag TEXT NOT NULL DEFAULT 'unknown'")
+                cur.execute("ALTER TABLE source_policies ADD COLUMN IF NOT EXISTS allow_training BOOLEAN NOT NULL DEFAULT TRUE")
+                cur.execute("ALTER TABLE source_policies ADD COLUMN IF NOT EXISTS base_weight DOUBLE PRECISION NOT NULL DEFAULT 1.0")
+                cur.execute("ALTER TABLE source_policies ADD COLUMN IF NOT EXISTS notes TEXT NOT NULL DEFAULT ''")
+                cur.execute("ALTER TABLE source_policies ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()")
+                cur.execute("ALTER TABLE source_policies ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()")
+                cur.execute("ALTER TABLE system_nodes ADD COLUMN IF NOT EXISTS role VARCHAR(32) NOT NULL DEFAULT 'worker'")
+                cur.execute("ALTER TABLE system_nodes ADD COLUMN IF NOT EXISTS status VARCHAR(32) NOT NULL DEFAULT 'paused'")
+                cur.execute("ALTER TABLE system_nodes ADD COLUMN IF NOT EXISTS cpu_usage DOUBLE PRECISION NOT NULL DEFAULT 0")
+                cur.execute("ALTER TABLE system_nodes ADD COLUMN IF NOT EXISTS ram_usage DOUBLE PRECISION NOT NULL DEFAULT 0")
+                cur.execute("ALTER TABLE system_nodes ADD COLUMN IF NOT EXISTS target_status VARCHAR(32) NOT NULL DEFAULT 'unspecified'")
+                cur.execute("ALTER TABLE system_nodes ADD COLUMN IF NOT EXISTS last_heartbeat TIMESTAMPTZ NOT NULL DEFAULT NOW()")
             conn.commit()
         self._bootstrap_default_source_policies()
 
