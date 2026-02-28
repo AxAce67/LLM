@@ -65,6 +65,7 @@ services:
       - "8000:8000"
     volumes:
       - ./dataset:/app/dataset
+      - ./checkpoints:/app/checkpoints
       - ./system_status.json:/app/system_status.json
     environment:
       - DATABASE_URL=${DATABASE_URL:-postgresql://${POSTGRES_USER:-llm_user}:${POSTGRES_PASSWORD:-llm_pass}@postgres:5432/${POSTGRES_DB:-llm}}
