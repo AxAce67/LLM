@@ -60,11 +60,14 @@ class DataLoaderLite:
             
         # 連続したB*T個のトークンをX(入力)として取得
         buf = self.data[self.current_position : self.current_position + self.B * self.T + 1]
+        # 一部環境では uint16 ndarray -> torch.long 直接変換で TypeError が出るため、
+        # 事前に int64 へ明示変換してからテンソル化する。
+        buf = np.asarray(buf, dtype=np.int64)
         
         # NumPy配列(uint16)からPyTorchテンソル(int64)へ変換して指定デバイス(GPU等)へ転送
         # 次の単語を予測するため、Xを1つずらしたものがY(正解)となる
-        x = torch.tensor(buf[:-1], dtype=torch.long).view(self.B, self.T).to(device)
-        y = torch.tensor(buf[1:], dtype=torch.long).view(self.B, self.T).to(device)
+        x = torch.from_numpy(buf[:-1].reshape(self.B, self.T)).to(device)
+        y = torch.from_numpy(buf[1:].reshape(self.B, self.T)).to(device)
         
         # 次のバッチのために位置を進める
         self.current_position += self.B * self.T
