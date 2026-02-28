@@ -5,6 +5,7 @@ from typing import Optional, Tuple
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
+from fastapi.encoders import jsonable_encoder
 from pydantic import BaseModel, Field
 import uvicorn
 import traceback
@@ -406,7 +407,7 @@ async def list_models():
 async def list_policies():
     try:
         rows = state_manager.db_manager.list_source_policies(limit=300)
-        return JSONResponse(content={"status": "success", "policies": rows})
+        return JSONResponse(content=jsonable_encoder({"status": "success", "policies": rows}))
     except Exception as e:
         return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
 
@@ -470,7 +471,7 @@ async def get_nodes():
     """
     try:
         nodes = state_manager.db_manager.get_all_nodes()
-        return JSONResponse(content={"status": "success", "nodes": nodes})
+        return JSONResponse(content=jsonable_encoder({"status": "success", "nodes": nodes}))
     except Exception as e:
         return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
 
