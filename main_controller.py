@@ -70,11 +70,16 @@ class SystemState:
         }
         self.db_manager = DBManager()
         self.status_lock_path = f"{STATUS_FILE}.lock"
+        self._ckpt_stats_cache = None
+        self._ckpt_stats_mtime = None
         self._heartbeat_thread = None
         self._heartbeat_stop = threading.Event()
         if not self.is_dashboard:
             self._start_heartbeat_thread()
-        self.save()
+            self.save()
+        else:
+            # Dashboard側は初期状態を上書き保存しない（学習状態リセットを避ける）
+            self.load()
 
     def _load_or_create_node_id(self) -> str:
         import uuid
@@ -178,6 +183,8 @@ class SystemState:
             self.state["stats"]["dataset_size_mb"]     = db_stats["dataset_size_mb"]
         except Exception as e:
             print(f"Stats check error: {e}")
+
+        self._restore_training_stats_from_checkpoint_if_needed()
             
         # 現在のCPU/RAM状態を常に最新に保つ
         cpu_usage, ram_usage = 0.0, 0.0
@@ -220,6 +227,47 @@ class SystemState:
                     self.db_manager.set_node_target_status(self.node_id, "unspecified")
             except Exception as e:
                 print(f"Heartbeat error: {e}")
+
+    def _restore_training_stats_from_checkpoint_if_needed(self):
+        stats = self.state.get("stats", {})
+        already_has_values = any([
+            float(stats.get("current_epoch", 0) or 0) > 0,
+            float(stats.get("current_loss", 0) or 0) > 0,
+            float(stats.get("current_val_loss", 0) or 0) > 0,
+            float(stats.get("best_val_loss", 0) or 0) > 0,
+        ])
+        if already_has_values:
+            return
+
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        ckpt_path = os.path.join(base_dir, "checkpoints", "ckpt_latest.pt")
+        if not os.path.exists(ckpt_path):
+            return
+        try:
+            mtime = os.path.getmtime(ckpt_path)
+            if self._ckpt_stats_cache is not None and self._ckpt_stats_mtime == mtime:
+                cached = self._ckpt_stats_cache
+            else:
+                import torch
+                ckpt = torch.load(ckpt_path, map_location="cpu", weights_only=False)
+                cached = {
+                    "step": int(ckpt.get("step", 0) or 0),
+                    "train_loss": float(ckpt.get("loss", 0.0) or 0.0),
+                    "val_loss": ckpt.get("val_loss"),
+                    "best_val_loss": ckpt.get("best_val_loss"),
+                }
+                self._ckpt_stats_cache = cached
+                self._ckpt_stats_mtime = mtime
+
+            if int(cached.get("step", 0)) > 0:
+                stats["current_epoch"] = int(cached.get("step", 0))
+                stats["current_loss"] = round(float(cached.get("train_loss", 0.0) or 0.0), 4)
+                val_loss = cached.get("val_loss")
+                best_val = cached.get("best_val_loss")
+                stats["current_val_loss"] = round(float(val_loss), 4) if val_loss is not None else 0.0
+                stats["best_val_loss"] = round(float(best_val), 4) if best_val is not None else 0.0
+        except Exception as e:
+            print(f"Checkpoint stats restore error: {e}")
 
     def set_running(self, running: bool):
         self.state["is_running"] = running

@@ -1,6 +1,7 @@
 import datetime
 import os
 import threading
+import time
 from typing import Generator
 
 import psycopg2
@@ -15,6 +16,9 @@ load_dotenv()
 class DBManager:
     _insert_metrics_lock = threading.Lock()
     _insert_metrics = {}
+    _fs_stats_lock = threading.Lock()
+    _fs_stats_cache = None
+    _fs_stats_cached_at = 0.0
 
     def __init__(self):
         self.database_url = os.environ.get("DATABASE_URL")
@@ -289,8 +293,17 @@ class DBManager:
                     cur.execute("SELECT COUNT(*) FROM crawled_data")
                     total_docs = cur.fetchone()[0] or 0
 
+            fs_stats = self._get_local_corpus_fs_stats()
+            wiki_local_count = int(fs_stats.get("wiki_local_count", 0))
+            wiki_local_mb = float(fs_stats.get("wiki_local_size_mb", 0.0))
+            train_bin_mb = float(fs_stats.get("train_bin_mb", 0.0))
+            val_bin_mb = float(fs_stats.get("val_bin_mb", 0.0))
+            wiki_total = max(int(wiki_count), wiki_local_count)
+            db_estimate_mb = float(total_docs * 1000 * 3 / (1024 * 1024))
+            total_volume_mb = db_estimate_mb + wiki_local_mb + train_bin_mb + val_bin_mb
+
             return {
-                "collected_docs_wiki": wiki_count,
+                "collected_docs_wiki": wiki_total,
                 "collected_docs_web": web_count,
                 "collected_docs_rss": rss_count,
                 "collected_docs_news": news_count,
@@ -298,7 +311,8 @@ class DBManager:
                 "collected_docs_docs": docs_count,
                 "blocked_docs": blocked_count,
                 "total_docs": total_docs,
-                "dataset_size_mb": round(total_docs * 1000 * 3 / (1024 * 1024), 2),
+                "dataset_size_mb": round(total_volume_mb, 2),
+                "wiki_local_docs": wiki_local_count,
             }
         except Exception as e:
             print(f"[DB Error] Failed to get stats: {e}")
@@ -312,7 +326,51 @@ class DBManager:
                 "blocked_docs": 0,
                 "total_docs": 0,
                 "dataset_size_mb": 0.0,
+                "wiki_local_docs": 0,
             }
+
+    def _get_local_corpus_fs_stats(self) -> dict:
+        """
+        ローカルコーパス容量の簡易集計（重いためキャッシュ）。
+        """
+        cache_sec = max(30, int(os.environ.get("CORPUS_FS_CACHE_SEC", "300")))
+        now = time.time()
+        with self._fs_stats_lock:
+            if self._fs_stats_cache is not None and (now - self._fs_stats_cached_at) < cache_sec:
+                return dict(self._fs_stats_cache)
+
+        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        wiki_dir = os.path.join(base_dir, "dataset", "wikipedia")
+        train_bin = os.path.join(base_dir, "dataset", "train.bin")
+        val_bin = os.path.join(base_dir, "dataset", "val.bin")
+
+        wiki_count = 0
+        wiki_bytes = 0
+        try:
+            if os.path.isdir(wiki_dir):
+                for root, _, files in os.walk(wiki_dir):
+                    for name in files:
+                        if name.startswith("wiki_") and name.endswith(".txt"):
+                            wiki_count += 1
+                            try:
+                                wiki_bytes += os.path.getsize(os.path.join(root, name))
+                            except Exception:
+                                pass
+        except Exception:
+            pass
+
+        train_bytes = os.path.getsize(train_bin) if os.path.exists(train_bin) else 0
+        val_bytes = os.path.getsize(val_bin) if os.path.exists(val_bin) else 0
+        stats = {
+            "wiki_local_count": wiki_count,
+            "wiki_local_size_mb": wiki_bytes / (1024 * 1024),
+            "train_bin_mb": train_bytes / (1024 * 1024),
+            "val_bin_mb": val_bytes / (1024 * 1024),
+        }
+        with self._fs_stats_lock:
+            self._fs_stats_cache = dict(stats)
+            self._fs_stats_cached_at = now
+        return stats
 
     def stream_crawled_contents(self, batch_size: int = 1000) -> Generator[str, None, None]:
         with self._connect() as conn:
