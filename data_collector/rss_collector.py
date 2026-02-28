@@ -13,12 +13,22 @@ from data_collector.db_manager import DBManager
 DEFAULT_RSS_FEEDS = [
     "https://openai.com/news/rss.xml",
     "https://aws.amazon.com/blogs/machine-learning/feed/",
+    "https://aws.amazon.com/blogs/architecture/feed/",
+    "https://developers.googleblog.com/en/rss/",
+    "https://research.google/blog/rss/",
+    "https://engineering.fb.com/feed/",
+    "https://netflixtechblog.com/feed",
     "https://engineering.atspotify.com/feed/",
+    "https://www.anthropic.com/news/rss.xml",
+    "https://huggingface.co/blog/feed.xml",
+    "https://www.databricks.com/blog/category/engineering/feed",
+    "https://www.cncf.io/feed/",
+    "https://www.postgresql.org/about/news.rss",
 ]
 
 
 def _fetch_text(url: str) -> str:
-    headers = {"User-Agent": "DIY-LLM-RSS/1.0"}
+    headers = {"User-Agent": os.environ.get("COLLECTOR_USER_AGENT", "DIY-LLM-RSS/1.0")}
     response = requests.get(url, timeout=12, headers=headers)
     response.raise_for_status()
     soup = BeautifulSoup(response.content, "html.parser")
@@ -34,7 +44,11 @@ def collect_from_rss(max_items_per_feed: int = 5):
 
     for feed_url in feeds:
         try:
-            feed_xml = requests.get(feed_url, timeout=12).text
+            feed_xml = requests.get(
+                feed_url,
+                timeout=12,
+                headers={"User-Agent": os.environ.get("COLLECTOR_USER_AGENT", "DIY-LLM-RSS/1.0")},
+            ).text
             root = ET.fromstring(feed_xml)
             items = root.findall(".//item")[:max_items_per_feed]
             for item in items:
@@ -66,4 +80,3 @@ def collect_from_rss(max_items_per_feed: int = 5):
 
     print(f"[RSS] Saved {saved} articles from RSS feeds.")
     return saved
-

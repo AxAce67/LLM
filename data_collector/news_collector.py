@@ -15,6 +15,11 @@ DEFAULT_NEWS_FEEDS = [
     "https://feeds.arstechnica.com/arstechnica/index",
     "https://www.theverge.com/rss/index.xml",
     "https://www.wired.com/feed/rss",
+    "https://feeds.bbci.co.uk/news/technology/rss.xml",
+    "https://www.nature.com/subjects/machine-learning.rss",
+    "https://www.infoq.com/feed/",
+    "https://zenn.dev/topics/ai/feed",
+    "https://qiita.com/tags/llm/feed",
 ]
 
 
@@ -23,7 +28,7 @@ def _detect_language(text: str) -> str:
 
 
 def _fetch_article_text(url: str) -> str:
-    headers = {"User-Agent": "DIY-LLM-News/1.0"}
+    headers = {"User-Agent": os.environ.get("COLLECTOR_USER_AGENT", "DIY-LLM-News/1.0")}
     response = requests.get(url, timeout=12, headers=headers)
     response.raise_for_status()
     soup = BeautifulSoup(response.content, "html.parser")
@@ -37,7 +42,11 @@ def _collect_from_rss_feeds(db: DBManager, max_items_per_feed: int) -> int:
     saved = 0
     for feed_url in feeds:
         try:
-            xml_text = requests.get(feed_url, timeout=12, headers={"User-Agent": "DIY-LLM-News/1.0"}).text
+            xml_text = requests.get(
+                feed_url,
+                timeout=12,
+                headers={"User-Agent": os.environ.get("COLLECTOR_USER_AGENT", "DIY-LLM-News/1.0")},
+            ).text
             root = ET.fromstring(xml_text)
             items = root.findall(".//item")[:max_items_per_feed]
             for item in items:
@@ -75,7 +84,7 @@ def _collect_from_hackernews(db: DBManager, max_items: int) -> int:
         ids = requests.get(
             "https://hacker-news.firebaseio.com/v0/topstories.json",
             timeout=10,
-            headers={"User-Agent": "DIY-LLM-News/1.0"},
+            headers={"User-Agent": os.environ.get("COLLECTOR_USER_AGENT", "DIY-LLM-News/1.0")},
         ).json()[:max_items]
     except Exception as e:
         print(f"[HN] Failed topstories fetch: {e}")
@@ -86,7 +95,7 @@ def _collect_from_hackernews(db: DBManager, max_items: int) -> int:
             item = requests.get(
                 f"https://hacker-news.firebaseio.com/v0/item/{story_id}.json",
                 timeout=10,
-                headers={"User-Agent": "DIY-LLM-News/1.0"},
+                headers={"User-Agent": os.environ.get("COLLECTOR_USER_AGENT", "DIY-LLM-News/1.0")},
             ).json()
             if not item:
                 continue

@@ -332,7 +332,17 @@ def run_pipeline(state: SystemState):
                 "https://ja.wikipedia.org/wiki/%E5%93%B2%E5%AD%A6",
                 "https://ja.wikipedia.org/wiki/%E7%B5%8C%E6%B8%88%E5%AD%A6",
             ]
-            if os.environ.get("ENABLE_AUTO_DISCOVERY", "1") == "1":
+            fixed_source_mode = os.environ.get("ENABLE_FIXED_SOURCE_MODE", "1") == "1"
+            enable_web_crawler = os.environ.get("ENABLE_WEB_CRAWLER", "0") == "1"
+            if fixed_source_mode:
+                custom_web_seeds = os.environ.get("WEB_SEED_URLS", "").strip()
+                if custom_web_seeds:
+                    seeds = [u.strip() for u in custom_web_seeds.split(",") if u.strip()]
+                else:
+                    seeds = []
+                state.log("[Collection] Fixed source mode is enabled (RSS/News/arXiv/Docs priority).")
+
+            if os.environ.get("ENABLE_AUTO_DISCOVERY", "1") == "1" and not fixed_source_mode:
                 try:
                     discovered = auto_discovery.discover_seed_urls(
                         max_urls=int(os.environ.get("AUTO_DISCOVERY_SEEDS_PER_CYCLE", "24")),
@@ -343,28 +353,36 @@ def run_pipeline(state: SystemState):
                         state.log(f"[AutoDiscovery] Added {len(discovered)} web seeds from live search.")
                 except Exception as e:
                     state.log(f"Auto discovery error: {e}")
-            try:
-                include_master = os.environ.get("COLLECTION_INCLUDE_MASTER", "1") == "1"
-                active_nodes = state.db_manager.get_active_collector_nodes(
-                    online_window_sec=int(os.environ.get("COLLECTION_NODE_WINDOW_SEC", "60")),
-                    include_master=include_master,
-                )
-                active_node_ids = [n.get("node_id") for n in active_nodes if n.get("node_id")]
-                assigned_seeds = _assign_seed_urls_to_node(seeds, state.node_id, active_node_ids)
-                max_pages_total = int(os.environ.get("MAX_CRAWL_PAGES_PER_CYCLE", "200"))
-                node_count = max(1, len(set(active_node_ids + [state.node_id])))
-                max_pages_for_this_node = max(20, max_pages_total // node_count)
-                state.log(
-                    f"[Shard] node={state.node_id[-8:]} assigned_seeds={len(assigned_seeds)}/{len(seeds)} "
-                    f"active_nodes={node_count} max_pages={max_pages_for_this_node}"
-                )
-                web_crawler.start_crawler(
-                    assigned_seeds,
-                    max_workers=target_workers,
-                    max_pages=max_pages_for_this_node,
-                )
-            except Exception as e:
-                state.log(f"Crawler error: {e}")
+            elif os.environ.get("ENABLE_AUTO_DISCOVERY", "1") == "1" and fixed_source_mode:
+                state.log("[Collection] AutoDiscovery is ignored because fixed source mode is enabled.")
+
+            if enable_web_crawler and seeds:
+                try:
+                    include_master = os.environ.get("COLLECTION_INCLUDE_MASTER", "1") == "1"
+                    active_nodes = state.db_manager.get_active_collector_nodes(
+                        online_window_sec=int(os.environ.get("COLLECTION_NODE_WINDOW_SEC", "60")),
+                        include_master=include_master,
+                    )
+                    active_node_ids = [n.get("node_id") for n in active_nodes if n.get("node_id")]
+                    assigned_seeds = _assign_seed_urls_to_node(seeds, state.node_id, active_node_ids)
+                    max_pages_total = int(os.environ.get("MAX_CRAWL_PAGES_PER_CYCLE", "200"))
+                    node_count = max(1, len(set(active_node_ids + [state.node_id])))
+                    max_pages_for_this_node = max(20, max_pages_total // node_count)
+                    state.log(
+                        f"[Shard] node={state.node_id[-8:]} assigned_seeds={len(assigned_seeds)}/{len(seeds)} "
+                        f"active_nodes={node_count} max_pages={max_pages_for_this_node}"
+                    )
+                    web_crawler.start_crawler(
+                        assigned_seeds,
+                        max_workers=target_workers,
+                        max_pages=max_pages_for_this_node,
+                    )
+                except Exception as e:
+                    state.log(f"Crawler error: {e}")
+            elif enable_web_crawler and not seeds:
+                state.log("[Collection] Web crawler is enabled but no seed URLs are configured.")
+            else:
+                state.log("[Collection] Web crawler is disabled (ENABLE_WEB_CRAWLER=0).")
 
             # RSSソースの追加収集（Wikipedia以外）
             if os.environ.get("ENABLE_RSS_COLLECTOR", "1") == "1":

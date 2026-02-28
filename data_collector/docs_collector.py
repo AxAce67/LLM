@@ -15,11 +15,19 @@ DEFAULT_DOC_URLS = [
     "https://pytorch.org/docs/stable/index.html",
     "https://www.postgresql.org/docs/current/index.html",
     "https://kubernetes.io/docs/concepts/overview/",
+    "https://docs.docker.com/",
+    "https://fastapi.tiangolo.com/",
+    "https://numpy.org/doc/stable/",
+    "https://pandas.pydata.org/docs/",
+    "https://huggingface.co/docs/transformers/index",
+    "https://huggingface.co/docs/peft/index",
+    "https://docs.ray.io/en/latest/",
+    "https://docs.llamaindex.ai/en/stable/",
 ]
 
 
 def _extract_text(url: str) -> str:
-    headers = {"User-Agent": "DIY-LLM-Docs/1.0"}
+    headers = {"User-Agent": os.environ.get("COLLECTOR_USER_AGENT", "DIY-LLM-Docs/1.0")}
     response = requests.get(url, timeout=15, headers=headers)
     response.raise_for_status()
     soup = BeautifulSoup(response.content, "html.parser")

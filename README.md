@@ -98,9 +98,18 @@ bash setup.sh
 - News収集を有効化（`ENABLE_NEWS_COLLECTOR=1`）
 - arXiv収集を有効化（`ENABLE_ARXIV_COLLECTOR=1`）
 - 技術ドキュメント収集を有効化（`ENABLE_DOCS_COLLECTOR=1`）
+- 固定ソース優先モード（推奨）:
+- `ENABLE_FIXED_SOURCE_MODE=1`
+- `ENABLE_WEB_CRAWLER=0`
+- `ENABLE_AUTO_DISCOVERY=0`
 - News RSSは `NEWS_FEEDS`（カンマ区切り）で追加可能
 - Hacker News収集量は `HN_ITEMS` で調整
-- Web上の新規URLを自動発見（手動登録なし）:
+- 固定ソースの追加:
+- `RSS_FEEDS`（カンマ区切り）
+- `NEWS_FEEDS`（カンマ区切り）
+- `DOC_SEED_URLS`（カンマ区切り）
+- `COLLECTOR_USER_AGENT`（推奨: 連絡先付き）
+- Web上の新規URLを自動発見（必要な場合のみ）:
 - `ENABLE_AUTO_DISCOVERY=1`
 - `AUTO_DISCOVERY_QUERIES`（カンマ区切り）で探索テーマを指定
 - `AUTO_DISCOVERY_SEEDS_PER_CYCLE` / `AUTO_DISCOVERY_RESULTS_PER_QUERY` で収集量を調整
