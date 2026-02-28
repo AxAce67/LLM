@@ -451,7 +451,9 @@ class DBManager:
     def get_all_nodes(self) -> list:
         """ダッシュボード用: すべてのノードの情報を取得する"""
         try:
-            window_hours = int(os.environ.get("NODE_LIST_WINDOW_HOURS", "24"))
+            # Node table is meant for "currently connected" visibility.
+            # Keep stale/offline historical rows out by default.
+            window_hours = int(os.environ.get("NODE_LIST_WINDOW_HOURS", "2"))
             with self._connect() as conn:
                 with conn.cursor(cursor_factory=DictCursor) as cur:
                     cur.execute(

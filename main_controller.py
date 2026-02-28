@@ -81,7 +81,9 @@ class SystemState:
         env_node_id = (os.environ.get("NODE_ID") or "").strip()
         if env_node_id:
             return env_node_id
-        node_id_file = os.environ.get("NODE_ID_FILE", "node_id.txt")
+        # checkpoints は docker-compose でホストへ永続化されるため、
+        # コンテナ再作成後も node_id を維持できる。
+        node_id_file = os.environ.get("NODE_ID_FILE", os.path.join("checkpoints", "node_id.txt"))
         try:
             if os.path.exists(node_id_file):
                 with open(node_id_file, "r", encoding="utf-8") as f:
