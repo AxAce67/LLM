@@ -16,11 +16,19 @@ def promote_best():
     if not os.path.exists(source):
         raise FileNotFoundError(f"Best checkpoint not found: {source}")
 
+    print(f"[Promote] source={source} target={target}")
     shutil.copy2(source, target)
     db = DBManager()
     latest_eval = db.get_latest_evaluation_run()
     min_score = float(os.environ.get("PROMOTION_MIN_SCORE", "0.72"))
     force = os.environ.get("FORCE_PROMOTE", "0") == "1"
+    if latest_eval:
+        print(
+            f"[Promote] latest_eval model={latest_eval.get('model_tag')} "
+            f"avg_score={latest_eval.get('avg_score', 0):.4f}"
+        )
+    else:
+        print("[Promote] latest_eval not found")
     if not latest_eval and not force:
         raise RuntimeError("No evaluation result found. Run evaluation first, or set FORCE_PROMOTE=1.")
     avg_score = latest_eval["avg_score"] if latest_eval else 0.0

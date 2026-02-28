@@ -273,7 +273,7 @@ def _run_training_with_retry(state: SystemState, max_steps: int):
         attempt += 1
         try:
             state.log(f"[TrainJob] Attempt {attempt}/{retries + 1}")
-            return trainer.train_step(max_steps=max_steps)
+            return trainer.train_step(max_steps=max_steps, log_fn=state.log)
         except Exception as e:
             state.log(f"[TrainJob] Attempt {attempt} failed: {e}")
             if os.path.exists(backup_ckpt):
@@ -439,38 +439,89 @@ def run_pipeline(state: SystemState):
             # RSSソースの追加収集（Wikipedia以外）
             if os.environ.get("ENABLE_RSS_COLLECTOR", "1") == "1":
                 try:
-                    rss_saved = rss_collector.collect_from_rss(
+                    rss_result = rss_collector.collect_from_rss(
                         max_items_per_feed=int(os.environ.get("RSS_ITEMS_PER_FEED", "5"))
                     )
-                    state.log(f"[Data Source] RSS collector saved {rss_saved} articles.")
+                    if isinstance(rss_result, dict):
+                        state.log(
+                            "[Data Source] RSS "
+                            f"saved={rss_result.get('saved', 0)} "
+                            f"failed_fetch={rss_result.get('fetch_failed', 0)} "
+                            f"failed_feed={rss_result.get('feed_failed', 0)} "
+                            f"skipped_dup={rss_result.get('skipped_duplicate', 0)} "
+                            f"skipped_short={rss_result.get('skipped_short', 0)}"
+                        )
+                    else:
+                        state.log(f"[Data Source] RSS collector saved {rss_result} articles.")
                 except Exception as e:
                     state.log(f"RSS collector error: {e}")
 
             if os.environ.get("ENABLE_NEWS_COLLECTOR", "1") == "1":
                 try:
-                    news_saved = news_collector.collect_news(
+                    news_result = news_collector.collect_news(
                         max_items_per_feed=int(os.environ.get("NEWS_ITEMS_PER_FEED", "5")),
                         max_hn_items=int(os.environ.get("HN_ITEMS", "15")),
                     )
-                    state.log(f"[Data Source] News collector saved {news_saved} articles.")
+                    if isinstance(news_result, dict):
+                        state.log(
+                            "[Data Source] News "
+                            f"saved={news_result.get('saved', 0)} "
+                            f"failed_fetch={news_result.get('fetch_failed', 0)} "
+                            f"failed_feed={news_result.get('feed_failed', 0)} "
+                            f"failed_hn={news_result.get('hn_failed', 0)} "
+                            f"skipped_dup={news_result.get('skipped_duplicate', 0)} "
+                            f"skipped_short={news_result.get('skipped_short', 0)}"
+                        )
+                    else:
+                        state.log(f"[Data Source] News collector saved {news_result} articles.")
                 except Exception as e:
                     state.log(f"News collector error: {e}")
 
             if os.environ.get("ENABLE_ARXIV_COLLECTOR", "1") == "1":
                 try:
-                    arxiv_saved = arxiv_collector.collect_arxiv(
+                    arxiv_result = arxiv_collector.collect_arxiv(
                         max_results=int(os.environ.get("ARXIV_MAX_RESULTS", "30"))
                     )
-                    state.log(f"[Data Source] arXiv collector saved {arxiv_saved} abstracts.")
+                    if isinstance(arxiv_result, dict):
+                        state.log(
+                            "[Data Source] arXiv "
+                            f"saved={arxiv_result.get('saved', 0)} "
+                            f"failed={arxiv_result.get('failed', 0)} "
+                            f"skipped_dup={arxiv_result.get('skipped_duplicate', 0)}"
+                        )
+                    else:
+                        state.log(f"[Data Source] arXiv collector saved {arxiv_result} abstracts.")
                 except Exception as e:
                     state.log(f"arXiv collector error: {e}")
 
             if os.environ.get("ENABLE_DOCS_COLLECTOR", "1") == "1":
                 try:
-                    docs_saved = docs_collector.collect_docs()
-                    state.log(f"[Data Source] Docs collector saved {docs_saved} pages.")
+                    docs_result = docs_collector.collect_docs()
+                    if isinstance(docs_result, dict):
+                        state.log(
+                            "[Data Source] Docs "
+                            f"saved={docs_result.get('saved', 0)} "
+                            f"failed={docs_result.get('failed', 0)} "
+                            f"skipped_dup={docs_result.get('skipped_duplicate', 0)} "
+                            f"skipped_short={docs_result.get('skipped_short', 0)}"
+                        )
+                    else:
+                        state.log(f"[Data Source] Docs collector saved {docs_result} pages.")
                 except Exception as e:
                     state.log(f"Docs collector error: {e}")
+
+            try:
+                db_insert_metrics = state.db_manager.get_and_reset_insert_metrics()
+                if db_insert_metrics:
+                    parts = []
+                    for source_type in sorted(db_insert_metrics.keys()):
+                        item = db_insert_metrics[source_type]
+                        parts.append(
+                            f"{source_type}:ok={item.get('ok', 0)}/ng={item.get('ng', 0)}"
+                        )
+                    state.log(f"[DB Write Summary] {' | '.join(parts)}")
+            except Exception as e:
+                state.log(f"[DB Write Summary] error: {e}")
             
             # ---------------------------------------------------------
             # フェーズ2以降（マスターノードのみ実行）

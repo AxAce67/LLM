@@ -13,7 +13,7 @@ from data_collector.db_manager import DBManager
 DEFAULT_ARXIV_QUERY = 'cat:cs.LG OR cat:cs.CL OR cat:cs.AI'
 
 
-def collect_arxiv(max_results: int = 30) -> int:
+def collect_arxiv(max_results: int = 30) -> dict:
     db = DBManager()
     query = os.environ.get("ARXIV_QUERY", DEFAULT_ARXIV_QUERY).strip() or DEFAULT_ARXIV_QUERY
     encoded = urllib.parse.quote(query)
@@ -22,7 +22,7 @@ def collect_arxiv(max_results: int = 30) -> int:
         f"?search_query={encoded}&sortBy=submittedDate&sortOrder=descending&start=0&max_results={max(1, max_results)}"
     )
     headers = {"User-Agent": "DIY-LLM-arXiv/1.0"}
-    saved = 0
+    stats = {"saved": 0, "failed": 0, "skipped_duplicate": 0, "skipped_short": 0}
     try:
         xml_text = requests.get(url, timeout=20, headers=headers).text
         root = ET.fromstring(xml_text)
@@ -36,10 +36,12 @@ def collect_arxiv(max_results: int = 30) -> int:
                 continue
             paper_url = (id_el.text or "").strip()
             if not paper_url or db.is_url_crawled(paper_url):
+                stats["skipped_duplicate"] += 1
                 continue
             title = (title_el.text or "").strip() if title_el is not None else ""
             summary = (summary_el.text or "").strip()
             if len(summary) < 120:
+                stats["skipped_short"] += 1
                 continue
             content = f"Title: {title}\n\nAbstract:\n{summary}"
             db.insert_crawled_data(
@@ -50,12 +52,19 @@ def collect_arxiv(max_results: int = 30) -> int:
                 source_type="arxiv",
                 language="en",
             )
-            saved += 1
+            stats["saved"] += 1
             time.sleep(0.05)
     except Exception as e:
+        stats["failed"] += 1
         print(f"[arXiv] collection failed: {e}")
-    print(f"[arXiv] Saved {saved} abstracts.")
-    return saved
+    print(
+        "[arXiv] "
+        f"saved={stats['saved']} "
+        f"failed={stats['failed']} "
+        f"skipped_dup={stats['skipped_duplicate']} "
+        f"skipped_short={stats['skipped_short']}"
+    )
+    return stats
 
 
 if __name__ == "__main__":

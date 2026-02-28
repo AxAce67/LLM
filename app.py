@@ -197,6 +197,7 @@ async def bootstrap_config(token: str = ""):
 @app.post("/api/nodes/control-all")
 async def control_all_nodes(request: Request):
     if not _is_admin_request(request):
+        state_manager.log(f"[API] forbidden /api/nodes/control-all from {request.client.host if request.client else 'unknown'}")
         return JSONResponse(status_code=403, content={"status": "error", "message": "Forbidden"})
     try:
         data = await request.json()
@@ -208,7 +209,10 @@ async def control_all_nodes(request: Request):
             return JSONResponse(status_code=400, content={"status": "error", "message": "Invalid role"})
 
         state_manager.db_manager.set_all_nodes_target_status(action, role=role)
-        state_manager.log(f"User requested: {action.upper()} for role={role}")
+        state_manager.log(
+            f"[NodeControlAll] actor={request.client.host if request.client else 'unknown'} "
+            f"action={action} role={role}"
+        )
         return JSONResponse(content={"status": "success", "message": f"Command {action} sent to role={role}"})
     except Exception as e:
         return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
@@ -227,17 +231,24 @@ def _run_eval_task():
     global _eval_running, _eval_last_output, _eval_last_error
     base_dir = os.path.dirname(os.path.abspath(__file__))
     cmd = ["python3", os.path.join(base_dir, "eval", "evaluate_model.py")]
+    started_at = os.times()
+    state_manager.log("[Eval] started")
     try:
         completed = subprocess.run(cmd, capture_output=True, text=True, cwd=base_dir, timeout=1800)
         _eval_last_output = (completed.stdout or "").strip()
         if completed.returncode != 0:
             _eval_last_error = (completed.stderr or completed.stdout or f"eval failed (rc={completed.returncode})").strip()
+            state_manager.log(f"[Eval] failed rc={completed.returncode}")
         else:
             _eval_last_error = (completed.stderr or "").strip()
+            state_manager.log("[Eval] finished successfully")
     except Exception as e:
         _eval_last_output = ""
         _eval_last_error = str(e)
+        state_manager.log(f"[Eval] exception: {e}")
     finally:
+        elapsed = os.times().elapsed - started_at.elapsed
+        state_manager.log(f"[Eval] elapsed_sec={elapsed:.2f}")
         _eval_running = False
 
 
@@ -296,6 +307,7 @@ def _run_gguf_export_task(llama_cpp_dir: str, hf_model: str, out_gguf: str, quan
 @app.post("/api/evals/run")
 async def run_evaluation(request: Request):
     if not _is_admin_request(request):
+        state_manager.log(f"[API] forbidden /api/evals/run from {request.client.host if request.client else 'unknown'}")
         return JSONResponse(status_code=403, content={"status": "error", "message": "Forbidden"})
     global _eval_running
     with _eval_lock:
@@ -423,6 +435,7 @@ async def list_datasets():
 @app.post("/api/policies")
 async def upsert_policy(req: SourcePolicyRequest, request: Request):
     if not _is_admin_request(request):
+        state_manager.log(f"[API] forbidden /api/policies from {request.client.host if request.client else 'unknown'}")
         return JSONResponse(status_code=403, content={"status": "error", "message": "Forbidden"})
     try:
         state_manager.db_manager.upsert_source_policy(
@@ -433,6 +446,10 @@ async def upsert_policy(req: SourcePolicyRequest, request: Request):
             base_weight=req.base_weight,
             notes=req.notes,
         )
+        state_manager.log(
+            f"[Policy] updated domain={req.domain_pattern} type={req.source_type} "
+            f"allow={req.allow_training} weight={req.base_weight:.2f}"
+        )
         return JSONResponse(content={"status": "success", "message": f"Policy updated: {req.domain_pattern}"})
     except Exception as e:
         return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
@@ -441,9 +458,11 @@ async def upsert_policy(req: SourcePolicyRequest, request: Request):
 @app.post("/api/models/promote")
 async def promote_model(request: Request, force: bool = False):
     if not _is_admin_request(request):
+        state_manager.log(f"[API] forbidden /api/models/promote from {request.client.host if request.client else 'unknown'}")
         return JSONResponse(status_code=403, content={"status": "error", "message": "Forbidden"})
     with _promote_lock:
         try:
+            state_manager.log(f"[Promote] started force={force}")
             base_dir = os.path.dirname(os.path.abspath(__file__))
             cmd = ["python3", os.path.join(base_dir, "ops", "promote_best_checkpoint.py")]
             env = os.environ.copy()
@@ -451,6 +470,10 @@ async def promote_model(request: Request, force: bool = False):
                 env["FORCE_PROMOTE"] = "1"
             completed = subprocess.run(cmd, capture_output=True, text=True, cwd=base_dir, timeout=120, env=env)
             if completed.returncode != 0:
+                state_manager.log(
+                    "[Promote] blocked_or_failed "
+                    f"message={(completed.stderr or completed.stdout or 'promote failed')[:200]}"
+                )
                 return JSONResponse(
                     status_code=500,
                     content={"status": "error", "message": completed.stderr or completed.stdout or "promote failed"},
@@ -460,8 +483,10 @@ async def promote_model(request: Request, force: bool = False):
             _cached_model = None
             _cached_tokenizer = None
             _cached_device = None
+            state_manager.log(f"[Promote] success {(completed.stdout or '').strip()[:200]}")
             return JSONResponse(content={"status": "success", "message": (completed.stdout or "").strip()})
         except Exception as e:
+            state_manager.log(f"[Promote] exception: {e}")
             return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
 
 @app.get("/api/nodes")
@@ -482,13 +507,17 @@ async def control_node(node_id: str, request: Request):
     """
     try:
         if not _is_admin_request(request):
+            state_manager.log(f"[API] forbidden /api/nodes/{node_id}/control from {request.client.host if request.client else 'unknown'}")
             return JSONResponse(status_code=403, content={"status": "error", "message": "Forbidden"})
         data = await request.json()
         action = data.get("action")
         if action in ["start", "stop"]:
             state_manager.db_manager.set_node_target_status(node_id, action)
             # 全体向けの命令としてもログを残す
-            state_manager.log(f"User requested: {action.upper()} for node {node_id[-4:]}")
+            state_manager.log(
+                f"[NodeControl] actor={request.client.host if request.client else 'unknown'} "
+                f"action={action} node={node_id[-8:]}"
+            )
             return JSONResponse(content={"status": "success", "message": f"Command {action} sent to node {node_id}"})
         else:
             return JSONResponse(status_code=400, content={"status": "error", "message": "Invalid action"})
@@ -509,6 +538,7 @@ async def control_pipeline(request: ControlRequest, raw_request: Request):
     システムの開始/停止を切り替えるAPI
     """
     if not _is_admin_request(raw_request):
+        state_manager.log(f"[API] forbidden /api/control from {raw_request.client.host if raw_request.client else 'unknown'}")
         return JSONResponse(status_code=403, content={"status": "error", "message": "Forbidden"})
     state_manager.load()
     if request.action == "start":

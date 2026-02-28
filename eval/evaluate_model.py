@@ -33,6 +33,7 @@ def main():
     base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     bench_path = os.path.join(base_dir, "eval", "benchmark_prompts.jsonl")
     benches = load_benchmarks(bench_path)
+    print(f"[Eval] loaded benchmarks={len(benches)} path={bench_path}")
 
     device = "cpu"
     if torch.backends.mps.is_available():
@@ -84,6 +85,11 @@ def main():
         except Exception as e:
             print(f"[Eval] Failed to save evaluation run: {e}")
 
+    print(
+        "[Eval] summary "
+        f"avg_score={avg:.4f} "
+        + " ".join([f"{k}={v:.4f}" for k, v in sorted(category_scores.items())])
+    )
     print(json.dumps(summary, ensure_ascii=False, indent=2))
 
 

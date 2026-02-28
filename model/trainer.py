@@ -90,7 +90,7 @@ def estimate_val_loss(model, val_loader, device, eval_batches=20):
         model.train()
     return float(sum(losses) / max(1, len(losses)))
 
-def train_step(max_steps=50):
+def train_step(max_steps=50, log_fn=None):
     """
     メインコントローラーから定期的に呼ばれる、指定ステップ数の学習を行う関数。
     途中でチェックポイント(重みデータ)を保存しながら進める。
@@ -134,6 +134,12 @@ def train_step(max_steps=50):
         f"[AutoTune] cores={runtime_profile['cpu_cores']} ram={runtime_profile['available_ram_gb']}/{runtime_profile['total_ram_gb']}GB "
         f"model={runtime_profile['model_size']} B={B} T={T} threads={cfg.cpu_threads}"
     )
+    if callable(log_fn):
+        log_fn(
+            "[Train] "
+            f"device={device} steps={max_steps} B={B} T={T} grad_accum={cfg.grad_accum_steps} "
+            f"lr={learning_rate:.3e}"
+        )
     
     # データローダーの準備
     train_loader = DataLoaderLite(train_data_path, B=B, T=T)
@@ -192,6 +198,8 @@ def train_step(max_steps=50):
     lossf = 0.0
     
     print(f"Running training loop for {max_steps} steps...")
+    if callable(log_fn):
+        log_fn(f"[Train] running loop max_steps={max_steps}")
     
     use_amp = device == "cuda" and os.environ.get("TRAIN_USE_AMP", "1") == "1"
     scaler = torch.cuda.amp.GradScaler(enabled=use_amp)
@@ -249,6 +257,12 @@ def train_step(max_steps=50):
             # 1ステップあたりの実行時間(ms)を計算して出力
             process_time_ms = (dt * 1000) if step == 0 else (dt * 1000) / 10 
             print(f"Step {start_step + step:5d} | Loss: {lossf:.4f} | LR: {optimizer.param_groups[0]['lr']:.6e} | Time: {process_time_ms:.2f}ms/step")
+            if callable(log_fn):
+                log_fn(
+                    f"[TrainStep] step={start_step + step} "
+                    f"loss={lossf:.4f} lr={optimizer.param_groups[0]['lr']:.6e} "
+                    f"time_ms={process_time_ms:.2f}"
+                )
 
         # 検証ロス評価とベスト更新
         if (step + 1) % eval_every == 0 or step == max_steps - 1:
@@ -256,6 +270,9 @@ def train_step(max_steps=50):
             if val_loss is not None:
                 improved = val_loss < best_val_loss
                 print(f"[Validation] step={start_step + step:5d} val_loss={val_loss:.4f} best={best_val_loss if best_val_loss != float('inf') else 'inf'}")
+                if callable(log_fn):
+                    best_text = "inf" if best_val_loss == float("inf") else f"{best_val_loss:.4f}"
+                    log_fn(f"[Validation] step={start_step + step} val_loss={val_loss:.4f} best={best_text}")
                 if improved:
                     best_val_loss = val_loss
                     stale_count = 0
@@ -269,10 +286,14 @@ def train_step(max_steps=50):
                         'config': config
                     }, best_checkpoint_path)
                     print(f"[Validation] New best model saved: {best_checkpoint_path}")
+                    if callable(log_fn):
+                        log_fn(f"[Validation] New best checkpoint saved: {best_checkpoint_path}")
                 else:
                     stale_count += 1
                     if stale_count >= early_stopping_patience:
                         print(f"[EarlyStopping] No val improvement for {stale_count} evals. Stopping early.")
+                        if callable(log_fn):
+                            log_fn(f"[EarlyStopping] stale_evals={stale_count} (patience={early_stopping_patience})")
                         break
             
     # 指定ステップ終わったらチェックポイントを保存
@@ -288,6 +309,14 @@ def train_step(max_steps=50):
     }, checkpoint_path)
     
     print("Training cycle finished successfully.")
+    if callable(log_fn):
+        if val_loss is not None:
+            log_fn(
+                f"[Train] finished steps={actual_steps} train_loss={float(lossf):.4f} "
+                f"val_loss={float(val_loss):.4f}"
+            )
+        else:
+            log_fn(f"[Train] finished steps={actual_steps} train_loss={float(lossf):.4f}")
     
     # 現在の仮想エポック数（全体データを何週したか）と最終的なロスを返す
     current_epoch = (start_step + actual_steps) // train_loader.total_batches if train_loader.total_batches > 0 else 0

@@ -40,7 +40,13 @@ def collect_from_rss(max_items_per_feed: int = 5):
     db = DBManager()
     feed_list = os.environ.get("RSS_FEEDS", "").strip()
     feeds = [u.strip() for u in feed_list.split(",") if u.strip()] if feed_list else DEFAULT_RSS_FEEDS
-    saved = 0
+    stats = {
+        "saved": 0,
+        "fetch_failed": 0,
+        "feed_failed": 0,
+        "skipped_duplicate": 0,
+        "skipped_short": 0,
+    }
 
     for feed_url in feeds:
         try:
@@ -58,10 +64,12 @@ def collect_from_rss(max_items_per_feed: int = 5):
                     continue
                 url = link_el.text.strip()
                 if db.is_url_crawled(url):
+                    stats["skipped_duplicate"] += 1
                     continue
                 try:
                     content = _fetch_text(url)
                     if len(content) < 200:
+                        stats["skipped_short"] += 1
                         continue
                     db.insert_crawled_data(
                         url=url,
@@ -71,12 +79,21 @@ def collect_from_rss(max_items_per_feed: int = 5):
                         source_type="rss",
                         language="en",
                     )
-                    saved += 1
+                    stats["saved"] += 1
                     time.sleep(0.2)
                 except Exception as inner:
+                    stats["fetch_failed"] += 1
                     print(f"[RSS] Failed article fetch {url}: {inner}")
         except Exception as e:
+            stats["feed_failed"] += 1
             print(f"[RSS] Failed feed {feed_url}: {e}")
 
-    print(f"[RSS] Saved {saved} articles from RSS feeds.")
-    return saved
+    print(
+        "[RSS] "
+        f"saved={stats['saved']} "
+        f"failed_fetch={stats['fetch_failed']} "
+        f"failed_feed={stats['feed_failed']} "
+        f"skipped_dup={stats['skipped_duplicate']} "
+        f"skipped_short={stats['skipped_short']}"
+    )
+    return stats

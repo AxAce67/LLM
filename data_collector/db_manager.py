@@ -1,5 +1,6 @@
 import datetime
 import os
+import threading
 from typing import Generator
 
 import psycopg2
@@ -12,6 +13,9 @@ load_dotenv()
 
 
 class DBManager:
+    _insert_metrics_lock = threading.Lock()
+    _insert_metrics = {}
+
     def __init__(self):
         self.database_url = os.environ.get("DATABASE_URL")
         if not self.database_url:
@@ -246,10 +250,22 @@ class DBManager:
                         ),
                     )
                 conn.commit()
+            with self._insert_metrics_lock:
+                metric = self._insert_metrics.setdefault(source_type or "unknown", {"ok": 0, "ng": 0})
+                metric["ok"] += 1
             return True
         except Exception as e:
             print(f"[DB Error] Failed to insert data for '{url}': {e}")
+            with self._insert_metrics_lock:
+                metric = self._insert_metrics.setdefault(source_type or "unknown", {"ok": 0, "ng": 0})
+                metric["ng"] += 1
             return False
+
+    def get_and_reset_insert_metrics(self) -> dict:
+        with self._insert_metrics_lock:
+            snapshot = {k: dict(v) for k, v in self._insert_metrics.items()}
+            self._insert_metrics.clear()
+            return snapshot
 
     def get_stats(self) -> dict:
         """現在のデータ収集の統計情報を取得する（ダッシュボード表示用）"""
