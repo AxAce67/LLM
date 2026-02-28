@@ -12,14 +12,18 @@ from data_collector.db_manager import DBManager
 
 
 DEFAULT_NEWS_FEEDS = [
+    "https://feeds.bbci.co.uk/news/world/rss.xml",
+    "https://feeds.bbci.co.uk/news/rss.xml",
+    "https://feeds.bbci.co.uk/news/science_and_environment/rss.xml",
+    "https://feeds.npr.org/1001/rss.xml",
+    "https://feeds.npr.org/1007/rss.xml",
+    "https://www.aljazeera.com/xml/rss/all.xml",
+    "https://www.sciencedaily.com/rss/all.xml",
+    "https://www.nature.com/nature.rss",
+    "https://feeds.bbci.co.uk/news/technology/rss.xml",
     "https://feeds.arstechnica.com/arstechnica/index",
     "https://www.theverge.com/rss/index.xml",
     "https://www.wired.com/feed/rss",
-    "https://feeds.bbci.co.uk/news/technology/rss.xml",
-    "https://www.nature.com/subjects/machine-learning.rss",
-    "https://www.infoq.com/feed/",
-    "https://zenn.dev/topics/ai/feed",
-    "https://qiita.com/tags/llm/feed",
 ]
 
 

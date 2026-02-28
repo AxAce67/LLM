@@ -11,19 +11,19 @@ from data_collector.db_manager import DBManager
 
 
 DEFAULT_RSS_FEEDS = [
+    "https://feeds.bbci.co.uk/news/rss.xml",
+    "https://feeds.bbci.co.uk/news/world/rss.xml",
+    "https://feeds.bbci.co.uk/news/science_and_environment/rss.xml",
+    "https://feeds.npr.org/1001/rss.xml",
+    "https://feeds.npr.org/1007/rss.xml",
+    "https://www.aljazeera.com/xml/rss/all.xml",
+    "https://news.un.org/feed/subscribe/en/news/all/rss.xml",
+    "https://www.who.int/feeds/entity/news-room/rss-feeds/en/news-room/feature-stories/rss.xml",
+    "https://www.sciencedaily.com/rss/all.xml",
+    "https://www.nature.com/nature.rss",
     "https://openai.com/news/rss.xml",
-    "https://aws.amazon.com/blogs/machine-learning/feed/",
-    "https://aws.amazon.com/blogs/architecture/feed/",
-    "https://developers.googleblog.com/en/rss/",
     "https://research.google/blog/rss/",
-    "https://engineering.fb.com/feed/",
-    "https://netflixtechblog.com/feed",
-    "https://engineering.atspotify.com/feed/",
-    "https://www.anthropic.com/news/rss.xml",
     "https://huggingface.co/blog/feed.xml",
-    "https://www.databricks.com/blog/category/engineering/feed",
-    "https://www.cncf.io/feed/",
-    "https://www.postgresql.org/about/news.rss",
 ]
 
 

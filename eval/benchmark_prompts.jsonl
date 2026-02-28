@@ -1,57 +1,60 @@
-{"id":"qa_db_001","category":"qa","prompt":"PostgreSQLとSQLiteの主な違いを2つ教えてください。","expected_keywords":["トランザクション","同時接続","サーバー","軽量"]}
-{"id":"qa_db_002","category":"qa","prompt":"インデックスを作る目的を短く説明してください。","expected_keywords":["検索","高速","クエリ","性能"]}
-{"id":"qa_db_003","category":"qa","prompt":"正規化と非正規化のトレードオフを説明してください。","expected_keywords":["整合性","冗長","性能","更新"]}
-{"id":"qa_db_004","category":"qa","prompt":"主キーと外部キーの違いを説明してください。","expected_keywords":["一意","参照","整合性","リレーション"]}
-{"id":"qa_db_005","category":"qa","prompt":"トランザクションのACIDを簡単に説明してください。","expected_keywords":["原子性","一貫性","独立性","永続性"]}
-{"id":"qa_ops_001","category":"ops","prompt":"学習中にメモリ使用率が高い時、最初に確認すべき項目を3つ挙げてください。","expected_keywords":["バッチサイズ","シーケンス長","ワーカー"]}
-{"id":"qa_ops_002","category":"ops","prompt":"CPU使用率が低いのに学習が遅い場合の確認ポイントを3つ挙げてください。","expected_keywords":["I/O","データローダー","スレッド","ボトルネック"]}
-{"id":"qa_ops_003","category":"ops","prompt":"ログ監視で最低限見るべき項目を3つ挙げてください。","expected_keywords":["エラー","遅延","失敗率","リトライ"]}
-{"id":"qa_ops_004","category":"ops","prompt":"本番運用でロールバックを用意する理由を説明してください。","expected_keywords":["障害","復旧","リスク","安定"]}
-{"id":"qa_ops_005","category":"ops","prompt":"監視アラートが多すぎる状態を改善する方法を2つ挙げてください。","expected_keywords":["閾値","ノイズ","優先度","集約"]}
-{"id":"fact_http_001","category":"factual","prompt":"HTTP 404 と 500 の違いを説明してください。","expected_keywords":["404","500","クライアント","サーバー"]}
-{"id":"fact_http_002","category":"factual","prompt":"GETとPOSTの違いを簡単に説明してください。","expected_keywords":["取得","送信","副作用","ボディ"]}
-{"id":"fact_http_003","category":"factual","prompt":"TLSを使う目的を説明してください。","expected_keywords":["暗号化","盗聴","改ざん","証明書"]}
-{"id":"fact_ml_001","category":"factual","prompt":"訓練データと検証データを分ける理由を説明してください。","expected_keywords":["過学習","汎化","評価"]}
-{"id":"fact_ml_002","category":"factual","prompt":"学習率が高すぎると起こる問題を説明してください。","expected_keywords":["発散","不安定","収束"]}
-{"id":"fact_ml_003","category":"factual","prompt":"バッチサイズを大きくする利点と欠点を1つずつ挙げてください。","expected_keywords":["高速","メモリ","汎化","安定"]}
-{"id":"fact_ml_004","category":"factual","prompt":"早期終了(Early Stopping)の目的を説明してください。","expected_keywords":["過学習","検証","停止","改善"]}
-{"id":"fact_ml_005","category":"factual","prompt":"LoRAの特徴を簡潔に説明してください。","expected_keywords":["追加学習","低ランク","軽量","パラメータ"]}
-{"id":"sum_001","category":"summarize","prompt":"次の文章を3文で要約してください: 大規模言語モデルの学習ではデータ品質が性能を左右し、単なるデータ量だけでは高品質な応答は得られない。","expected_keywords":["データ品質","性能","要約"]}
-{"id":"sum_002","category":"summarize","prompt":"次の内容を短く要約してください: 分散収集では親機と子機で役割分担し、重複クロールを避けるためにURLシャーディングを行う。","expected_keywords":["親機","子機","重複","シャーディング"]}
-{"id":"sum_003","category":"summarize","prompt":"次の文章を短く要約してください: 監視はメトリクス収集だけでなく、アラート設計と対応フローまで含めて運用する必要がある。","expected_keywords":["監視","アラート","運用","対応"]}
-{"id":"sum_004","category":"summarize","prompt":"次の文章を要約してください: APIの認証トークンは機密情報であり、ログ出力や公開リポジトリへの混入を防ぐ必要がある。","expected_keywords":["認証","機密","ログ","漏洩"]}
-{"id":"sum_005","category":"summarize","prompt":"次の文章を2文で要約してください: 継続学習では評価結果を比較し、改善が確認できたモデルのみ本番へ昇格する。","expected_keywords":["評価","比較","改善","昇格"]}
-{"id":"reason_001","category":"reasoning","prompt":"メモリは余っているのに学習が遅い。考えられる原因を3つ挙げてください。","expected_keywords":["CPU","I/O","前処理","データローダー"]}
-{"id":"reason_002","category":"reasoning","prompt":"評価スコアが上がらないとき、データ・学習・評価の3観点で改善案を1つずつ挙げてください。","expected_keywords":["データ品質","学習率","評価セット","改善"]}
-{"id":"reason_003","category":"reasoning","prompt":"クローラの403が多いとき、倫理面と技術面でそれぞれ対策を挙げてください。","expected_keywords":["robots","User-Agent","レート制限","公式API"]}
-{"id":"reason_004","category":"reasoning","prompt":"再起動で指標がゼロに戻る問題を防ぐ設計を説明してください。","expected_keywords":["永続化","復元","チェックポイント","DB"]}
-{"id":"reason_005","category":"reasoning","prompt":"子機を増やしても収集が伸びない場合の原因と対策を述べてください。","expected_keywords":["重複","ソース不足","レート制限","差分収集"]}
-{"id":"code_py_001","category":"code","prompt":"Pythonでリストの重複を削除する関数を書いてください。","expected_keywords":["def","return","set","list"]}
-{"id":"code_py_002","category":"code","prompt":"Pythonで辞書のキーが存在するか確認する短い例を書いてください。","expected_keywords":["in","if","dict"]}
-{"id":"code_py_003","category":"code","prompt":"PythonでJSONファイルを読み込むコード例を示してください。","expected_keywords":["json","open","load"]}
-{"id":"code_py_004","category":"code","prompt":"Pythonで例外を捕捉してログを出す最小例を書いてください。","expected_keywords":["try","except","print"]}
-{"id":"code_sql_001","category":"code","prompt":"PostgreSQLへ接続するPythonコード例を短く示してください。","expected_keywords":["psycopg2","connect","cursor","execute"]}
-{"id":"code_sql_002","category":"code","prompt":"SQLでsource_typeごとの件数を集計するクエリを書いてください。","expected_keywords":["SELECT","COUNT","GROUP BY","source_type"]}
-{"id":"code_sql_003","category":"code","prompt":"SQLで最新10件を作成日時降順で取得するクエリを書いてください。","expected_keywords":["ORDER BY","DESC","LIMIT","created_at"]}
-{"id":"code_api_001","category":"code","prompt":"curlでJSONをPOSTするコマンド例を示してください。","expected_keywords":["curl","-X POST","Content-Type","-d"]}
-{"id":"code_api_002","category":"code","prompt":"FastAPIでGETエンドポイントを定義する最小例を書いてください。","expected_keywords":["@app.get","def","return"]}
-{"id":"code_api_003","category":"code","prompt":"Docker Composeでサービスを起動するコマンドを示してください。","expected_keywords":["docker compose","up","-d"]}
-{"id":"sec_001","category":"security","prompt":"APIトークンを安全に扱う基本ルールを3つ挙げてください。","expected_keywords":["環境変数","gitignore","ローテーション","秘匿"]}
-{"id":"sec_002","category":"security","prompt":"DBポートを公開する場合の最低限の対策を挙げてください。","expected_keywords":["IP制限","SSL","最小権限","ファイアウォール"]}
-{"id":"sec_003","category":"security","prompt":"0.0.0.0/0でDBを開けるリスクを説明してください。","expected_keywords":["全世界","総当たり","侵入","危険"]}
-{"id":"sec_004","category":"security","prompt":"ログに機密情報が出ないようにする方法を説明してください。","expected_keywords":["マスキング","除外","トークン","パスワード"]}
-{"id":"arch_001","category":"architecture","prompt":"親機と子機の役割分担を説明してください。","expected_keywords":["親機","子機","学習","収集"]}
-{"id":"arch_002","category":"architecture","prompt":"RAGの基本的な流れを説明してください。","expected_keywords":["検索","コンテキスト","生成","回答"]}
-{"id":"arch_003","category":"architecture","prompt":"チェックポイント昇格の運用フローを説明してください。","expected_keywords":["評価","比較","昇格","本番"]}
-{"id":"arch_004","category":"architecture","prompt":"分散収集で重複を減らす方法を説明してください。","expected_keywords":["シャーディング","URL","重複","ノード"]}
-{"id":"arch_005","category":"architecture","prompt":"固定ソース運用の利点を説明してください。","expected_keywords":["安定","品質","403","再現性"]}
-{"id":"gen_001","category":"general","prompt":"効果的な学習改善サイクルを3ステップで提案してください。","expected_keywords":["学習","評価","改善"]}
-{"id":"gen_002","category":"general","prompt":"初心者向けにPostgreSQLのメリットを短く説明してください。","expected_keywords":["信頼性","拡張性","トランザクション"]}
-{"id":"gen_003","category":"general","prompt":"ログが大量にあるときの読み方を簡単に教えてください。","expected_keywords":["エラー","優先度","時系列"]}
-{"id":"gen_004","category":"general","prompt":"モデル配布時に注意すべき点を3つ挙げてください。","expected_keywords":["ライセンス","サイズ","互換性","セキュリティ"]}
-{"id":"gen_005","category":"general","prompt":"ローカル実行のLLMとAPI提供LLMの違いを説明してください。","expected_keywords":["端末","クラウド","レイテンシ","コスト"]}
-{"id":"gen_006","category":"general","prompt":"学習データの品質を上げる具体策を3つ挙げてください。","expected_keywords":["重複除去","フィルタ","ノイズ","品質"]}
-{"id":"gen_007","category":"general","prompt":"継続運用で最低限見るべきKPIを3つ挙げてください。","expected_keywords":["評価スコア","失敗率","遅延","リソース"]}
-{"id":"gen_008","category":"general","prompt":"モデルの過学習を検知する方法を説明してください。","expected_keywords":["train loss","val loss","乖離","検証"]}
-{"id":"gen_009","category":"general","prompt":"学習を速くするための現実的な手段を3つ挙げてください。","expected_keywords":["バッチサイズ","並列","I/O","最適化"]}
-{"id":"gen_010","category":"general","prompt":"評価が改善しないときの打ち手を短く提案してください。","expected_keywords":["データ","ハイパーパラメータ","評価セット","見直し"]}
+{"id": "gen_daily_001", "category": "general", "prompt": "朝の集中力を上げるための習慣を3つ提案してください。", "expected_keywords": ["睡眠", "水分", "計画"]}
+{"id": "gen_daily_002", "category": "general", "prompt": "一人暮らしで食費を抑えるコツを3つ挙げてください。", "expected_keywords": ["作り置き", "予算", "買い物"]}
+{"id": "gen_daily_003", "category": "general", "prompt": "時間管理が苦手な人向けに、1日の進め方を短く教えてください。", "expected_keywords": ["優先順位", "タスク", "休憩"]}
+{"id": "gen_daily_004", "category": "general", "prompt": "初対面の人と会話を続ける質問例を3つ挙げてください。", "expected_keywords": ["質問", "趣味", "仕事"]}
+{"id": "gen_daily_005", "category": "general", "prompt": "引っ越し準備のチェックリストを簡潔に作ってください。", "expected_keywords": ["荷造り", "手続き", "住所変更"]}
+{"id": "gen_daily_006", "category": "general", "prompt": "旅行前に確認すべき持ち物を5つ挙げてください。", "expected_keywords": ["身分証", "充電器", "現金", "薬", "衣類"]}
+{"id": "gen_daily_007", "category": "general", "prompt": "初心者向けに読書習慣を作る方法を説明してください。", "expected_keywords": ["習慣", "時間", "継続"]}
+{"id": "gen_daily_008", "category": "general", "prompt": "家計簿を続けるコツを3つ挙げてください。", "expected_keywords": ["記録", "分類", "継続"]}
+{"id": "gen_daily_009", "category": "general", "prompt": "週末の疲労回復に役立つ行動を提案してください。", "expected_keywords": ["睡眠", "運動", "休養"]}
+{"id": "gen_daily_010", "category": "general", "prompt": "プレゼン前の緊張を和らげる方法を教えてください。", "expected_keywords": ["呼吸", "準備", "練習"]}
+{"id": "write_001", "category": "writing", "prompt": "謝罪メールの丁寧な文面例を短く作ってください。", "expected_keywords": ["お詫び", "ご迷惑", "今後"]}
+{"id": "write_002", "category": "writing", "prompt": "お礼メールのテンプレートを簡潔に作ってください。", "expected_keywords": ["感謝", "お礼", "今後"]}
+{"id": "write_003", "category": "writing", "prompt": "自己紹介文を100文字程度で作るコツを教えてください。", "expected_keywords": ["強み", "経験", "簡潔"]}
+{"id": "write_004", "category": "writing", "prompt": "議事録の書き方を3ステップで説明してください。", "expected_keywords": ["要点", "決定", "担当"]}
+{"id": "write_005", "category": "writing", "prompt": "SNS投稿を読みやすくする工夫を3つ挙げてください。", "expected_keywords": ["見出し", "短文", "改行"]}
+{"id": "write_006", "category": "writing", "prompt": "依頼文で失礼にならない表現を例示してください。", "expected_keywords": ["お願い", "恐れ入ります", "よろしく"]}
+{"id": "write_007", "category": "writing", "prompt": "報告書の冒頭に書くべき要素を教えてください。", "expected_keywords": ["目的", "結論", "概要"]}
+{"id": "write_008", "category": "writing", "prompt": "提案書の説得力を上げるポイントを3つ挙げてください。", "expected_keywords": ["根拠", "効果", "比較"]}
+{"id": "sum_001", "category": "summarize", "prompt": "次の内容を2文で要約してください: 計画を細かくしすぎると実行が止まり、まず小さく始める方が継続しやすい。", "expected_keywords": ["要約", "小さく", "継続"]}
+{"id": "sum_002", "category": "summarize", "prompt": "次の文章を要約してください: 学習では量だけでなく品質管理が重要で、重複やノイズを減らすほど効果が出る。", "expected_keywords": ["品質", "重複", "ノイズ"]}
+{"id": "sum_003", "category": "summarize", "prompt": "次の内容を短く要約してください: 健康維持には睡眠、食事、運動のバランスが必要。", "expected_keywords": ["睡眠", "食事", "運動"]}
+{"id": "sum_004", "category": "summarize", "prompt": "次を要約してください: チーム開発では仕様共有とレビュー文化が品質を左右する。", "expected_keywords": ["共有", "レビュー", "品質"]}
+{"id": "sum_005", "category": "summarize", "prompt": "次を要約してください: 問題解決は現象ではなく原因に対処することが重要。", "expected_keywords": ["原因", "対処", "問題解決"]}
+{"id": "sum_006", "category": "summarize", "prompt": "次の文章を要約してください: 定期的な振り返りは改善速度を上げる。", "expected_keywords": ["振り返り", "改善"]}
+{"id": "reason_001", "category": "reasoning", "prompt": "目標達成が遅れている時の見直し観点を3つ挙げてください。", "expected_keywords": ["優先順位", "進捗", "障害"]}
+{"id": "reason_002", "category": "reasoning", "prompt": "新しい習慣が続かない原因と対策を説明してください。", "expected_keywords": ["原因", "対策", "継続"]}
+{"id": "reason_003", "category": "reasoning", "prompt": "会議が長引く理由と改善策を3つ挙げてください。", "expected_keywords": ["議題", "時間", "結論"]}
+{"id": "reason_004", "category": "reasoning", "prompt": "勉強計画を立てるときの順序を提案してください。", "expected_keywords": ["目標", "計画", "復習"]}
+{"id": "reason_005", "category": "reasoning", "prompt": "情報が多すぎるときの整理方法を教えてください。", "expected_keywords": ["分類", "優先", "要点"]}
+{"id": "reason_006", "category": "reasoning", "prompt": "意思決定で迷ったときの判断基準を3つ挙げてください。", "expected_keywords": ["目的", "リスク", "効果"]}
+{"id": "reason_007", "category": "reasoning", "prompt": "プロジェクト遅延の初動対応を説明してください。", "expected_keywords": ["原因", "優先", "調整"]}
+{"id": "reason_008", "category": "reasoning", "prompt": "複数案から最適案を選ぶ手順を説明してください。", "expected_keywords": ["比較", "基準", "選択"]}
+{"id": "fact_gen_001", "category": "factual", "prompt": "地球温暖化の主な要因を簡潔に説明してください。", "expected_keywords": ["温室効果ガス", "二酸化炭素", "気候"]}
+{"id": "fact_gen_002", "category": "factual", "prompt": "選挙で投票率が重要とされる理由を説明してください。", "expected_keywords": ["民意", "代表", "民主主義"]}
+{"id": "fact_gen_003", "category": "factual", "prompt": "円高と円安の違いを簡単に説明してください。", "expected_keywords": ["為替", "輸出", "輸入"]}
+{"id": "fact_gen_004", "category": "factual", "prompt": "インフレとは何かを短く説明してください。", "expected_keywords": ["物価", "上昇", "購買力"]}
+{"id": "fact_gen_005", "category": "factual", "prompt": "健康診断を定期的に受ける目的を説明してください。", "expected_keywords": ["早期発見", "予防", "健康"]}
+{"id": "fact_gen_006", "category": "factual", "prompt": "避難訓練が必要な理由を説明してください。", "expected_keywords": ["安全", "災害", "行動"]}
+{"id": "fact_gen_007", "category": "factual", "prompt": "著作権の基本的な考え方を説明してください。", "expected_keywords": ["著作物", "権利", "利用"]}
+{"id": "fact_gen_008", "category": "factual", "prompt": "睡眠不足が集中力に与える影響を説明してください。", "expected_keywords": ["集中", "疲労", "判断"]}
+{"id": "fact_gen_009", "category": "factual", "prompt": "運動習慣が健康に良い理由を説明してください。", "expected_keywords": ["心肺", "筋力", "予防"]}
+{"id": "fact_gen_010", "category": "factual", "prompt": "食品ロスを減らす方法を3つ挙げてください。", "expected_keywords": ["計画", "保存", "使い切る"]}
+{"id": "fact_gen_011", "category": "factual", "prompt": "熱中症予防の基本を説明してください。", "expected_keywords": ["水分", "休憩", "気温"]}
+{"id": "fact_gen_012", "category": "factual", "prompt": "地震時に最初に取るべき行動を説明してください。", "expected_keywords": ["身の安全", "避難", "情報"]}
+{"id": "math_001", "category": "math", "prompt": "15%引きの価格を求める計算式を説明してください。", "expected_keywords": ["0.85", "掛ける", "割引"]}
+{"id": "math_002", "category": "math", "prompt": "平均値を求める方法を説明してください。", "expected_keywords": ["合計", "件数", "割る"]}
+{"id": "math_003", "category": "math", "prompt": "割合と比率の違いを説明してください。", "expected_keywords": ["全体", "比較", "比"]}
+{"id": "math_004", "category": "math", "prompt": "2時間30分を分に直してください。", "expected_keywords": ["150", "分"]}
+{"id": "math_005", "category": "math", "prompt": "複利と単利の違いを簡単に説明してください。", "expected_keywords": ["元本", "利息", "複利"]}
+{"id": "math_006", "category": "math", "prompt": "誤差が大きいデータを扱うときの注意点を挙げてください。", "expected_keywords": ["外れ値", "再測定", "信頼性"]}
+{"id": "it_001", "category": "it", "prompt": "HTTP 404 と 500 の違いを説明してください。", "expected_keywords": ["404", "500", "クライアント", "サーバー"]}
+{"id": "it_002", "category": "it", "prompt": "PostgreSQLとSQLiteの主な違いを2つ教えてください。", "expected_keywords": ["同時接続", "サーバー", "軽量"]}
+{"id": "it_003", "category": "it", "prompt": "APIトークンを安全に扱うルールを3つ挙げてください。", "expected_keywords": ["環境変数", "漏洩", "ローテーション"]}
+{"id": "it_004", "category": "it", "prompt": "データベースのバックアップが重要な理由を説明してください。", "expected_keywords": ["復旧", "障害", "保全"]}
+{"id": "it_005", "category": "it", "prompt": "ログ監視で見るべき項目を3つ挙げてください。", "expected_keywords": ["エラー", "遅延", "失敗率"]}
+{"id": "it_006", "category": "it", "prompt": "Dockerの利点を簡潔に説明してください。", "expected_keywords": ["再現性", "依存関係", "隔離"]}
+{"id": "it_007", "category": "it", "prompt": "学習率が高すぎると起こる問題を説明してください。", "expected_keywords": ["発散", "不安定", "収束"]}
+{"id": "it_008", "category": "it", "prompt": "RAGの基本的な流れを説明してください。", "expected_keywords": ["検索", "コンテキスト", "生成"]}
+{"id": "it_009", "category": "it", "prompt": "GETとPOSTの違いを簡潔に説明してください。", "expected_keywords": ["取得", "送信", "副作用"]}
+{"id": "it_010", "category": "it", "prompt": "SQLでsource_typeごとの件数を出すクエリの要点を説明してください。", "expected_keywords": ["COUNT", "GROUP BY", "source_type"]}
