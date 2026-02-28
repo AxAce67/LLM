@@ -40,25 +40,33 @@ def _quality_weight(score: float) -> float:
     return max(0.0, floor + (boost * s))
 
 
-def prepare_dataset(vocab_size=32000, val_ratio=0.05):
+def prepare_dataset(vocab_size=32000, val_ratio=0.05, progress_cb=None):
     """
     収集されたテキストをトークナイズし、巨大なIDの配列に変換してバイナリファイル(train.bin, val.bin)に保存する。
     これにより、PyTorch学習時のロード速度とメモリ効率が劇的に向上する（numpy memmapを使用予定のため）。
     """
-    print("Starting dataset preparation (tokenization & binary encoding)...")
+    def _progress(message: str):
+        print(message)
+        if progress_cb:
+            try:
+                progress_cb(message)
+            except Exception:
+                pass
+
+    _progress("Starting dataset preparation (tokenization & binary encoding)...")
     
     model_path = os.path.join(TOKENIZER_DIR, "llm_tokenizer.model")
     
     # トークナイザモデルが存在しない場合は学習・生成する
     if not os.path.exists(model_path):
-        print("Tokenizer model not found. Building a new one...")
+        _progress("Tokenizer model not found. Building a new one...")
         builder = TokenizerBuilder(vocab_size=vocab_size)
         model_path = builder.build_tokenizer()
 
     sp = spm.SentencePieceProcessor()
     sp.load(model_path)
     
-    print(f"Loaded tokenizer '{model_path}' successfully (vocab_size: {sp.get_piece_size()})")
+    _progress(f"Loaded tokenizer '{model_path}' successfully (vocab_size: {sp.get_piece_size()})")
 
     db_manager = DBManager()
     train_bin_path = os.path.join(DATASET_DIR, "train.bin")
@@ -67,7 +75,7 @@ def prepare_dataset(vocab_size=32000, val_ratio=0.05):
     if sp.get_piece_size() > 65535:
         raise ValueError("Tokenizer vocab is too large for uint16. Use vocab_size <= 65535.")
 
-    print("Tokenizing data in streaming mode and writing train.bin / val.bin...")
+    _progress("Tokenizing data in streaming mode and writing train.bin / val.bin...")
     rng = random.Random(42)
     token_buffer_train = array("H")
     token_buffer_val = array("H")
@@ -89,6 +97,10 @@ def prepare_dataset(vocab_size=32000, val_ratio=0.05):
 
     open(train_bin_path, "wb").close()
     open(val_bin_path, "wb").close()
+    scanned_candidates = 0
+    report_every = max(5000, int(os.environ.get("PREPROCESS_PROGRESS_EVERY", "10000")))
+    db_total_est = 0
+    wiki_total_est = 0
 
     def flush_buffers(force=False):
         nonlocal token_buffer_train, token_buffer_val
@@ -162,9 +174,14 @@ def prepare_dataset(vocab_size=32000, val_ratio=0.05):
         total_docs += 1
         flush_buffers()
 
-    print("Loading text from DB...")
+    _progress("Loading text from DB...")
     try:
+        try:
+            db_total_est = int(db_manager.get_stats().get("total_docs", 0))
+        except Exception:
+            db_total_est = 0
         for row in db_manager.stream_crawled_documents(batch_size=1000):
+            scanned_candidates += 1
             write_document_tokens(
                 row.get("content", ""),
                 source_type=row.get("source_type", "web"),
@@ -172,11 +189,30 @@ def prepare_dataset(vocab_size=32000, val_ratio=0.05):
                 quality=row.get("quality_score", 0.5),
                 allowed_for_training=row.get("allowed_for_training", True),
             )
+            if scanned_candidates % report_every == 0:
+                total_est = db_total_est + wiki_total_est
+                if total_est > 0:
+                    pct = min(99.9, (scanned_candidates / total_est) * 100)
+                    _progress(
+                        f"[Preprocess] {pct:.1f}% ({scanned_candidates:,}/{total_est:,}) "
+                        f"accepted={total_docs:,} filtered={filtered_docs:,} dedup={duplicate_docs:,} "
+                        f"lang={lang_filtered_docs:,} pii={pii_filtered_docs:,}"
+                    )
+                else:
+                    _progress(
+                        f"[Preprocess] scanned={scanned_candidates:,} accepted={total_docs:,} "
+                        f"filtered={filtered_docs:,} dedup={duplicate_docs:,}"
+                    )
     except Exception as e:
-        print(f"Error reading DB: {e}")
+        _progress(f"Error reading DB: {e}")
 
-    print("Loading text from local Wikipedia data...")
+    _progress("Loading text from local Wikipedia data...")
     if os.path.exists(WIKI_DIR):
+        try:
+            for root, _, files in os.walk(WIKI_DIR):
+                wiki_total_est += sum(1 for f in files if f.endswith(".txt"))
+        except Exception:
+            wiki_total_est = 0
         for root, dirs, files in os.walk(WIKI_DIR):
             for file in files:
                 if file.endswith(".txt"):
@@ -192,24 +228,39 @@ def prepare_dataset(vocab_size=32000, val_ratio=0.05):
                                     allowed_for_training=True,
                                     language="ja",
                                 )
+                                scanned_candidates += 1
+                                if scanned_candidates % report_every == 0:
+                                    total_est = db_total_est + wiki_total_est
+                                    if total_est > 0:
+                                        pct = min(99.9, (scanned_candidates / total_est) * 100)
+                                        _progress(
+                                            f"[Preprocess] {pct:.1f}% ({scanned_candidates:,}/{total_est:,}) "
+                                            f"accepted={total_docs:,} filtered={filtered_docs:,} dedup={duplicate_docs:,} "
+                                            f"lang={lang_filtered_docs:,} pii={pii_filtered_docs:,}"
+                                        )
+                                    else:
+                                        _progress(
+                                            f"[Preprocess] scanned={scanned_candidates:,} accepted={total_docs:,} "
+                                            f"filtered={filtered_docs:,} dedup={duplicate_docs:,}"
+                                        )
                     except Exception as e:
-                        print(f"Error reading file {file}: {e}")
+                        _progress(f"Error reading file {file}: {e}")
 
     flush_buffers(force=True)
     total_tokens = train_count + val_count
-    print(
+    _progress(
         f"Processed {total_docs:,} docs (expanded={expanded_docs:,}, blocked={blocked_docs:,}, filtered={filtered_docs:,}, duplicates={duplicate_docs:,}, "
         f"lang_filtered={lang_filtered_docs:,}, pii_filtered={pii_filtered_docs:,}, too_long={too_long_docs:,}). "
         f"Total tokens: {total_tokens:,}"
     )
 
     if total_tokens == 0:
-        print("[Warning] No data found to tokenize. Returning.")
+        _progress("[Warning] No data found to tokenize. Returning.")
         return False
 
-    print(f"Saved {train_count:,} tokens to {train_bin_path}")
-    print(f"Saved {val_count:,} tokens to {val_bin_path}")
-    print("Dataset preparation completed successfully!")
+    _progress(f"Saved {train_count:,} tokens to {train_bin_path}")
+    _progress(f"Saved {val_count:,} tokens to {val_bin_path}")
+    _progress("Dataset preparation completed successfully!")
 
     # データセット版をDBに記録（学習再現性）
     try:
@@ -235,9 +286,9 @@ def prepare_dataset(vocab_size=32000, val_ratio=0.05):
                 "too_long_docs": too_long_docs,
             },
         )
-        print(f"Dataset version recorded: {dataset_tag}")
+        _progress(f"Dataset version recorded: {dataset_tag}")
     except Exception as e:
-        print(f"[Warning] Failed to record dataset version: {e}")
+        _progress(f"[Warning] Failed to record dataset version: {e}")
 
     return {
         "ok": True,

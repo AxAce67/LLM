@@ -420,7 +420,10 @@ def run_pipeline(state: SystemState):
             try:
                 from data_preprocessor import prepare_dataset
                 # 取得済みのデータを集めて学習用の高速バイナリ(train.bin)に変換する
-                prep_result = prepare_dataset.prepare_dataset(vocab_size=int(os.environ.get("TRAIN_VOCAB_SIZE", "8000")))
+                prep_result = prepare_dataset.prepare_dataset(
+                    vocab_size=int(os.environ.get("TRAIN_VOCAB_SIZE", "8000")),
+                    progress_cb=state.log,
+                )
                 if isinstance(prep_result, dict):
                     state.log(
                         "[Dataset] "
