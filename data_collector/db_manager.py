@@ -439,14 +439,17 @@ class DBManager:
     def get_all_nodes(self) -> list:
         """ダッシュボード用: すべてのノードの情報を取得する"""
         try:
+            window_hours = int(os.environ.get("NODE_LIST_WINDOW_HOURS", "24"))
             with self._connect() as conn:
                 with conn.cursor(cursor_factory=DictCursor) as cur:
                     cur.execute(
                         """
                         SELECT node_id, role, status, cpu_usage, ram_usage, target_status, last_heartbeat
                         FROM system_nodes
+                        WHERE last_heartbeat >= (NOW() - (%s || ' hours')::interval)
                         ORDER BY last_heartbeat DESC
-                        """
+                        """,
+                        (max(1, window_hours),),
                     )
                     return [dict(row) for row in cur.fetchall()]
         except Exception as e:

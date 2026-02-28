@@ -34,7 +34,8 @@ class SystemState:
         self.is_dashboard = is_dashboard
         # マスター(親機)かワーカー(子機)かの判定。環境変数で切り替える
         self.role = os.environ.get("SYSTEM_ROLE", "master").lower()
-        self.node_id = str(uuid.uuid4())
+        self.heartbeat_interval_sec = max(5, int(os.environ.get("NODE_HEARTBEAT_INTERVAL_SEC", "10")))
+        self.node_id = self._load_or_create_node_id()
         
         self.state = {
             "node_id": self.node_id,
@@ -69,7 +70,54 @@ class SystemState:
         }
         self.db_manager = DBManager()
         self.status_lock_path = f"{STATUS_FILE}.lock"
+        self._heartbeat_thread = None
+        self._heartbeat_stop = threading.Event()
+        if not self.is_dashboard:
+            self._start_heartbeat_thread()
         self.save()
+
+    def _load_or_create_node_id(self) -> str:
+        import uuid
+        env_node_id = (os.environ.get("NODE_ID") or "").strip()
+        if env_node_id:
+            return env_node_id
+        node_id_file = os.environ.get("NODE_ID_FILE", "node_id.txt")
+        try:
+            if os.path.exists(node_id_file):
+                with open(node_id_file, "r", encoding="utf-8") as f:
+                    existing = f.read().strip()
+                    if existing:
+                        return existing
+            generated = str(uuid.uuid4())
+            with open(node_id_file, "w", encoding="utf-8") as f:
+                f.write(generated)
+            return generated
+        except Exception:
+            return str(uuid.uuid4())
+
+    def _start_heartbeat_thread(self):
+        if self._heartbeat_thread and self._heartbeat_thread.is_alive():
+            return
+
+        def _loop():
+            while not self._heartbeat_stop.is_set():
+                try:
+                    cpu_usage = psutil.cpu_percent()
+                    ram_usage = psutil.virtual_memory().percent
+                    current_status = "running" if self.state.get("is_running") else "paused"
+                    self.db_manager.upsert_node_heartbeat(
+                        node_id=self.node_id,
+                        role=self.role,
+                        status=current_status,
+                        cpu_usage=cpu_usage,
+                        ram_usage=ram_usage,
+                    )
+                except Exception as e:
+                    print(f"Heartbeat thread error: {e}")
+                self._heartbeat_stop.wait(self.heartbeat_interval_sec)
+
+        self._heartbeat_thread = threading.Thread(target=_loop, daemon=True)
+        self._heartbeat_thread.start()
 
     @contextmanager
     def _status_file_lock(self):
