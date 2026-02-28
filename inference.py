@@ -109,6 +109,12 @@ def generate_text(
         
         # 最後のステップ(次に来る単語)の予測値だけを取り出す (1, vocab_size)
         logits = logits[:, -1, :] / temperature
+
+        # SentencePieceのunkトークン(⁇)は可読性を大きく下げるため、
+        # 推論時は候補から除外する。
+        unk_id = sp.unk_id() if hasattr(sp, "unk_id") else -1
+        if isinstance(unk_id, int) and 0 <= unk_id < logits.size(-1):
+            logits[:, unk_id] = -float("Inf")
         
         # 反復抑制
         if repetition_penalty > 1.0 and x.size(1) > 0:
