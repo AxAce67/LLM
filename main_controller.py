@@ -416,6 +416,7 @@ def run_pipeline(state: SystemState):
             if not state.state["is_running"]: continue
             state.update_phase("Preprocessing")
             state.log("Preprocessing and tokenizing text data...")
+            skip_training_this_cycle = False
             try:
                 from data_preprocessor import prepare_dataset
                 # 取得済みのデータを集めて学習用の高速バイナリ(train.bin)に変換する
@@ -428,13 +429,23 @@ def run_pipeline(state: SystemState):
                         f"filtered={prep_result.get('filtered_docs', 0)} "
                         f"dedup={prep_result.get('duplicate_docs', 0)}"
                     )
+                    if (prep_result.get("train_tokens", 0) + prep_result.get("val_tokens", 0)) <= 0:
+                        skip_training_this_cycle = True
+                elif prep_result is False:
+                    skip_training_this_cycle = True
             except Exception as e:
                 state.log(f"Preprocess error: {e}")
+                skip_training_this_cycle = True
 
             # ---------------------------------------------------------
             # フェーズ3: モデル学習
             # ---------------------------------------------------------
             if not state.state["is_running"]: continue
+            if skip_training_this_cycle:
+                state.log("[Training] Skipped: dataset has no trainable tokens in this cycle.")
+                state.log("One pipeline cycle completed. Sleeping before next cycle.")
+                time.sleep(5)
+                continue
             state.update_phase("Training")
             state.log("Running training loop for a few steps...")
             

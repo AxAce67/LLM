@@ -40,12 +40,17 @@ class DataLoaderLite:
     def __init__(self, data_path, B, T):
         self.B = B # Batch size (1回に処理する文章の数)
         self.T = T # Time / Sequence length (1つの文章の長さ・コンテキスト長)
+        self.current_position = 0
+        self.total_batches = 0
         
         # memmapを使用して、数GBのファイルでもメモリに全展開せずにディスクから直接読み込む
         print(f"Loading data from {data_path}")
+        if (not os.path.exists(data_path)) or os.path.getsize(data_path) == 0:
+            self.data = np.array([], dtype=np.uint16)
+            print(f"[Warning] Dataset file is empty: {data_path}")
+            return
         self.data = np.memmap(data_path, dtype=np.uint16, mode='r')
         self.total_batches = len(self.data) // (B * T)
-        self.current_position = 0
         print(f"Loaded {len(self.data):,} tokens. ({self.total_batches} batches available)")
 
     def next_batch(self, device):

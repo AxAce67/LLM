@@ -41,33 +41,40 @@ def download_wikipedia_dump(language: str = "ja") -> int:
     """
     os.makedirs(DATASET_DIR, exist_ok=True)
 
-    # 既にダウンロード・展開済みの場合はスキップ
-    existing_files = sum(len(files) for _, _, files in os.walk(DATASET_DIR))
-    if existing_files > 0:
-        print(f"[WikiDL] Wikipedia data already exists ({existing_files} files). Skipping download.")
-        return existing_files
+    # 既に展開済みテキストがある場合はスキップ
+    extracted_files = []
+    for _, _, files in os.walk(DATASET_DIR):
+        for f in files:
+            if f.startswith("wiki_") and f.endswith(".txt"):
+                extracted_files.append(f)
+    if extracted_files:
+        print(f"[WikiDL] Extracted Wikipedia text already exists ({len(extracted_files)} files). Skipping.")
+        return len(extracted_files)
 
     # 最新のWikipedia圧縮ダンプのURL（全記事 / 単一bz2ファイル）
     dump_url = f"https://dumps.wikimedia.org/{language}wiki/latest/{language}wiki-latest-pages-articles.xml.bz2"
     dump_path = os.path.join(DATASET_DIR, f"{language}wiki-latest-pages-articles.xml.bz2")
 
-    print(f"[WikiDL] Downloading Wikipedia dump from: {dump_url}")
-    print("[WikiDL] This may take several minutes to hours depending on network speed...")
+    if not os.path.exists(dump_path):
+        print(f"[WikiDL] Downloading Wikipedia dump from: {dump_url}")
+        print("[WikiDL] This may take several minutes to hours depending on network speed...")
 
-    try:
-        # progress表示付きダウンロード
-        def reporthook(count, block_size, total_size):
-            if total_size > 0 and count % 500 == 0:
-                mb_done = count * block_size / (1024 * 1024)
-                mb_total = total_size / (1024 * 1024)
-                print(f"[WikiDL] Progress: {mb_done:.1f} / {mb_total:.1f} MB")
+        try:
+            # progress表示付きダウンロード
+            def reporthook(count, block_size, total_size):
+                if total_size > 0 and count % 500 == 0:
+                    mb_done = count * block_size / (1024 * 1024)
+                    mb_total = total_size / (1024 * 1024)
+                    print(f"[WikiDL] Progress: {mb_done:.1f} / {mb_total:.1f} MB")
 
-        urllib.request.urlretrieve(dump_url, dump_path, reporthook=reporthook)
-        print(f"[WikiDL] Download complete: {dump_path}")
+            urllib.request.urlretrieve(dump_url, dump_path, reporthook=reporthook)
+            print(f"[WikiDL] Download complete: {dump_path}")
 
-    except Exception as e:
-        print(f"[WikiDL] Download failed: {e}")
-        return 0
+        except Exception as e:
+            print(f"[WikiDL] Download failed: {e}")
+            return 0
+    else:
+        print(f"[WikiDL] Found existing dump file. Skipping download and continuing extraction: {dump_path}")
 
     # bz2ストリームを分割で展開しながらテキスト抽出・保存する
     print("[WikiDL] Extracting and parsing articles...")
