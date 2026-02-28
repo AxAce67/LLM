@@ -1404,12 +1404,21 @@
         }
 
         async function runEvaluation() {
+            const statusLine = document.getElementById('eval-status-line');
             try {
                 const response = await fetch('/api/evals/run', { method: 'POST', headers: adminHeaders() });
                 const data = await response.json();
-                console.log(data.message);
+                if (!response.ok || data.status === 'error') {
+                    statusLine.className = "text-xs text-rose-600 mb-2";
+                    statusLine.textContent = `Eval status: failed (${data.message || `HTTP ${response.status}`})`;
+                    return;
+                }
+                statusLine.className = "text-xs text-amber-600 mb-2";
+                statusLine.textContent = `Eval status: ${data.status} (${data.message || ''})`;
                 fetchEvalStatus();
             } catch (error) {
+                statusLine.className = "text-xs text-rose-600 mb-2";
+                statusLine.textContent = "Eval status: request failed";
                 console.error("Failed to run evaluation:", error);
             }
         }
