@@ -218,7 +218,7 @@ async def control_all_nodes(request: Request):
 async def list_evaluations():
     try:
         runs = state_manager.db_manager.get_latest_evaluation_runs(limit=20)
-        return JSONResponse(content={"status": "success", "runs": runs})
+        return JSONResponse(content=jsonable_encoder({"status": "success", "runs": runs}))
     except Exception as e:
         return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
 
@@ -399,7 +399,7 @@ async def gguf_export_status():
 async def list_models():
     try:
         models = state_manager.db_manager.list_model_versions(limit=20)
-        return JSONResponse(content={"status": "success", "models": models})
+        return JSONResponse(content=jsonable_encoder({"status": "success", "models": models}))
     except Exception as e:
         return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
 
@@ -415,7 +415,7 @@ async def list_policies():
 async def list_datasets():
     try:
         rows = state_manager.db_manager.get_latest_dataset_versions(limit=50)
-        return JSONResponse(content={"status": "success", "datasets": rows})
+        return JSONResponse(content=jsonable_encoder({"status": "success", "datasets": rows}))
     except Exception as e:
         return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
 
