@@ -90,7 +90,7 @@ def estimate_val_loss(model, val_loader, device, eval_batches=20):
         model.train()
     return float(sum(losses) / max(1, len(losses)))
 
-def train_step(max_steps=50, log_fn=None, metric_cb=None):
+def train_step(max_steps=50, log_fn=None, metric_cb=None, should_stop_cb=None):
     """
     メインコントローラーから定期的に呼ばれる、指定ステップ数の学習を行う関数。
     途中でチェックポイント(重みデータ)を保存しながら進める。
@@ -219,6 +219,15 @@ def train_step(max_steps=50, log_fn=None, metric_cb=None):
 
     actual_steps = 0
     for step in range(max_steps):
+        if callable(should_stop_cb):
+            try:
+                if should_stop_cb():
+                    if callable(log_fn):
+                        log_fn(f"[Train] interrupted by STOP signal at step={start_step + step}")
+                    break
+            except Exception:
+                # 停止判定の一時エラーで学習そのものを落とさない
+                pass
         actual_steps += 1
         optimizer.zero_grad(set_to_none=True)
         accum_loss = 0.0

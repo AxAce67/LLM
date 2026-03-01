@@ -344,6 +344,29 @@ def _run_training_with_retry(state: SystemState, max_steps: int):
         except Exception as e:
             state.log(f"[TrainMetric] callback error: {e}")
 
+    last_check_ts = 0.0
+
+    def _should_stop_cb() -> bool:
+        nonlocal last_check_ts
+        now = time.time()
+        # DBアクセス頻度を抑制
+        if (now - last_check_ts) < 1.0:
+            return not bool(state.state.get("is_running", False))
+        last_check_ts = now
+        if not bool(state.state.get("is_running", False)):
+            return True
+        try:
+            target = state.db_manager.get_my_target_status(state.node_id)
+            if target == "stop":
+                state.set_running(False)
+                state.db_manager.set_node_target_status(state.node_id, "unspecified")
+                state.log(f"[Network] Received remote command: STOP for node {state.node_id[-4:]}")
+                return True
+        except Exception:
+            # 停止判定失敗時は継続（次回再判定）
+            return False
+        return False
+
     retries = max(0, int(os.environ.get("TRAIN_RETRY_MAX", "2")))
     latest_ckpt, backup_ckpt = _checkpoint_paths()
     if os.path.exists(latest_ckpt):
@@ -358,7 +381,12 @@ def _run_training_with_retry(state: SystemState, max_steps: int):
         attempt += 1
         try:
             state.log(f"[TrainJob] Attempt {attempt}/{retries + 1}")
-            return trainer.train_step(max_steps=max_steps, log_fn=state.log, metric_cb=_metric_cb)
+            return trainer.train_step(
+                max_steps=max_steps,
+                log_fn=state.log,
+                metric_cb=_metric_cb,
+                should_stop_cb=_should_stop_cb,
+            )
         except Exception as e:
             state.log(f"[TrainJob] Attempt {attempt} failed: {e}")
             if os.path.exists(backup_ckpt):
