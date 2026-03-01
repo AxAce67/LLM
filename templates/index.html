@@ -1459,10 +1459,14 @@
 
                 // 稼働ワーカー推定は /api/nodes 集計結果を優先表示
 
-                document.getElementById('cpu-percent').textContent = data.system.cpu_percent.toFixed(1) + "%";
-                document.getElementById('ram-percent').textContent = data.system.ram_percent.toFixed(1) + "%";
-                document.getElementById('cpu-bar').style.width = data.system.cpu_percent + "%";
-                document.getElementById('ram-bar').style.width = data.system.ram_percent + "%";
+                const cpuPercentEl = document.getElementById('cpu-percent');
+                const ramPercentEl = document.getElementById('ram-percent');
+                if (cpuPercentEl) cpuPercentEl.textContent = data.system.cpu_percent.toFixed(1) + "%";
+                if (ramPercentEl) ramPercentEl.textContent = data.system.ram_percent.toFixed(1) + "%";
+                const cpuBarEl = document.getElementById('cpu-bar');
+                const ramBarEl = document.getElementById('ram-bar');
+                if (cpuBarEl) cpuBarEl.style.width = data.system.cpu_percent + "%";
+                if (ramBarEl) ramBarEl.style.width = data.system.ram_percent + "%";
                 updateCorpusChartFromStatus(data);
 
                 const alertBox = document.getElementById('system-alert');
