@@ -560,8 +560,13 @@ async def control_pipeline(request: ControlRequest, raw_request: Request):
         return JSONResponse(status_code=403, content={"status": "error", "message": "Forbidden"})
     state_manager.load()
     if request.action == "start":
+        # まず全ノードへ起動命令を配信（dashboard自身とengineが別node_idでも確実に届く）
+        try:
+            state_manager.db_manager.set_all_nodes_target_status("start", role="all")
+        except Exception as e:
+            state_manager.log(f"[Control] failed to broadcast START: {e}")
         state_manager.set_running(True)
-        # 手動起動時に stale な target_status を残さない
+        # ダッシュボード自身の行に stale な target_status を残さない
         try:
             state_manager.db_manager.set_node_target_status(state_manager.node_id, "unspecified")
         except Exception:
@@ -569,8 +574,13 @@ async def control_pipeline(request: ControlRequest, raw_request: Request):
         state_manager.log("User requested: START")
         return {"status": "success", "message": "Pipeline started"}
     elif request.action == "stop":
+        # まず全ノードへ停止命令を配信（再起動ループ防止）
+        try:
+            state_manager.db_manager.set_all_nodes_target_status("stop", role="all")
+        except Exception as e:
+            state_manager.log(f"[Control] failed to broadcast STOP: {e}")
         state_manager.set_running(False)
-        # 停止後に stale な start 指示で再起動されることを防ぐ
+        # ダッシュボード自身の行に stale な target_status を残さない
         try:
             state_manager.db_manager.set_node_target_status(state_manager.node_id, "unspecified")
         except Exception:
