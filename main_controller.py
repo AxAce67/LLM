@@ -75,7 +75,7 @@ class SystemState:
         self._heartbeat_thread = None
         self._heartbeat_stop = threading.Event()
         self._last_runtime_metric_at = 0.0
-        self.metric_sample_sec = max(5, int(os.environ.get("METRIC_SAMPLE_SEC", "30")))
+        self.metric_sample_sec = max(5, int(os.environ.get("METRIC_SAMPLE_SEC", "5")))
         if not self.is_dashboard:
             self._start_heartbeat_thread()
             self.save()

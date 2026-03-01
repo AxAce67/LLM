@@ -257,6 +257,15 @@ def train_step(max_steps=50, log_fn=None, metric_cb=None, should_stop_cb=None):
             optimizer.step()
 
         lossf = accum_loss
+        if callable(metric_cb):
+            metric_cb(
+                {
+                    "epoch": start_step + step,
+                    "train_loss": float(lossf),
+                    "val_loss": float(val_loss) if val_loss is not None else None,
+                    "best_val_loss": float(best_val_loss) if best_val_loss != float("inf") else None,
+                }
+            )
         
         # 数十ステップごとにログ出力
         if step % 10 == 0 or step == max_steps - 1:
@@ -271,15 +280,6 @@ def train_step(max_steps=50, log_fn=None, metric_cb=None, should_stop_cb=None):
                     f"[TrainStep] step={start_step + step} "
                     f"loss={lossf:.4f} lr={optimizer.param_groups[0]['lr']:.6e} "
                     f"time_ms={process_time_ms:.2f}"
-                )
-            if callable(metric_cb):
-                metric_cb(
-                    {
-                        "epoch": start_step + step,
-                        "train_loss": float(lossf),
-                        "val_loss": float(val_loss) if val_loss is not None else None,
-                        "best_val_loss": float(best_val_loss) if best_val_loss != float("inf") else None,
-                    }
                 )
 
         # 検証ロス評価とベスト更新

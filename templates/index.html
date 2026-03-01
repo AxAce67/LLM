@@ -1278,9 +1278,12 @@
             }
         }
 
-        function toLocalLabel(ts) {
+        function toLocalLabel(ts, rangeKey = 'hour') {
             const d = new Date(ts);
             if (Number.isNaN(d.getTime())) return "-";
+            if (String(rangeKey) === '10s') {
+                return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            }
             return d.toLocaleString([], { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
         }
 
@@ -1304,7 +1307,7 @@
                 const data = await response.json();
                 if (data.status !== "success" || !Array.isArray(data.series)) return;
                 if (!systemChart) return;
-                systemChart.data.labels = data.series.map(row => toLocalLabel(row.ts));
+                systemChart.data.labels = data.series.map(row => toLocalLabel(row.ts, systemRange));
                 systemChart.data.datasets[0].data = data.series.map(row => Number(row.cpu_usage || 0));
                 systemChart.data.datasets[1].data = data.series.map(row => Number(row.ram_usage || 0));
                 systemChart.update();
@@ -1319,7 +1322,7 @@
                 const data = await response.json();
                 if (data.status !== "success" || !Array.isArray(data.series)) return;
                 if (!trainingChart) return;
-                trainingChart.data.labels = data.series.map(row => toLocalLabel(row.ts));
+                trainingChart.data.labels = data.series.map(row => toLocalLabel(row.ts, trainingRange));
                 trainingChart.data.datasets[0].data = data.series.map(row => Number(row.train_loss || 0));
                 trainingChart.data.datasets[1].data = data.series.map(row => Number(row.val_loss || 0));
                 trainingChart.update();
@@ -1334,7 +1337,7 @@
                         recent.forEach(row => {
                             const tr = document.createElement('tr');
                             tr.innerHTML = `
-                                <td data-label="Time" class="py-2 pr-4 text-xs text-gray-500">${toLocalLabel(row.ts)}</td>
+                                <td data-label="Time" class="py-2 pr-4 text-xs text-gray-500">${toLocalLabel(row.ts, trainingRange)}</td>
                                 <td data-label="Epoch" class="py-2 px-4 text-xs font-mono text-gray-800">${Number(row.epoch || 0)}</td>
                                 <td data-label="Train" class="py-2 px-4 text-xs font-mono text-red-500">${Number(row.train_loss || 0).toFixed(4)}</td>
                                 <td data-label="Val" class="py-2 px-4 text-xs font-mono text-gray-800">${Number(row.val_loss || 0).toFixed(4)}</td>
@@ -2017,8 +2020,8 @@
         setInterval(fetchDatasets, 20000);
         setInterval(fetchHfTrainStatus, 5000);
         setInterval(fetchGgufExportStatus, 5000);
-        setInterval(fetchSystemMetrics, 10000);
-        setInterval(fetchTrainingMetrics, 15000);
+        setInterval(fetchSystemMetrics, 5000);
+        setInterval(fetchTrainingMetrics, 5000);
 
         // Initial Fetch
         switchDashboardSection('overview');
