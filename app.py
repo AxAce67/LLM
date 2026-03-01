@@ -431,6 +431,22 @@ async def list_datasets():
     except Exception as e:
         return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
 
+@app.get("/api/metrics/system")
+async def metrics_system(range: str = "hour"):
+    try:
+        rows = state_manager.db_manager.get_runtime_metric_series(range_key=range, node_id=state_manager.node_id, limit=1200)
+        return JSONResponse(content=jsonable_encoder({"status": "success", "range": range, "series": rows}))
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
+
+@app.get("/api/metrics/training")
+async def metrics_training(range: str = "day"):
+    try:
+        rows = state_manager.db_manager.get_training_metric_series(range_key=range, node_id=state_manager.node_id, limit=1200)
+        return JSONResponse(content=jsonable_encoder({"status": "success", "range": range, "series": rows}))
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
+
 
 @app.post("/api/policies")
 async def upsert_policy(req: SourcePolicyRequest, request: Request):
@@ -543,10 +559,20 @@ async def control_pipeline(request: ControlRequest, raw_request: Request):
     state_manager.load()
     if request.action == "start":
         state_manager.set_running(True)
+        # 手動起動時に stale な target_status を残さない
+        try:
+            state_manager.db_manager.set_node_target_status(state_manager.node_id, "unspecified")
+        except Exception:
+            pass
         state_manager.log("User requested: START")
         return {"status": "success", "message": "Pipeline started"}
     elif request.action == "stop":
         state_manager.set_running(False)
+        # 停止後に stale な start 指示で再起動されることを防ぐ
+        try:
+            state_manager.db_manager.set_node_target_status(state_manager.node_id, "unspecified")
+        except Exception:
+            pass
         state_manager.log("User requested: STOP")
         return {"status": "success", "message": "Pipeline stopped"}
     else:

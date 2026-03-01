@@ -74,6 +74,8 @@ class SystemState:
         self._ckpt_stats_mtime = None
         self._heartbeat_thread = None
         self._heartbeat_stop = threading.Event()
+        self._last_runtime_metric_at = 0.0
+        self.metric_sample_sec = max(5, int(os.environ.get("METRIC_SAMPLE_SEC", "30")))
         if not self.is_dashboard:
             self._start_heartbeat_thread()
             self.save()
@@ -120,6 +122,14 @@ class SystemState:
                         ram_usage=ram_usage,
                         active_workers=int(self.state.get("stats", {}).get("active_workers", 0)),
                     )
+                    now_ts = time.time()
+                    if (now_ts - self._last_runtime_metric_at) >= self.metric_sample_sec:
+                        self.db_manager.insert_runtime_metric(
+                            node_id=self.node_id,
+                            cpu_usage=cpu_usage,
+                            ram_usage=ram_usage,
+                        )
+                        self._last_runtime_metric_at = now_ts
                 except Exception as e:
                     print(f"Heartbeat thread error: {e}")
                 self._heartbeat_stop.wait(self.heartbeat_interval_sec)
@@ -641,6 +651,13 @@ def run_pipeline(state: SystemState):
                     epoch, loss = train_result
                     state.state["stats"]["current_epoch"] = epoch
                     state.state["stats"]["current_loss"] = round(loss, 4) if loss else 0.0
+                state.db_manager.insert_training_metric(
+                    node_id=state.node_id,
+                    epoch=int(state.state["stats"].get("current_epoch", 0) or 0),
+                    train_loss=float(state.state["stats"].get("current_loss", 0.0) or 0.0),
+                    val_loss=float(state.state["stats"].get("current_val_loss", 0.0) or 0.0),
+                    best_val_loss=float(state.state["stats"].get("best_val_loss", 0.0) or 0.0),
+                )
                 state.save()
             except Exception as e:
                 import traceback

@@ -109,6 +109,28 @@ class DBManager:
         );
         CREATE INDEX IF NOT EXISTS idx_dataset_versions_created_at ON dataset_versions(created_at DESC);
 
+        CREATE TABLE IF NOT EXISTS runtime_metrics (
+            id BIGSERIAL PRIMARY KEY,
+            node_id TEXT NOT NULL,
+            cpu_usage DOUBLE PRECISION NOT NULL DEFAULT 0,
+            ram_usage DOUBLE PRECISION NOT NULL DEFAULT 0,
+            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        );
+        CREATE INDEX IF NOT EXISTS idx_runtime_metrics_created_at ON runtime_metrics(created_at DESC);
+        CREATE INDEX IF NOT EXISTS idx_runtime_metrics_node_created_at ON runtime_metrics(node_id, created_at DESC);
+
+        CREATE TABLE IF NOT EXISTS training_metrics (
+            id BIGSERIAL PRIMARY KEY,
+            node_id TEXT NOT NULL,
+            epoch BIGINT NOT NULL DEFAULT 0,
+            train_loss DOUBLE PRECISION NOT NULL DEFAULT 0,
+            val_loss DOUBLE PRECISION NOT NULL DEFAULT 0,
+            best_val_loss DOUBLE PRECISION NOT NULL DEFAULT 0,
+            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        );
+        CREATE INDEX IF NOT EXISTS idx_training_metrics_created_at ON training_metrics(created_at DESC);
+        CREATE INDEX IF NOT EXISTS idx_training_metrics_node_created_at ON training_metrics(node_id, created_at DESC);
+
         CREATE INDEX IF NOT EXISTS idx_crawled_data_fts
             ON crawled_data USING GIN (to_tsvector('simple', coalesce(title, '') || ' ' || coalesce(content, '')));
         """
@@ -783,6 +805,143 @@ class DBManager:
                     return [dict(row) for row in cur.fetchall()]
         except Exception as e:
             print(f"[DB Error] Failed to list dataset versions: {e}")
+            return []
+
+    def insert_runtime_metric(self, node_id: str, cpu_usage: float, ram_usage: float):
+        try:
+            with self._connect() as conn:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        """
+                        INSERT INTO runtime_metrics (node_id, cpu_usage, ram_usage)
+                        VALUES (%s, %s, %s)
+                        """,
+                        (
+                            node_id,
+                            float(cpu_usage),
+                            float(ram_usage),
+                        ),
+                    )
+                conn.commit()
+        except Exception as e:
+            print(f"[DB Error] Failed to insert runtime metric: {e}")
+
+    def insert_training_metric(
+        self,
+        node_id: str,
+        epoch: int,
+        train_loss: float,
+        val_loss: float,
+        best_val_loss: float,
+    ):
+        try:
+            with self._connect() as conn:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        """
+                        INSERT INTO training_metrics (node_id, epoch, train_loss, val_loss, best_val_loss)
+                        VALUES (%s, %s, %s, %s, %s)
+                        """,
+                        (
+                            node_id,
+                            int(epoch),
+                            float(train_loss or 0.0),
+                            float(val_loss or 0.0),
+                            float(best_val_loss or 0.0),
+                        ),
+                    )
+                conn.commit()
+        except Exception as e:
+            print(f"[DB Error] Failed to insert training metric: {e}")
+
+    def _metric_window_clause(self, range_key: str) -> str | None:
+        windows = {
+            "all": None,
+            "hour": "NOW() - INTERVAL '1 hour'",
+            "day": "NOW() - INTERVAL '1 day'",
+            "week": "NOW() - INTERVAL '7 day'",
+            "month": "NOW() - INTERVAL '30 day'",
+            "year": "NOW() - INTERVAL '365 day'",
+        }
+        return windows.get((range_key or "hour").lower(), windows["hour"])
+
+    def _metric_bucket(self, range_key: str) -> str:
+        buckets = {
+            "all": "day",
+            "hour": "minute",
+            "day": "hour",
+            "week": "hour",
+            "month": "day",
+            "year": "week",
+        }
+        return buckets.get((range_key or "hour").lower(), "minute")
+
+    def get_runtime_metric_series(self, range_key: str = "hour", node_id: str | None = None, limit: int = 500) -> list[dict]:
+        try:
+            window = self._metric_window_clause(range_key)
+            bucket = self._metric_bucket(range_key)
+            cap = max(20, min(int(limit), 5000))
+            where_node = "AND node_id = %s" if node_id else ""
+            where_window = f"created_at >= ({window}) AND " if window else ""
+            params = [bucket]
+            if node_id:
+                params.append(node_id)
+            params.append(cap)
+            with self._connect() as conn:
+                with conn.cursor(cursor_factory=DictCursor) as cur:
+                    cur.execute(
+                        f"""
+                        SELECT
+                            date_trunc(%s, created_at) AS ts,
+                            AVG(cpu_usage) AS cpu_usage,
+                            AVG(ram_usage) AS ram_usage
+                        FROM runtime_metrics
+                        WHERE {where_window}TRUE
+                        {where_node}
+                        GROUP BY ts
+                        ORDER BY ts ASC
+                        LIMIT %s
+                        """,
+                        tuple(params),
+                    )
+                    return [dict(row) for row in cur.fetchall()]
+        except Exception as e:
+            print(f"[DB Error] Failed to fetch runtime metric series: {e}")
+            return []
+
+    def get_training_metric_series(self, range_key: str = "day", node_id: str | None = None, limit: int = 500) -> list[dict]:
+        try:
+            window = self._metric_window_clause(range_key)
+            bucket = self._metric_bucket(range_key)
+            cap = max(20, min(int(limit), 5000))
+            where_node = "AND node_id = %s" if node_id else ""
+            where_window = f"created_at >= ({window}) AND " if window else ""
+            params = [bucket]
+            if node_id:
+                params.append(node_id)
+            params.append(cap)
+            with self._connect() as conn:
+                with conn.cursor(cursor_factory=DictCursor) as cur:
+                    cur.execute(
+                        f"""
+                        SELECT
+                            date_trunc(%s, created_at) AS ts,
+                            MAX(epoch) AS epoch,
+                            AVG(train_loss) AS train_loss,
+                            AVG(val_loss) AS val_loss,
+                            MIN(best_val_loss) AS best_val_loss
+                        FROM training_metrics
+                        WHERE {where_window}TRUE
+                        {where_node}
+                        GROUP BY ts
+                        ORDER BY ts ASC
+                        LIMIT %s
+                        """,
+                        tuple(params),
+                    )
+                    return [dict(row) for row in cur.fetchall()]
+        except Exception as e:
+            print(f"[DB Error] Failed to fetch training metric series: {e}")
             return []
 
 

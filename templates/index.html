@@ -19,48 +19,48 @@
                         mono: ['JetBrains Mono', 'monospace'],
                     },
                     colors: {
-                        surface: 'rgba(255, 255, 255, 0.7)',
-                        surfaceBorder: 'rgba(20, 46, 52, 0.12)',
-                        accentBlue: '#0e7490',
-                        accentPurple: '#f97316',
+                        brand: '#111111',
+                        surface: '#ffffff',
+                        surfaceBorder: '#eaeaea',
+                        accentGray: '#666666',
                     }
                 }
             }
         }
     </script>
     <style>
+        html,
+        body {
+            max-width: 100%;
+            overflow-x: hidden;
+        }
+
         :root {
-            --bg-top: #f8fbf8;
-            --bg-bottom: #e8f1f2;
-            --ink-strong: #132226;
-            --accent-main: #0e7490;
-            --accent-sub: #f97316;
-            --panel-border: rgba(20, 46, 52, 0.12);
+            --bg-body: #fafafa;
+            --ink-strong: #111111;
+            --ink-muted: #666666;
+            --accent-main: #111111;
+            --panel-border: #eaeaea;
         }
 
         body {
-            background:
-                linear-gradient(140deg, var(--bg-top) 0%, var(--bg-bottom) 100%),
-                linear-gradient(rgba(14, 116, 144, 0.06) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(14, 116, 144, 0.06) 1px, transparent 1px);
-            background-size: auto, 28px 28px, 28px 28px;
+            background: var(--bg-body);
+            color: var(--ink-strong);
             min-height: 100vh;
             color: var(--ink-strong);
         }
 
         .glass-panel {
-            background: rgba(255, 255, 255, 0.76);
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
+            background: #ffffff;
             border: 1px solid var(--panel-border);
-            box-shadow: 0 14px 30px rgba(11, 33, 44, 0.08);
+            box-shadow: 0 4px 24px rgba(0, 0, 0, 0.03);
+            border-radius: 12px;
+            color: var(--ink-strong);
         }
 
         .gradient-text {
-            background: linear-gradient(135deg, var(--accent-main) 0%, var(--accent-sub) 100%);
-            -webkit-background-clip: text;
-            background-clip: text;
-            -webkit-text-fill-color: transparent;
+            color: var(--ink-strong);
+            font-weight: 700;
         }
 
         .tab-btn {
@@ -68,59 +68,63 @@
         }
 
         .tab-btn.active {
-            color: #007AFF;
-            border-bottom: 2px solid #007AFF;
+            color: var(--ink-strong);
+            border-bottom: 2px solid var(--ink-strong);
+            font-weight: 600;
         }
 
         .tab-btn:not(.active) {
-            color: #718096;
+            color: var(--ink-muted);
             border-bottom: 2px solid transparent;
         }
 
         .tab-btn:hover:not(.active) {
-            color: #4a5568;
-            border-bottom: 2px solid #cbd5e0;
+            color: var(--ink-strong);
+            border-bottom: 2px solid var(--panel-border);
         }
 
         .dash-tab-btn {
-            border: 1px solid rgba(14, 116, 144, 0.18);
-            background: rgba(255, 255, 255, 0.65);
-            color: #35515a;
+            border: 1px solid var(--panel-border);
+            background: #ffffff;
+            color: var(--ink-muted);
             transition: all 0.2s ease;
         }
 
         .dash-tab-btn:hover {
-            background: rgba(14, 116, 144, 0.08);
-            color: #0e7490;
+            background: #fafafa;
+            color: var(--ink-strong);
+            border-color: #cccccc;
         }
 
         .dash-tab-btn.active {
-            background: linear-gradient(135deg, #0e7490, #f97316);
-            color: #fff;
-            border-color: transparent;
-            box-shadow: 0 8px 18px rgba(14, 116, 144, 0.25);
+            background: var(--ink-strong);
+            color: #ffffff;
+            border-color: var(--ink-strong);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
         }
 
         .help-dot {
-            width: 22px;
-            height: 22px;
+            width: 20px;
+            height: 20px;
             display: inline-flex;
             align-items: center;
             justify-content: center;
             border-radius: 999px;
-            font-size: 12px;
-            font-weight: 700;
-            color: #0e7490;
-            background: rgba(14, 116, 144, 0.12);
-            border: 1px solid rgba(14, 116, 144, 0.24);
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--ink-muted);
+            background: #ffffff;
+            border: 1px solid var(--panel-border);
             cursor: pointer;
             user-select: none;
+            transition: all 0.2s;
         }
 
         .help-dot:hover,
         .help-dot:focus {
-            color: #fff;
-            background: #0e7490;
+            color: #ffffff;
+            background: var(--ink-strong);
+            border-color: var(--ink-strong);
             outline: none;
         }
 
@@ -135,16 +139,16 @@
             right: 0;
             top: calc(100% + 8px);
             z-index: 999;
-            width: min(360px, 78vw);
+            width: min(320px, 78vw);
             margin-top: 8px;
             font-size: 12px;
-            line-height: 1.55;
-            color: #46535b;
-            background: rgba(255, 255, 255, 0.85);
-            border: 1px solid rgba(20, 46, 52, 0.1);
-            border-radius: 10px;
-            padding: 10px 12px;
-            box-shadow: 0 12px 24px rgba(11, 33, 44, 0.14);
+            line-height: 1.6;
+            color: var(--ink-strong);
+            background: #ffffff;
+            border: 1px solid var(--panel-border);
+            border-radius: 8px;
+            padding: 12px 16px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
             opacity: 0;
             pointer-events: none;
             transform: translateY(-4px);
@@ -187,232 +191,448 @@
 
         #log-container::-webkit-scrollbar-track,
         #chat-history::-webkit-scrollbar-track {
-            background: rgba(0, 0, 0, 0.05);
+            background: rgba(255, 255, 255, 0.05);
             border-radius: 4px;
         }
 
         #log-container::-webkit-scrollbar-thumb,
         #chat-history::-webkit-scrollbar-thumb {
-            background: rgba(0, 0, 0, 0.15);
+            background: rgba(255, 255, 255, 0.15);
             border-radius: 4px;
+        }
+
+        .metric-range-select {
+            border: 1px solid var(--panel-border);
+            background: #ffffff;
+            border-radius: 6px;
+            padding: 4px 8px;
+            font-size: 12px;
+            color: var(--ink-strong);
+        }
+
+        .metric-range-select:focus {
+            outline: none;
+            border-color: var(--ink-strong);
+            box-shadow: 0 0 0 1px var(--ink-strong);
+        }
+
+        .no-wrap-scroll {
+            display: flex;
+            flex-wrap: nowrap;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: none;
+            scroll-snap-type: x mandatory;
+        }
+
+        .no-wrap-scroll::-webkit-scrollbar {
+            display: none;
+        }
+
+        .no-wrap-scroll>* {
+            flex: 0 0 auto;
+            scroll-snap-align: start;
+        }
+
+        .status-line {
+            font-size: 12px;
+            margin-bottom: 8px;
+        }
+
+        .status-idle {
+            color: #6b7280;
+        }
+
+        .status-running {
+            color: #b45309;
+            font-weight: 600;
+        }
+
+        .status-success {
+            color: #047857;
+            font-weight: 600;
+        }
+
+        .status-failed {
+            color: #dc2626;
+            font-weight: 600;
+        }
+
+        .empty-hint {
+            color: #6b7280;
+            font-size: 12px;
+        }
+
+        @media (max-width: 900px) {
+            header {
+                padding: 14px 14px;
+            }
+
+            header nav {
+                width: 100%;
+                display: flex;
+                flex-wrap: nowrap;
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+                gap: 10px;
+            }
+
+            header .text-2xl {
+                font-size: 1.25rem;
+                line-height: 1.65rem;
+            }
+        }
+
+        @media (max-width: 768px) {
+            main {
+                padding-left: 10px !important;
+                padding-right: 10px !important;
+            }
+
+            .mobile-tight {
+                padding: 12px !important;
+            }
+
+            .mobile-stack {
+                display: block !important;
+            }
+
+            .mobile-stack > * + * {
+                margin-top: 10px;
+            }
+
+            .mobile-table thead {
+                display: none;
+            }
+
+            .mobile-table,
+            .mobile-table tbody,
+            .mobile-table tr,
+            .mobile-table td {
+                display: block;
+                width: 100%;
+            }
+
+            .mobile-table tbody tr {
+                background: #fff;
+                border: 1px solid #e5e7eb;
+                border-radius: 12px;
+                padding: 10px 12px;
+                margin-bottom: 10px;
+            }
+
+            .mobile-table tbody td {
+                border: none !important;
+                padding: 6px 0 !important;
+                text-align: left !important;
+                font-size: 12px;
+                display: flex;
+                gap: 8px;
+                align-items: baseline;
+            }
+
+            .mobile-table tbody td::before {
+                content: attr(data-label);
+                min-width: 88px;
+                color: #6b7280;
+                font-weight: 600;
+                text-transform: uppercase;
+                letter-spacing: .04em;
+                font-size: 10px;
+            }
+
+            .mobile-table tbody td[data-label="Control"]::before {
+                align-self: center;
+            }
         }
     </style>
 </head>
 
-<body class="antialiased selection:bg-accentBlue selection:text-white pb-12">
+<body class="antialiased selection:bg-black selection:text-white pb-12">
 
     <!-- Header Navigation -->
     <header
-        class="glass-panel sticky top-0 z-50 border-b border-surfaceBorder/50 mb-8 items-center px-8 py-4 flex justify-between">
-        <div class="flex items-center space-x-3 gap-8">
+        class="sticky top-0 z-50 bg-white/90 backdrop-blur-sm border-b border-gray-200 mb-8 px-4 sm:px-8 py-4 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <div class="flex flex-col gap-1 lg:flex-row lg:items-center lg:gap-8 min-w-0 w-full lg:w-auto">
             <div>
-                <h1 class="text-2xl font-bold tracking-tight text-gray-800">
-                    AI Factory <span class="gradient-text">Engine</span>
+                <h1 class="text-2xl font-bold tracking-tight text-black">
+                    AI Factory Engine
                 </h1>
-                <p class="text-[11px] uppercase tracking-[0.2em] text-gray-500 mt-0.5">Operations Console</p>
+                <p class="text-xs text-gray-500 mt-1 uppercase tracking-widest font-medium">Operations Console</p>
             </div>
 
             <!-- Tabs -->
-            <nav class="flex space-x-6 text-sm font-medium mt-1">
+            <nav class="no-wrap-scroll gap-6 text-sm font-medium mt-2 lg:mt-0">
                 <button onclick="switchTab('dashboard')" id="tab-dashboard"
-                    class="tab-btn active pb-1 focus:outline-none">
+                    class="tab-btn active pb-1 focus:outline-none transition-colors">
                     Dashboard
                 </button>
-                <button onclick="switchTab('chat')" id="tab-chat" class="tab-btn pb-1 focus:outline-none">
+                <button onclick="switchTab('chat')" id="tab-chat"
+                    class="tab-btn pb-1 focus:outline-none transition-colors">
                     AI Chat
                 </button>
             </nav>
         </div>
 
-        <div class="flex items-center space-x-4">
+        <div class="no-wrap-scroll items-center gap-3 w-full lg:w-auto mt-2 lg:mt-0">
             <span id="current-role-badge"
-                class="text-xs bg-slate-100 text-slate-700 px-3 py-2 rounded-full border border-slate-200 font-semibold uppercase tracking-wider">
+                class="text-xs bg-gray-100 text-gray-800 px-3 py-1.5 rounded-md font-semibold tracking-wide whitespace-nowrap">
                 Role: Worker
             </span>
             <div id="status-indicator"
-                class="flex items-center space-x-2 bg-white/50 px-4 py-2 rounded-full border border-gray-200">
-                <span class="w-2.5 h-2.5 rounded-full bg-gray-400" id="status-dot"></span>
+                class="flex items-center space-x-2 bg-gray-50 px-3 py-1.5 rounded-md border border-gray-200 whitespace-nowrap">
+                <span class="w-2 h-2 rounded-full bg-gray-400" id="status-dot"></span>
                 <span id="status-text"
-                    class="text-sm font-medium text-gray-700 uppercase tracking-widest">Connecting...</span>
+                    class="text-xs font-bold text-gray-600 uppercase tracking-widest">Connecting...</span>
             </div>
 
             <a id="db-ui-link" href="#" target="_blank" rel="noopener noreferrer"
-                class="hidden bg-white hover:bg-gray-50 text-gray-700 font-semibold py-2 px-4 rounded-full shadow-sm border border-gray-200 text-sm">
+                class="hidden text-gray-600 hover:text-black font-medium text-sm transition-colors border-l border-gray-200 pl-3 ml-1">
                 DB Console
             </a>
             <button id="admin-token-btn" onclick="setAdminToken()"
-                class="hidden bg-white hover:bg-gray-50 text-gray-700 font-semibold py-2 px-4 rounded-full shadow-sm border border-gray-200 text-sm">
-                Set Admin Token
+                class="hidden text-gray-600 hover:text-black font-medium text-sm transition-colors border-l border-gray-200 pl-3">
+                Token
             </button>
 
             <button id="master-toggle-btn" onclick="togglePipeline()"
-                class="bg-white hover:bg-gray-50 text-gray-800 font-semibold py-2 px-6 rounded-full shadow-sm border border-gray-200 transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-accentBlue focus:ring-opacity-50 flex items-center space-x-2">
-                <svg id="master-toggle-icon" class="w-4 h-4 text-green-500" fill="currentColor" viewBox="0 0 20 20"
+                class="ml-2 bg-black hover:bg-gray-800 text-white font-semibold py-2 px-5 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-black flex items-center space-x-2 whitespace-nowrap shadow-sm">
+                <svg id="master-toggle-icon" class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20"
                     xmlns="http://www.w3.org/2000/svg">
                     <path fill-rule="evenodd"
                         d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z"
                         clip-rule="evenodd"></path>
                 </svg>
-                <span id="master-toggle-text">Ignite All</span>
+                <span id="master-toggle-text" class="text-sm">Ignite All</span>
             </button>
-            <div class="help-tooltip">
+
+            <div class="help-tooltip ml-1">
                 <button type="button" class="help-dot" aria-label="システム起動停止の説明">?</button>
                 <div class="help-body">
-                    このボタンで親機の収集・学習ループを一括で開始/停止します。<br>
-                    停止中もダッシュボード閲覧は可能です。
+                    全ノードの収集・学習ループを一括で起動します。<br>
+                    停止中でもダッシュボードの閲覧は可能です。
                 </div>
             </div>
         </div>
     </header>
 
-    <main class="max-w-7xl mx-auto px-6">
+    <main class="max-w-6xl mx-auto px-3 sm:px-6">
 
         <!-- DASHBOARD VIEW -->
         <div id="view-dashboard" class="space-y-8 animate-fade-in block">
-            <section class="glass-panel rounded-2xl p-4">
-                <div class="flex flex-wrap gap-2">
+            <section class="mb-8 border-b border-gray-200 pb-4">
+                <div class="no-wrap-scroll gap-2">
                     <button id="dash-tab-overview" onclick="switchDashboardSection('overview')"
-                        class="dash-tab-btn active text-xs font-semibold px-4 py-2 rounded-full">
+                        class="dash-tab-btn active text-xs font-semibold px-5 py-2 rounded-lg tracking-wide uppercase transition-all">
                         概要
                     </button>
                     <button id="dash-tab-nodes" onclick="switchDashboardSection('nodes')"
-                        class="dash-tab-btn text-xs font-semibold px-4 py-2 rounded-full">
+                        class="dash-tab-btn text-xs font-semibold px-5 py-2 rounded-lg tracking-wide uppercase transition-all">
                         ノード運用
                     </button>
                     <button id="dash-tab-training" onclick="switchDashboardSection('training')"
-                        class="dash-tab-btn text-xs font-semibold px-4 py-2 rounded-full">
+                        class="dash-tab-btn text-xs font-semibold px-5 py-2 rounded-lg tracking-wide uppercase transition-all">
                         学習とデータ
                     </button>
                     <button id="dash-tab-logs" onclick="switchDashboardSection('logs')"
-                        class="dash-tab-btn text-xs font-semibold px-4 py-2 rounded-full">
+                        class="dash-tab-btn text-xs font-semibold px-5 py-2 rounded-lg tracking-wide uppercase transition-all">
                         ログ監視
                     </button>
                 </div>
             </section>
 
-            <div id="dash-section-overview" class="space-y-8">
-            <!-- Top Metrics Row -->
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
-                <!-- System Phase -->
-                <div class="glass-panel p-6 rounded-2xl flex flex-col justify-center">
-                    <p class="text-xs font-semibold text-gray-500 tracking-wider mb-1 uppercase">稼働フェーズ</p>
-                    <h2 id="current-phase" class="text-2xl font-bold text-gray-800">Initializing</h2>
-                </div>
+            <div id="dash-section-overview" class="space-y-12">
+                <!-- Hero Layout: Top KPIs and Control -->
+                <div class="flex flex-col md:flex-row gap-8 items-start justify-between border-b border-gray-200 pb-10">
+                    <div class="flex flex-col gap-8 w-full md:w-2/3">
+                        <div>
+                            <p class="text-[10px] font-bold text-gray-400 tracking-[0.2em] mb-2 uppercase">稼働フェーズ</p>
+                            <h2 id="current-phase" class="text-4xl md:text-5xl font-light text-black tracking-tight">
+                                Initializing</h2>
+                        </div>
+                        <div class="flex flex-wrap gap-12">
+                            <div>
+                                <p class="text-[10px] font-bold text-gray-400 tracking-[0.2em] mb-2 uppercase">稼働ワーカー
+                                </p>
+                                <div class="flex items-baseline space-x-2">
+                                    <span id="active-workers"
+                                        class="text-4xl md:text-5xl font-light text-black">0</span>
+                                    <span class="text-xs text-gray-400 font-medium">ノード</span>
+                                </div>
+                            </div>
+                            <div>
+                                <p class="text-[10px] font-bold text-gray-400 tracking-[0.2em] mb-2 uppercase">現在のLoss
+                                    (Train)</p>
+                                <span id="overview-current-loss"
+                                    class="text-4xl md:text-5xl font-light text-black font-mono">0.0000</span>
+                            </div>
+                        </div>
+                    </div>
 
-                <!-- Swarm Workers Display (Master Calculated) -->
-                <div class="glass-panel p-6 rounded-2xl">
-                    <p class="text-xs font-semibold text-gray-500 tracking-wider mb-1 uppercase">稼働ワーカー推定（全ノード）</p>
-                    <div class="flex items-baseline space-x-2">
-                        <span id="active-workers" class="text-3xl font-bold gradient-text">0</span>
-                        <span class="text-sm text-gray-500 font-medium">推定稼働数</span>
+                    <!-- Action Panel -->
+                    <div class="w-full md:w-1/3 bg-gray-50 p-6 rounded-2xl border border-gray-100 flex flex-col gap-4">
+                        <div>
+                            <p class="text-xs font-bold text-black mb-1">システム一括制御</p>
+                            <p class="text-[11px] text-gray-500 mb-4 leading-relaxed">全ワーカーノードの収集および学習ループを一括で起動・停止します。
+                            </p>
+                        </div>
+                        <button onclick="togglePipeline()"
+                            class="w-full bg-black hover:bg-gray-800 text-white font-medium py-3 px-6 rounded-xl transition-colors focus:outline-none focus:ring-2 focus:ring-black flex items-center justify-center space-x-3 shadow-md">
+                            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"
+                                xmlns="http://www.w3.org/2000/svg">
+                                <path fill-rule="evenodd"
+                                    d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z"
+                                    clip-rule="evenodd"></path>
+                            </svg>
+                            <span class="text-sm tracking-wide">Ignite All</span>
+                        </button>
+
+                        <div id="system-alert"
+                            class="hidden mt-2 p-3 rounded-lg border border-amber-200 bg-amber-50 text-amber-700 text-[11px] font-medium leading-relaxed">
+                        </div>
                     </div>
                 </div>
 
-                <!-- Master Node CPU -->
-                <div class="glass-panel p-6 rounded-2xl">
-                    <div class="flex justify-between items-end mb-2">
-                        <p class="text-xs font-semibold text-gray-500 tracking-wider uppercase">親機 CPU</p>
-                        <span id="cpu-percent" class="text-lg font-bold text-gray-800">0%</span>
+                <!-- Main Charts & Details Grid -->
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-10">
+                    <!-- Main charts (Left 2/3) -->
+                    <div class="lg:col-span-2 space-y-10">
+                        <div>
+                            <div class="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                                <h3 class="text-sm font-bold text-black uppercase tracking-widest">パフォーマンス推移 (CPU / RAM)
+                                </h3>
+                                <div class="flex items-center gap-3">
+                                    <label for="system-range"
+                                        class="text-[10px] text-gray-400 uppercase tracking-widest font-bold">期間表示</label>
+                                    <select id="system-range"
+                                        class="metric-range-select bg-gray-50 hover:bg-gray-100 transition-colors"
+                                        onchange="onSystemRangeChange()">
+                                        <option value="all">全期間</option>
+                                        <option value="hour">1時間</option>
+                                        <option value="day">1日</option>
+                                        <option value="week">1週間</option>
+                                        <option value="month">1ヶ月</option>
+                                        <option value="year">1年</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="h-64 md:h-80 bg-white border border-gray-100 rounded-2xl p-4 shadow-sm">
+                                <canvas id="chart-system"></canvas>
+                            </div>
+                        </div>
+
+                        <div>
+                            <div class="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                                <h3 class="text-sm font-bold text-black uppercase tracking-widest">学習損失 (Train / Val)
+                                </h3>
+                                <div class="flex items-center gap-3">
+                                    <label for="training-range"
+                                        class="text-[10px] text-gray-400 uppercase tracking-widest font-bold">期間表示</label>
+                                    <select id="training-range"
+                                        class="metric-range-select bg-gray-50 hover:bg-gray-100 transition-colors"
+                                        onchange="onTrainingRangeChange()">
+                                        <option value="all">全期間</option>
+                                        <option value="day">1日</option>
+                                        <option value="hour">1時間</option>
+                                        <option value="week">1週間</option>
+                                        <option value="month">1ヶ月</option>
+                                        <option value="year">1年</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="h-64 md:h-80 bg-white border border-gray-100 rounded-2xl p-4 shadow-sm">
+                                <canvas id="chart-training"></canvas>
+                            </div>
+                        </div>
                     </div>
-                    <div class="w-full bg-gray-200 rounded-full h-1.5 overflow-hidden">
-                        <div id="cpu-bar"
-                            class="bg-gradient-to-r from-accentBlue to-accentPurple h-1.5 rounded-full transition-all duration-500"
-                            style="width: 0%"></div>
+
+                    <!-- Secondary details (Right 1/3) -->
+                    <div class="space-y-8">
+                        <!-- Infrastructure Mini Stats -->
+                        <div>
+                            <h3 class="text-xs font-bold text-gray-500 uppercase tracking-widest mb-4">インフラストラクチャー</h3>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div class="bg-gray-50 rounded-xl p-4 flex flex-col justify-between">
+                                    <p class="text-[10px] text-gray-400 font-bold uppercase tracking-widest mb-2">親機 CPU
+                                    </p>
+                                    <span id="cpu-percent" class="text-2xl font-light text-black font-mono">0%</span>
+                                </div>
+                                <div class="bg-gray-50 rounded-xl p-4 flex flex-col justify-between">
+                                    <p class="text-[10px] text-gray-400 font-bold uppercase tracking-widest mb-2">親機 メモリ
+                                    </p>
+                                    <span id="ram-percent" class="text-2xl font-light text-black font-mono">0%</span>
+                                </div>
+                                <div class="bg-gray-50 rounded-xl p-4 flex flex-col justify-between">
+                                    <p class="text-[10px] text-gray-400 font-bold uppercase tracking-widest mb-2">オンライン
+                                    </p>
+                                    <p id="nodes-online" class="text-2xl font-light text-black">0</p>
+                                </div>
+                                <div class="bg-gray-50 rounded-xl p-4 flex flex-col justify-between">
+                                    <p class="text-[10px] text-gray-400 font-bold uppercase tracking-widest mb-2">
+                                        Worker率</p>
+                                    <p id="nodes-worker-ratio" class="text-2xl font-light text-black font-mono">0%</p>
+                                </div>
+                            </div>
+                            <div class="mt-4 bg-gray-50 rounded-xl p-4">
+                                <p class="text-[10px] text-gray-400 font-bold uppercase tracking-widest mb-1">自動プロファイル
+                                </p>
+                                <p id="auto-profile-line" class="text-[11px] text-gray-600 font-medium">Detecting
+                                    runtime...</p>
+                            </div>
+                        </div>
+
+                        <!-- Corpus Distribution -->
+                        <div>
+                            <h3 class="text-xs font-bold text-gray-500 uppercase tracking-widest mb-4">コーパス構成</h3>
+                            <div class="bg-gray-50 rounded-xl p-6 h-64 flex items-center justify-center">
+                                <canvas id="chart-corpus"></canvas>
+                            </div>
+                        </div>
+
+                        <!-- Training Epoch Info -->
+                        <div>
+                            <h3 class="text-xs font-bold text-gray-500 uppercase tracking-widest mb-4">学習診断詳細</h3>
+                            <div class="bg-gray-50 rounded-xl p-5 border-l-4 border-black">
+                                <p class="text-[10px] text-gray-400 uppercase tracking-widest font-bold mb-1">Epoch</p>
+                                <p id="overview-current-epoch" class="text-xl font-medium text-black mb-4">0</p>
+
+                                <p class="text-[10px] text-gray-400 uppercase tracking-widest font-bold mb-1">Val / Best
+                                </p>
+                                <div class="flex items-baseline gap-2">
+                                    <p id="overview-current-val-loss" class="text-lg font-medium text-black font-mono">0.0000</p>
+                                    <p id="overview-best-val-loss" class="text-[11px] text-gray-500 font-mono">best: 0.0000</p>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
-                <!-- Master Node RAM -->
-                <div class="glass-panel p-6 rounded-2xl">
-                    <div class="flex justify-between items-end mb-2">
-                        <p class="text-xs font-semibold text-gray-500 tracking-wider uppercase">親機 メモリ</p>
-                        <span id="ram-percent" class="text-lg font-bold text-gray-800">0%</span>
-                    </div>
-                    <div class="w-full bg-gray-200 rounded-full h-1.5 overflow-hidden">
-                        <div id="ram-bar"
-                            class="bg-gradient-to-r from-accentBlue to-accentPurple h-1.5 rounded-full transition-all duration-500"
-                            style="width: 0%"></div>
-                    </div>
-                </div>
-            </div>
-
-            <div id="system-alert"
-                class="hidden glass-panel rounded-xl px-4 py-3 border border-amber-200 bg-amber-50/60 text-amber-800 text-sm font-medium">
-            </div>
-
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div class="glass-panel rounded-xl p-4">
-                    <p class="text-[11px] text-gray-500 uppercase tracking-wider">オンラインノード</p>
-                    <p id="nodes-online" class="text-2xl font-bold text-gray-800">0</p>
-                </div>
-                <div class="glass-panel rounded-xl p-4">
-                    <p class="text-[11px] text-gray-500 uppercase tracking-wider">稼働中ノード</p>
-                    <p id="nodes-running" class="text-2xl font-bold text-green-600">0</p>
-                </div>
-                <div class="glass-panel rounded-xl p-4">
-                    <p class="text-[11px] text-gray-500 uppercase tracking-wider">オフラインノード</p>
-                    <p id="nodes-offline" class="text-2xl font-bold text-gray-500">0</p>
-                </div>
-                <div class="glass-panel rounded-xl p-4">
-                    <p class="text-[11px] text-gray-500 uppercase tracking-wider">Worker比率</p>
-                    <p id="nodes-worker-ratio" class="text-2xl font-bold text-indigo-600">0%</p>
-                </div>
-            </div>
-            <div class="glass-panel rounded-xl p-4">
-                <p class="text-[11px] text-gray-500 uppercase tracking-wider mb-1">自動プロファイル</p>
-                <p id="auto-profile-line" class="text-sm text-gray-700">Detecting runtime...</p>
-            </div>
-
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <div class="glass-panel rounded-2xl p-5 lg:col-span-2">
-                    <h3 class="text-xs uppercase tracking-wider text-gray-500 font-semibold mb-3">システム推移（CPU / RAM）</h3>
-                    <div class="h-64">
-                        <canvas id="chart-system"></canvas>
-                    </div>
-                </div>
-                <div class="glass-panel rounded-2xl p-5">
-                    <h3 class="text-xs uppercase tracking-wider text-gray-500 font-semibold mb-3">コーパス構成</h3>
-                    <div class="h-64">
-                        <canvas id="chart-corpus"></canvas>
-                    </div>
-                </div>
-            </div>
-
-            <div class="glass-panel rounded-2xl p-5">
-                <h3 class="text-xs uppercase tracking-wider text-gray-500 font-semibold mb-3">学習損失（Train / Val）</h3>
-                <div class="h-64">
-                    <canvas id="chart-training"></canvas>
-                </div>
-            </div>
             </div>
 
             <!-- Connected Nodes Management (NEW) -->
             <div id="dash-section-nodes" class="hidden space-y-8">
-            <div class="glass-panel rounded-2xl overflow-visible p-[1px]">
-                <div class="bg-white/40 rounded-2xl p-6">
-                    <div class="flex justify-between items-center border-b border-gray-200 pb-4 mb-4">
+                <section class="border-b border-gray-200 pb-6">
+                    <h2 class="text-3xl font-light text-black tracking-tight mb-2">ノード運用</h2>
+                    <p class="text-sm text-gray-500 font-medium">接続ノードの状態確認と、一括/個別制御を行います。</p>
+                </section>
+
+                <div class="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm">
+                    <div class="flex flex-wrap justify-between items-center gap-3 border-b border-gray-200 pb-4 mb-4">
                         <div class="flex flex-col">
-                            <h3 class="text-sm font-bold text-gray-800 flex items-center uppercase tracking-widest">
-                                <svg class="w-4 h-4 mr-2 text-accentBlue" fill="none" stroke="currentColor"
-                                    viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                        d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 002-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10">
-                                    </path>
-                                </svg>
-                                接続中ノード一覧
-                            </h3>
+                            <h3 class="text-sm font-bold text-black uppercase tracking-widest">接続中ノード一覧</h3>
                             <p class="text-xs text-gray-500 mt-1">ノード単位の制御とテレメトリ</p>
                         </div>
-                        <div class="flex items-center gap-2">
+                        <div class="flex flex-wrap items-center gap-2">
                             <button onclick="controlAllNodes('start', 'worker')"
-                                class="text-xs bg-green-50 border border-green-200 text-green-700 px-3 py-1.5 rounded-lg font-semibold">
+                                class="text-xs border border-black text-black hover:bg-black hover:text-white transition-colors px-3 py-1.5 rounded-lg font-semibold">
                                 全Worker起動
                             </button>
                             <button onclick="controlAllNodes('stop', 'worker')"
-                                class="text-xs bg-rose-50 border border-rose-200 text-rose-700 px-3 py-1.5 rounded-lg font-semibold">
+                                class="text-xs border border-gray-300 text-black hover:bg-gray-100 transition-colors px-3 py-1.5 rounded-lg font-semibold">
                                 全Worker停止
                             </button>
                             <button onclick="fetchNodes()"
-                                class="text-xs text-accentBlue hover:text-accentPurple font-medium flex items-center">
+                                class="text-xs text-black hover:text-gray-600 font-medium flex items-center">
                                 <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"
                                     xmlns="http://www.w3.org/2000/svg">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -432,9 +652,10 @@
                     </div>
 
                     <div class="overflow-x-auto">
-                        <table class="w-full text-left text-sm">
+                        <table class="w-full text-left text-sm mobile-table">
                             <thead>
-                                <tr class="text-gray-500 uppercase text-xs tracking-wider border-b border-gray-200">
+                                <tr
+                                    class="text-gray-400 uppercase text-[10px] tracking-[0.2em] border-b border-gray-100">
                                     <th class="pb-3 pr-4 font-semibold">Node ID</th>
                                     <th class="pb-3 px-4 font-semibold">Role</th>
                                     <th class="pb-3 px-4 font-semibold">Status</th>
@@ -454,150 +675,91 @@
                     </div>
                 </div>
             </div>
-            </div>
+        </div>
 
-            <div id="dash-section-training" class="hidden space-y-8">
-            <section class="glass-panel rounded-2xl p-5">
-                <h3 class="text-sm font-bold text-gray-800 mb-2">学習とデータの見方</h3>
-                <p class="text-xs text-gray-600 leading-relaxed">
-                    まずは「データ量が増えているか」「Lossが長期的に下がるか」「評価スコアが改善しているか」を確認してください。
-                    各見出しの <span class="font-bold text-accentBlue">?</span> を押すと詳細説明を表示できます。
-                </p>
+        <div id="dash-section-training" class="hidden space-y-8">
+            <section class="border-b border-gray-200 pb-8">
+                <h2 class="text-3xl font-light text-black tracking-tight mb-2">学習とデータ管理</h2>
+                <p class="text-sm text-gray-500 font-medium">実行ジョブ、品質指標、評価履歴、データ品質をこの画面で管理します。</p>
             </section>
 
-            <div class="glass-panel rounded-2xl overflow-visible p-[1px]">
-                <div class="bg-white/40 rounded-2xl p-6">
-                    <div class="flex justify-between items-center border-b border-gray-200 pb-3 mb-3">
-                        <h3 class="text-sm font-bold text-gray-800 uppercase tracking-widest">学習・変換ジョブ (HF / GGUF)</h3>
-                        <div class="help-tooltip">
-                            <button type="button" class="help-dot" aria-label="学習・変換ジョブの説明">?</button>
-                            <div class="help-body">
-                                HF LoRA Train: 追加学習ジョブを開始します。<br>
-                                GGUF Export: 学習済みモデルを Ollama / LM Studio 用に変換します。<br>
-                                失敗時は各ステータス行にエラー概要が表示されます。
-                            </div>
-                        </div>
-                    </div>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div class="rounded-xl border border-gray-200 bg-white/70 p-4">
-                            <p class="text-xs font-semibold text-gray-600 uppercase tracking-wider mb-2">HF LoRA Train</p>
-                            <input id="hf-base-model" type="text" value="Qwen/Qwen2.5-1.5B-Instruct"
-                                class="w-full border border-gray-200 rounded px-2 py-1 text-xs mb-2" placeholder="base model">
-                            <input id="hf-train-text" type="text" value="dataset/hf/train.txt"
-                                class="w-full border border-gray-200 rounded px-2 py-1 text-xs mb-2" placeholder="train text">
-                            <input id="hf-output-dir" type="text" value="models/hf_lora"
-                                class="w-full border border-gray-200 rounded px-2 py-1 text-xs mb-2" placeholder="output dir">
-                            <button onclick="runHfTrain()"
-                                class="text-xs bg-emerald-600 text-white px-3 py-1.5 rounded-lg font-semibold">Run HF Train</button>
-                            <p id="hf-train-status-line" class="text-xs text-gray-500 mt-2">HF status: idle</p>
-                        </div>
-                        <div class="rounded-xl border border-gray-200 bg-white/70 p-4">
-                            <p class="text-xs font-semibold text-gray-600 uppercase tracking-wider mb-2">GGUF Export</p>
-                            <input id="gguf-llama-cpp-dir" type="text" value=""
-                                class="w-full border border-gray-200 rounded px-2 py-1 text-xs mb-2" placeholder="llama.cpp path">
-                            <input id="gguf-hf-model" type="text" value="Qwen/Qwen2.5-1.5B-Instruct"
-                                class="w-full border border-gray-200 rounded px-2 py-1 text-xs mb-2" placeholder="HF model">
-                            <input id="gguf-out-path" type="text" value="models/export/model.gguf"
-                                class="w-full border border-gray-200 rounded px-2 py-1 text-xs mb-2" placeholder="output gguf path">
-                            <input id="gguf-quant" type="text" value="Q4_K_M"
-                                class="w-full border border-gray-200 rounded px-2 py-1 text-xs mb-2" placeholder="quant type">
-                            <button onclick="runGgufExport()"
-                                class="text-xs bg-indigo-600 text-white px-3 py-1.5 rounded-lg font-semibold">Run GGUF Export</button>
-                            <p id="gguf-export-status-line" class="text-xs text-gray-500 mt-2">GGUF status: idle</p>
-                        </div>
-                    </div>
+            <section class="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                <div class="rounded-xl border border-gray-100 bg-white p-3 shadow-sm">
+                    <p class="text-[10px] uppercase tracking-widest text-gray-500 mb-1">Epoch</p>
+                    <p id="training-quick-epoch" class="text-xl font-semibold text-gray-900">0</p>
                 </div>
-            </div>
-
-            <!-- Stats & Logs Row -->
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <!-- Data Storage Stats -->
-                <div class="glass-panel p-6 rounded-2xl flex flex-col justify-between">
-                    <div>
-                        <h3 class="text-sm font-bold text-gray-800 mb-6 flex items-center uppercase tracking-widest">
-                            <svg class="w-4 h-4 mr-2 text-accentPurple" fill="none" stroke="currentColor"
-                                viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4">
-                                </path>
-                            </svg>
-                            Corpus Storage
-                        </h3>
-                        <div class="space-y-4">
-                            <div
-                                class="flex justify-between items-center p-4 rounded-xl border border-gray-100 bg-white/50">
-                                <span class="text-gray-600 font-serif italic text-lg">W</span>
-                                <div class="text-right">
-                                    <span id="docs-wiki" class="text-xl font-bold text-gray-800">0</span>
-                                    <span class="text-xs text-gray-400 block ml-1 uppercase">Wikipedia Docs</span>
-                                </div>
-                            </div>
-                            <div
-                                class="flex justify-between items-center p-4 rounded-xl border border-gray-100 bg-white/50">
-                                <span class="text-accentBlue font-bold text-lg text-center">Web</span>
-                                <div class="text-right">
-                                    <span id="docs-web" class="text-xl font-bold text-gray-800">0</span>
-                                    <span class="text-xs text-gray-400 block uppercase ml-1">General Web Crawls</span>
-                                </div>
-                            </div>
-                            <div
-                                class="flex justify-between items-center p-4 rounded-xl border border-gray-100 bg-white/50">
-                                <span class="text-emerald-600 font-bold text-lg text-center">RSS</span>
-                                <div class="text-right">
-                                    <span id="docs-rss" class="text-xl font-bold text-gray-800">0</span>
-                                    <span class="text-xs text-gray-400 block uppercase ml-1">Feed Articles</span>
-                                </div>
-                            </div>
-                            <div
-                                class="flex justify-between items-center p-4 rounded-xl border border-gray-100 bg-white/50">
-                                <span class="text-sky-600 font-bold text-lg text-center">News</span>
-                                <div class="text-right">
-                                    <span id="docs-news" class="text-xl font-bold text-gray-800">0</span>
-                                    <span class="text-xs text-gray-400 block uppercase ml-1">News Articles</span>
-                                </div>
-                            </div>
-                            <div
-                                class="flex justify-between items-center p-4 rounded-xl border border-gray-100 bg-white/50">
-                                <span class="text-violet-600 font-bold text-lg text-center">arXiv</span>
-                                <div class="text-right">
-                                    <span id="docs-arxiv" class="text-xl font-bold text-gray-800">0</span>
-                                    <span class="text-xs text-gray-400 block uppercase ml-1">Research Abstracts</span>
-                                </div>
-                            </div>
-                            <div
-                                class="flex justify-between items-center p-4 rounded-xl border border-gray-100 bg-white/50">
-                                <span class="text-amber-600 font-bold text-lg text-center">Docs</span>
-                                <div class="text-right">
-                                    <span id="docs-techdocs" class="text-xl font-bold text-gray-800">0</span>
-                                    <span class="text-xs text-gray-400 block uppercase ml-1">Technical Docs</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="mt-6 pt-4 border-t border-gray-200 flex justify-between items-center">
-                        <div>
-                            <span class="text-sm text-gray-500 font-medium">Total Volume Size</span>
-                            <p class="text-[11px] text-gray-400 mt-1">Blocked by license: <span id="docs-blocked">0</span></p>
-                        </div>
-                        <span id="dataset-size"
-                            class="text-2xl font-bold bg-gray-100 px-3 py-1 rounded-lg text-gray-800 border border-gray-200 shadow-inner">0.00
-                            MB</span>
-                    </div>
+                <div class="rounded-xl border border-gray-100 bg-white p-3 shadow-sm">
+                    <p class="text-[10px] uppercase tracking-widest text-gray-500 mb-1">Train</p>
+                    <p id="training-quick-loss" class="text-xl font-semibold text-red-500 font-mono">0.0000</p>
                 </div>
+                <div class="rounded-xl border border-gray-100 bg-white p-3 shadow-sm">
+                    <p class="text-[10px] uppercase tracking-widest text-gray-500 mb-1">Val</p>
+                    <p id="training-quick-val" class="text-xl font-semibold text-gray-900 font-mono">0.0000</p>
+                </div>
+                <div class="rounded-xl border border-gray-100 bg-white p-3 shadow-sm">
+                    <p class="text-[10px] uppercase tracking-widest text-gray-500 mb-1">Best</p>
+                    <p id="training-quick-best" class="text-base font-semibold text-gray-700 font-mono">best: 0.0000</p>
+                </div>
+            </section>
 
-                <!-- Neural Net Training -->
-                <div class="glass-panel p-6 rounded-2xl flex flex-col justify-between">
-                    <div>
-                        <div class="mb-6 flex items-center justify-between">
-                            <h3 class="text-sm font-bold text-gray-800 flex items-center uppercase tracking-widest">
-                                <svg class="w-4 h-4 mr-2 text-accentBlue" fill="none" stroke="currentColor"
-                                viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z">
-                                    </path>
-                                </svg>
-                                学習診断
-                            </h3>
+            <section class="grid grid-cols-1 xl:grid-cols-3 gap-6">
+                <div class="xl:col-span-2 space-y-6">
+                    <div class="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm">
+                        <div class="flex flex-wrap justify-between items-center gap-3 border-b border-gray-200 pb-3 mb-4">
+                            <h3 class="text-[10px] font-bold text-gray-400 tracking-[0.2em] uppercase">学習・変換ジョブ</h3>
+                            <div class="help-tooltip">
+                                <button type="button" class="help-dot" aria-label="学習・変換ジョブの説明">?</button>
+                                <div class="help-body">
+                                    HF LoRA Train: 追加学習ジョブを開始します。<br>
+                                    GGUF Export: 学習済みモデルを Ollama / LM Studio 用に変換します。<br>
+                                    失敗時は各ステータス行にエラー概要が表示されます。
+                                </div>
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                            <div class="rounded-xl border border-gray-100 p-4 bg-gray-50/40">
+                                <p class="text-xs font-semibold text-gray-700 uppercase tracking-wider mb-2">HF LoRA Train</p>
+                                <input id="hf-base-model" type="text" value="Qwen/Qwen2.5-1.5B-Instruct"
+                                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white mb-2"
+                                    placeholder="base model">
+                                <input id="hf-train-text" type="text" value="dataset/hf/train.txt"
+                                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white mb-2"
+                                    placeholder="train text">
+                                <input id="hf-output-dir" type="text" value="models/hf_lora"
+                                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white mb-3"
+                                    placeholder="output dir">
+                                <button onclick="runHfTrain()"
+                                    class="text-xs bg-black hover:bg-gray-800 text-white px-4 py-2 rounded-lg font-medium transition-colors">
+                                    Run HF Train
+                                </button>
+                                <p id="hf-train-status-line" class="status-line status-idle mt-2">HF status: idle</p>
+                            </div>
+                            <div class="rounded-xl border border-gray-100 p-4 bg-gray-50/40">
+                                <p class="text-xs font-semibold text-gray-700 uppercase tracking-wider mb-2">GGUF Export</p>
+                                <input id="gguf-llama-cpp-dir" type="text" value=""
+                                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white mb-2"
+                                    placeholder="llama.cpp path">
+                                <input id="gguf-hf-model" type="text" value="Qwen/Qwen2.5-1.5B-Instruct"
+                                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white mb-2"
+                                    placeholder="HF model">
+                                <input id="gguf-out-path" type="text" value="models/export/model.gguf"
+                                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white mb-2"
+                                    placeholder="output gguf path">
+                                <input id="gguf-quant" type="text" value="Q4_K_M"
+                                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white mb-3"
+                                    placeholder="quant type">
+                                <button onclick="runGgufExport()"
+                                    class="text-xs bg-black hover:bg-gray-800 text-white px-4 py-2 rounded-lg font-medium transition-colors">
+                                    Run GGUF Export
+                                </button>
+                                <p id="gguf-export-status-line" class="status-line status-idle mt-2">GGUF status: idle</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em]">学習診断</h3>
                             <div class="help-tooltip">
                                 <button type="button" class="help-dot" aria-label="学習診断の説明">?</button>
                                 <div class="help-body">
@@ -608,59 +770,114 @@
                                 </div>
                             </div>
                         </div>
-                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                            <div class="rounded-xl border border-gray-200 bg-white/70 p-4">
-                                <p class="text-[11px] text-gray-500 uppercase tracking-wider mb-1">Epoch</p>
-                                <p id="current-epoch" class="text-3xl font-semibold text-gray-800">0</p>
+                        <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
+                            <div class="rounded-xl bg-gray-50 border border-gray-100 p-3">
+                                <p class="text-[10px] text-gray-500 uppercase tracking-wider mb-1">Epoch</p>
+                                <p id="current-epoch" class="text-2xl font-semibold text-gray-900">0</p>
                             </div>
-                            <div class="rounded-xl border border-gray-200 bg-white/70 p-4">
-                                <p class="text-[11px] text-gray-500 uppercase tracking-wider mb-1">Train Loss</p>
-                                <p id="current-loss" class="text-3xl font-semibold text-rose-500 font-mono">0.0000</p>
+                            <div class="rounded-xl bg-gray-50 border border-gray-100 p-3">
+                                <p class="text-[10px] text-gray-500 uppercase tracking-wider mb-1">Train Loss</p>
+                                <p id="current-loss" class="text-2xl font-semibold text-red-500 font-mono">0.0000</p>
                             </div>
-                            <div class="rounded-xl border border-gray-200 bg-white/70 p-4">
-                                <p class="text-[11px] text-gray-500 uppercase tracking-wider mb-1">Val / Best</p>
-                                <p id="current-val-loss" class="text-lg font-semibold text-emerald-600 font-mono">0.0000</p>
-                                <p id="best-val-loss" class="text-xs text-gray-500 font-mono mt-1">best: 0.0000</p>
+                            <div class="rounded-xl bg-gray-50 border border-gray-100 p-3">
+                                <p class="text-[10px] text-gray-500 uppercase tracking-wider mb-1">Val Loss</p>
+                                <p id="current-val-loss" class="text-2xl font-semibold text-black font-mono">0.0000</p>
+                            </div>
+                            <div class="rounded-xl bg-gray-50 border border-gray-100 p-3">
+                                <p class="text-[10px] text-gray-500 uppercase tracking-wider mb-1">Best Val</p>
+                                <p id="best-val-loss" class="text-base font-semibold text-gray-700 font-mono">best: 0.0000</p>
                             </div>
                         </div>
-                        <details class="rounded-lg border border-dashed border-gray-300 bg-white/40 px-3 py-2">
-                            <summary class="text-xs font-semibold text-gray-600 cursor-pointer uppercase tracking-wider">
-                                Why this matters
-                            </summary>
+                        <details class="rounded-lg border border-dashed border-gray-300 bg-white px-3 py-2">
+                            <summary class="text-xs font-semibold text-gray-700 cursor-pointer uppercase tracking-wider">Why this matters</summary>
                             <p class="mt-2 text-xs text-gray-500 leading-relaxed">
                                 Epoch indicates how far training has progressed. Loss should trend downward over time.
                                 Short-term spikes are normal after fresh data ingestion.
                             </p>
                         </details>
-                    </div>
-                </div>
-            </div>
-
-            <div class="glass-panel rounded-2xl overflow-visible p-[1px]">
-                <div class="bg-white/40 rounded-2xl p-6">
-                    <div class="flex justify-between items-center border-b border-gray-200 pb-3 mb-3">
-                        <div class="flex items-center gap-2">
-                            <h3 class="text-sm font-bold text-gray-800 uppercase tracking-widest">評価履歴</h3>
-                            <div class="help-tooltip">
-                                <button type="button" class="help-dot" aria-label="評価履歴の説明">?</button>
-                                <div class="help-body">
-                                    モデルごとの評価結果です。平均スコアが高いほど実運用品質が高い傾向です。<br>
-                                    学習後は必ず Eval を回し、前回スコアと比較してください。
-                                </div>
+                        <div class="mt-4">
+                            <div class="flex items-center justify-between mb-2">
+                                <p class="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em]">学習診断履歴</p>
+                                <span class="text-[10px] text-gray-400">最新20件</span>
+                            </div>
+                            <div class="overflow-x-auto">
+                                <table class="w-full text-left text-sm mobile-table">
+                                    <thead>
+                                        <tr class="text-gray-400 uppercase text-[10px] tracking-[0.2em] border-b border-gray-100">
+                                            <th class="pb-2 pr-4 font-semibold">Time</th>
+                                            <th class="pb-2 px-4 font-semibold">Epoch</th>
+                                            <th class="pb-2 px-4 font-semibold">Train</th>
+                                            <th class="pb-2 px-4 font-semibold">Val</th>
+                                            <th class="pb-2 pl-4 font-semibold">Best</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="training-history-body" class="divide-y divide-gray-100">
+                                        <tr><td colspan="5" class="py-4 text-center empty-hint">No training history yet. 学習開始後に表示されます。</td></tr>
+                                    </tbody>
+                                </table>
                             </div>
                         </div>
-                        <div class="flex items-center gap-2">
-                            <button onclick="runEvaluation()"
-                                class="text-xs bg-accentBlue text-white px-3 py-1.5 rounded-lg font-semibold">評価実行</button>
-                            <button onclick="fetchEvaluations()"
-                                class="text-xs text-accentBlue hover:text-accentPurple font-medium">更新</button>
+                    </div>
+                </div>
+
+                <div class="space-y-6">
+                    <div class="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm">
+                        <h3 class="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em] mb-4">コーパスストレージ</h3>
+                        <div class="space-y-2 text-sm">
+                            <div class="flex justify-between"><span>Wikipedia</span><span id="docs-wiki" class="font-semibold">0</span></div>
+                            <div class="flex justify-between"><span>Web</span><span id="docs-web" class="font-semibold">0</span></div>
+                            <div class="flex justify-between"><span>RSS</span><span id="docs-rss" class="font-semibold">0</span></div>
+                            <div class="flex justify-between"><span>News</span><span id="docs-news" class="font-semibold">0</span></div>
+                            <div class="flex justify-between"><span>arXiv</span><span id="docs-arxiv" class="font-semibold">0</span></div>
+                            <div class="flex justify-between"><span>Docs</span><span id="docs-techdocs" class="font-semibold">0</span></div>
+                        </div>
+                        <div class="mt-4 pt-3 border-t border-gray-100">
+                            <p class="text-xs text-gray-500">Blocked by license: <span id="docs-blocked">0</span></p>
+                            <p id="dataset-size" class="text-2xl font-bold text-gray-900 mt-1">0.00 MB</p>
                         </div>
                     </div>
-                    <p id="eval-status-line" class="text-xs text-gray-500 mb-2">Eval status: idle</p>
+
+                    <div class="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm">
+                        <div class="flex flex-wrap justify-between items-center gap-2 border-b border-gray-200 pb-3 mb-3">
+                            <h3 class="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em]">ソースポリシー編集</h3>
+                            <button onclick="fetchPolicies()" class="text-xs text-black hover:text-gray-600 font-medium">更新</button>
+                        </div>
+                        <div class="space-y-2">
+                            <input id="policy-domain" type="text" placeholder="domain (e.g. example.com)" class="w-full border border-gray-200 rounded px-2 py-1 text-xs">
+                            <div class="grid grid-cols-2 gap-2">
+                                <input id="policy-type" type="text" placeholder="source_type" value="web" class="border border-gray-200 rounded px-2 py-1 text-xs">
+                                <input id="policy-license" type="text" placeholder="license_tag" value="unknown" class="border border-gray-200 rounded px-2 py-1 text-xs">
+                            </div>
+                            <div class="grid grid-cols-2 gap-2">
+                                <input id="policy-weight" type="number" step="0.1" value="1.0" class="border border-gray-200 rounded px-2 py-1 text-xs">
+                                <label class="text-xs text-gray-700 flex items-center gap-2 px-2 border border-gray-200 rounded">
+                                    <input id="policy-allow" type="checkbox" checked>
+                                    allow training
+                                </label>
+                            </div>
+                            <input id="policy-notes" type="text" placeholder="notes" class="w-full border border-gray-200 rounded px-2 py-1 text-xs">
+                            <div class="flex justify-end">
+                                <button onclick="savePolicy()" class="text-xs bg-black hover:bg-gray-800 text-white px-4 py-2 rounded-lg font-medium transition-colors">Save Policy</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                <div class="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm">
+                    <div class="flex flex-wrap justify-between items-center gap-3 border-b border-gray-200 pb-3 mb-3">
+                        <h3 class="text-sm font-bold text-black uppercase tracking-widest">評価履歴</h3>
+                        <div class="flex items-center gap-2">
+                            <button onclick="runEvaluation()" class="text-xs bg-black text-white px-3 py-1.5 rounded-lg font-semibold">評価実行</button>
+                            <button onclick="fetchEvaluations()" class="text-xs text-black hover:text-gray-600 font-medium">更新</button>
+                        </div>
+                    </div>
+                    <p id="eval-status-line" class="status-line status-idle">Eval status: idle</p>
                     <div class="overflow-x-auto">
-                        <table class="w-full text-left text-sm">
+                        <table class="w-full text-left text-sm mobile-table">
                             <thead>
-                                <tr class="text-gray-500 uppercase text-xs tracking-wider border-b border-gray-200">
+                                <tr class="text-gray-400 uppercase text-[10px] tracking-[0.2em] border-b border-gray-100">
                                     <th class="pb-2 pr-4 font-semibold">Time</th>
                                     <th class="pb-2 px-4 font-semibold">Model</th>
                                     <th class="pb-2 px-4 font-semibold">Avg Score</th>
@@ -668,42 +885,25 @@
                                 </tr>
                             </thead>
                             <tbody id="eval-table-body" class="divide-y divide-gray-100">
-                                <tr>
-                                    <td colspan="4" class="py-4 text-center text-gray-400">No evaluation yet.</td>
-                                </tr>
+                                <tr><td colspan="4" class="py-4 text-center empty-hint">No evaluation yet. 「評価実行」を押してください。</td></tr>
                             </tbody>
                         </table>
                     </div>
                 </div>
-            </div>
 
-            <div class="glass-panel rounded-2xl overflow-visible p-[1px]">
-                <div class="bg-white/40 rounded-2xl p-6">
-                    <div class="flex justify-between items-center border-b border-gray-200 pb-3 mb-3">
+                <div class="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm">
+                    <div class="flex flex-wrap justify-between items-center gap-3 border-b border-gray-200 pb-3 mb-3">
+                        <h3 class="text-sm font-bold text-black uppercase tracking-widest">モデル履歴</h3>
                         <div class="flex items-center gap-2">
-                            <h3 class="text-sm font-bold text-gray-800 uppercase tracking-widest">モデル履歴</h3>
-                            <div class="help-tooltip">
-                                <button type="button" class="help-dot" aria-label="モデル履歴の説明">?</button>
-                                <div class="help-body">
-                                    学習成果物の履歴です。<br>
-                                    「Bestを本番昇格」を押すと、基準を満たしたモデルを推論用に固定します。
-                                </div>
-                            </div>
-                        </div>
-                        <div class="flex items-center gap-2">
-                            <button id="promote-model-btn" onclick="promoteBestModel()"
-                                class="text-xs bg-emerald-600 text-white px-3 py-1.5 rounded-lg font-semibold">
-                                Bestを本番昇格
-                            </button>
-                            <button onclick="fetchModels()"
-                                class="text-xs text-accentBlue hover:text-accentPurple font-medium">更新</button>
+                            <button id="promote-model-btn" onclick="promoteBestModel()" class="text-xs bg-black hover:bg-gray-800 text-white px-4 py-2 rounded-lg font-medium transition-colors">Bestを本番昇格</button>
+                            <button onclick="fetchModels()" class="text-xs text-black hover:text-gray-600 font-medium">更新</button>
                         </div>
                     </div>
-                    <p id="model-status-line" class="text-xs text-gray-500 mb-2">Model status: idle</p>
+                    <p id="model-status-line" class="status-line status-idle">Model status: idle</p>
                     <div class="overflow-x-auto">
-                        <table class="w-full text-left text-sm">
+                        <table class="w-full text-left text-sm mobile-table">
                             <thead>
-                                <tr class="text-gray-500 uppercase text-xs tracking-wider border-b border-gray-200">
+                                <tr class="text-gray-400 uppercase text-[10px] tracking-[0.2em] border-b border-gray-100">
                                     <th class="pb-2 pr-4 font-semibold">Time</th>
                                     <th class="pb-2 px-4 font-semibold">Tag</th>
                                     <th class="pb-2 px-4 font-semibold">Score</th>
@@ -712,41 +912,22 @@
                                 </tr>
                             </thead>
                             <tbody id="model-table-body" class="divide-y divide-gray-100">
-                                <tr>
-                                    <td colspan="5" class="py-4 text-center text-gray-400">No model version yet.</td>
-                                </tr>
+                                <tr><td colspan="5" class="py-4 text-center empty-hint">No model version yet. まず学習と評価を実行してください。</td></tr>
                             </tbody>
                         </table>
                     </div>
                 </div>
-            </div>
+            </section>
 
-            <div class="glass-panel rounded-2xl overflow-visible p-[1px]">
-                <div class="bg-white/40 rounded-2xl p-6">
-                    <div class="flex justify-between items-center border-b border-gray-200 pb-3 mb-3">
-                        <h3 class="text-sm font-bold text-gray-800 uppercase tracking-widest">ソースポリシー</h3>
-                        <button onclick="fetchPolicies()" class="text-xs text-accentBlue hover:text-accentPurple font-medium">更新</button>
-                    </div>
-                    <div class="grid grid-cols-1 md:grid-cols-6 gap-2 mb-3">
-                        <input id="policy-domain" type="text" placeholder="domain (e.g. example.com)" class="md:col-span-2 border border-gray-200 rounded px-2 py-1 text-xs">
-                        <input id="policy-type" type="text" placeholder="source_type" value="web" class="border border-gray-200 rounded px-2 py-1 text-xs">
-                        <input id="policy-license" type="text" placeholder="license_tag" value="unknown" class="border border-gray-200 rounded px-2 py-1 text-xs">
-                        <input id="policy-weight" type="number" step="0.1" value="1.0" class="border border-gray-200 rounded px-2 py-1 text-xs">
-                        <label class="text-xs text-gray-600 flex items-center gap-2 px-2">
-                            <input id="policy-allow" type="checkbox" checked>
-                            allow training
-                        </label>
-                    </div>
-                    <div class="mb-3">
-                        <input id="policy-notes" type="text" placeholder="notes" class="w-full border border-gray-200 rounded px-2 py-1 text-xs">
-                    </div>
-                    <div class="flex justify-end mb-3">
-                        <button onclick="savePolicy()" class="text-xs bg-indigo-600 text-white px-3 py-1.5 rounded-lg font-semibold">Save Policy</button>
+            <section class="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                <div class="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm">
+                    <div class="flex flex-wrap justify-between items-center gap-3 border-b border-gray-200 pb-3 mb-3">
+                        <h3 class="text-sm font-bold text-black uppercase tracking-widest">ソースポリシー一覧</h3>
                     </div>
                     <div class="overflow-x-auto">
-                        <table class="w-full text-left text-sm">
+                        <table class="w-full text-left text-sm mobile-table">
                             <thead>
-                                <tr class="text-gray-500 uppercase text-xs tracking-wider border-b border-gray-200">
+                                <tr class="text-gray-400 uppercase text-[10px] tracking-[0.2em] border-b border-gray-100">
                                     <th class="pb-2 pr-4 font-semibold">Domain</th>
                                     <th class="pb-2 px-4 font-semibold">Type</th>
                                     <th class="pb-2 px-4 font-semibold">License</th>
@@ -755,32 +936,21 @@
                                 </tr>
                             </thead>
                             <tbody id="policy-table-body" class="divide-y divide-gray-100">
-                                <tr><td colspan="5" class="py-4 text-center text-gray-400">No policy yet.</td></tr>
+                                <tr><td colspan="5" class="py-4 text-center empty-hint">No policy yet. 右側のフォームから追加してください。</td></tr>
                             </tbody>
                         </table>
                     </div>
                 </div>
-            </div>
 
-            <div class="glass-panel rounded-2xl overflow-visible p-[1px]">
-                <div class="bg-white/40 rounded-2xl p-6">
-                    <div class="flex justify-between items-center border-b border-gray-200 pb-3 mb-3">
-                        <div class="flex items-center gap-2">
-                            <h3 class="text-sm font-bold text-gray-800 uppercase tracking-widest">データセット版履歴</h3>
-                            <div class="help-tooltip">
-                                <button type="button" class="help-dot" aria-label="データセット版履歴の説明">?</button>
-                                <div class="help-body">
-                                    学習前処理の実績です。<br>
-                                    Docs/Token数に加えて、blocked/filtered/duplicate の傾向を監視すると品質低下を早期発見できます。
-                                </div>
-                            </div>
-                        </div>
-                        <button onclick="fetchDatasets()" class="text-xs text-accentBlue hover:text-accentPurple font-medium">更新</button>
+                <div class="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm">
+                    <div class="flex flex-wrap justify-between items-center gap-3 border-b border-gray-200 pb-3 mb-3">
+                        <h3 class="text-sm font-bold text-black uppercase tracking-widest">データセット版履歴</h3>
+                        <button onclick="fetchDatasets()" class="text-xs text-black hover:text-gray-600 font-medium">更新</button>
                     </div>
                     <div class="overflow-x-auto">
-                        <table class="w-full text-left text-sm">
+                        <table class="w-full text-left text-sm mobile-table">
                             <thead>
-                                <tr class="text-gray-500 uppercase text-xs tracking-wider border-b border-gray-200">
+                                <tr class="text-gray-400 uppercase text-[10px] tracking-[0.2em] border-b border-gray-100">
                                     <th class="pb-2 pr-4 font-semibold">Time</th>
                                     <th class="pb-2 px-4 font-semibold">Tag</th>
                                     <th class="pb-2 px-4 font-semibold">Docs</th>
@@ -794,119 +964,119 @@
                         </table>
                     </div>
                 </div>
-            </div>
-            </div>
+            </section>
+        </div>
 
-            <!-- Read-Only Terminal log -->
-            <div id="dash-section-logs" class="hidden">
-            <div class="glass-panel rounded-2xl overflow-hidden mt-6">
-                <div class="bg-gray-100/80 px-4 py-2 flex space-x-2 border-b border-gray-200 shadow-inner">
-                    <div class="w-3 h-3 rounded-full bg-red-400"></div>
-                    <div class="w-3 h-3 rounded-full bg-yellow-400"></div>
-                    <div class="w-3 h-3 rounded-full bg-green-400"></div>
-                    <span class="text-xs font-mono text-gray-500 ml-4">supervisor.log — master@engine:~</span>
+        <!-- Read-Only Terminal log -->
+        <div id="dash-section-logs" class="hidden">
+            <section class="border-b border-gray-200 pb-6 mb-6">
+                <h2 class="text-3xl font-light text-black tracking-tight mb-2">ログ監視</h2>
+                <p class="text-sm text-gray-500 font-medium">パイプラインの最新ログをフィルタしながら追跡できます。</p>
+            </section>
+            <div class="bg-white border border-gray-100 rounded-2xl shadow-sm mt-6">
+                <!-- Clean Log Header -->
+                <div
+                    class="px-6 py-4 border-b border-gray-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <h2 class="text-sm font-bold text-black uppercase tracking-widest">System Logs</h2>
+                    <div class="flex items-center gap-4">
+                        <input id="log-filter" type="text" placeholder="Filter logs..."
+                            class="w-64 border-b border-gray-200 bg-transparent px-1 py-1 text-sm focus:outline-none focus:border-black transition-colors">
+                        <label
+                            class="text-[10px] text-gray-500 flex items-center gap-2 uppercase tracking-widest cursor-pointer">
+                            <input id="log-autoscroll" type="checkbox" checked class="accent-black">
+                            Auto-scroll
+                        </label>
+                    </div>
                 </div>
-                <div class="px-4 py-2 bg-white/80 border-b border-gray-100 flex items-center justify-between">
-                    <input id="log-filter" type="text" placeholder="Filter logs (e.g. Error, Phase)"
-                        class="w-72 max-w-full text-xs border border-gray-200 rounded-md px-2 py-1 bg-white">
-                    <label class="text-xs text-gray-500 flex items-center gap-2">
-                        <input id="log-autoscroll" type="checkbox" checked>
-                        Auto-scroll
-                    </label>
-                </div>
-                <div class="bg-white/90 p-1">
-                    <div id="log-container" class="font-mono text-sm p-4 h-64 overflow-y-auto text-gray-700 space-y-1">
+                <div>
+                    <div id="log-container"
+                        class="font-mono text-[11px] p-6 h-[500px] overflow-y-auto text-gray-600 bg-[#fafafa]">
                         <!-- Logs will be appended here -->
                     </div>
                 </div>
             </div>
-            </div>
+        </div>
 
         </div> <!-- End Dashboard View -->
 
         <!-- CHAT VIEW -->
-        <div id="view-chat" class="hidden animate-fade-in flex flex-col items-center">
-            <div class="glass-panel w-full max-w-4xl rounded-2xl overflow-hidden border border-gray-200 shadow-xl mt-4">
-                <div class="bg-gray-50 border-b border-gray-200 px-6 py-4 flex justify-between items-center">
-                    <h3 class="text-sm font-bold text-gray-800 flex items-center uppercase tracking-widest">
-                        <svg class="w-4 h-4 mr-2 text-accentBlue" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z">
-                            </path>
-                        </svg>
-                        Neural Inference Engine
+        <div id="view-chat" class="hidden animate-fade-in flex flex-col items-center max-w-5xl mx-auto w-full">
+            <div class="w-full bg-white border border-gray-100 shadow-sm mt-4 min-h-[600px] flex flex-col">
+                <div class="bg-white border-b border-gray-100 px-8 py-5 flex justify-between items-center">
+                    <h3 class="text-xs font-bold text-black uppercase tracking-widest">
+                        AI Assistant
                     </h3>
-                    <span
-                        class="text-xs bg-accentBlue text-white px-2 py-1 rounded font-medium shadow-sm">SELF-REGRESSIVE</span>
+                    <span class="text-[10px] uppercase font-bold text-gray-400">Self-Regressive</span>
                 </div>
 
-                <div class="bg-white p-6">
-                    <div class="mb-3 flex items-center justify-between">
-                        <label class="text-xs text-gray-500 font-semibold uppercase tracking-wider flex items-center gap-2">
-                            <input id="dev-mode-toggle" type="checkbox">
+                <div class="bg-[#fafafa] p-6 flex-1 flex flex-col">
+                    <div class="mb-5 flex flex-wrap items-center justify-between gap-4">
+                        <label
+                            class="text-[10px] text-gray-400 font-bold uppercase tracking-widest flex items-center gap-2 cursor-pointer">
+                            <input id="dev-mode-toggle" type="checkbox" class="accent-black">
                             Dev Chat Mode
                         </label>
                         <div class="flex gap-2">
                             <button onclick="setPromptPreset('summarize')"
-                                class="text-xs px-2 py-1 rounded border border-gray-200 text-gray-600 bg-gray-50">Summarize</button>
+                                class="text-[10px] uppercase tracking-widest px-3 py-1.5 border-b border-gray-200 text-gray-500 hover:text-black hover:border-black transition-colors">Summarize</button>
                             <button onclick="setPromptPreset('debug')"
-                                class="text-xs px-2 py-1 rounded border border-gray-200 text-gray-600 bg-gray-50">Debug</button>
+                                class="text-[10px] uppercase tracking-widest px-3 py-1.5 border-b border-gray-200 text-gray-500 hover:text-black hover:border-black transition-colors">Debug</button>
                             <button onclick="setPromptPreset('spec')"
-                                class="text-xs px-2 py-1 rounded border border-gray-200 text-gray-600 bg-gray-50">Spec</button>
+                                class="text-[10px] uppercase tracking-widest px-3 py-1.5 border-b border-gray-200 text-gray-500 hover:text-black hover:border-black transition-colors">Spec</button>
                         </div>
                     </div>
+
                     <div id="chat-history"
-                        class="h-96 overflow-y-auto mb-4 border border-gray-100 rounded-xl p-4 bg-gray-50 flex flex-col space-y-4 shadow-inner relative">
+                        class="flex-1 overflow-y-auto mb-4 p-4 bg-white flex flex-col space-y-4 shadow-sm border border-gray-100 relative min-h-[300px]">
                         <!-- Placeholder -->
                         <div id="chat-placeholder"
                             class="absolute inset-0 flex items-center justify-center pointer-events-none opacity-40">
-                            <p class="text-sm text-gray-500 italic text-center leading-relaxed">
-                                System initialized.<br>
-                                Input a prompt to synthesize data from your custom corpus model.
-                            </p>
+                            <p class="text-sm text-gray-500 italic text-center leading-relaxed">System
+                                initialized.<br>Input a prompt to synthesize data.</p>
                         </div>
                     </div>
 
-                    <div class="flex items-center justify-between mb-3 px-1">
-                        <label for="gen-max-tokens" class="text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                            Max Tokens
-                        </label>
+                    <div class="flex flex-wrap items-center justify-between mb-4 gap-4 px-1">
                         <div class="flex items-center gap-2">
+                            <label for="gen-max-tokens"
+                                class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Max Tokens</label>
                             <input id="gen-max-tokens" type="number" min="1" max="256" value="120"
-                                class="w-24 border border-gray-200 rounded-lg px-2 py-1 text-sm text-gray-700 bg-white">
-                            <span id="gen-max-tokens-hint" class="text-xs text-gray-400">limit 256</span>
-                            <div class="help-tooltip">
-                                <button type="button" class="help-dot" aria-label="生成パラメータの説明">?</button>
-                                <div class="help-body">
-                                    Max Tokens: 1回答の最大長。<br>
-                                    Temperature: 高いほど多様、低いほど安定。<br>
-                                    Top-p: 候補語の絞り込み。<br>
-                                    Repetition penalty: 同語反復の抑制。
-                                </div>
+                                class="w-20 border-b border-gray-200 bg-transparent px-1 py-1 text-sm text-black focus:outline-none focus:border-black">
+                        </div>
+                        <div class="flex items-center gap-6">
+                            <div class="flex items-center gap-2">
+                                <label
+                                    class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Temp</label>
+                                <input id="gen-temperature" type="number" step="0.1" min="0.1" max="2.0" value="0.8"
+                                    class="w-16 border-b border-gray-200 bg-transparent px-1 py-1 text-sm text-black focus:outline-none focus:border-black">
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <label
+                                    class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Top-p</label>
+                                <input id="gen-top-p" type="number" step="0.05" min="0.1" max="1.0" value="0.95"
+                                    class="w-16 border-b border-gray-200 bg-transparent px-1 py-1 text-sm text-black focus:outline-none focus:border-black">
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <label class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Rep
+                                    Pen</label>
+                                <input id="gen-repetition-penalty" type="number" step="0.01" min="1.0" max="2.0"
+                                    value="1.08"
+                                    class="w-16 border-b border-gray-200 bg-transparent px-1 py-1 text-sm text-black focus:outline-none focus:border-black">
                             </div>
                         </div>
                     </div>
-                    <div class="grid grid-cols-3 gap-2 mb-3">
-                        <input id="gen-temperature" type="number" step="0.1" min="0.1" max="2.0" value="0.8"
-                            class="border border-gray-200 rounded-lg px-2 py-1 text-xs text-gray-700 bg-white"
-                            title="Temperature">
-                        <input id="gen-top-p" type="number" step="0.05" min="0.1" max="1.0" value="0.95"
-                            class="border border-gray-200 rounded-lg px-2 py-1 text-xs text-gray-700 bg-white"
-                            title="Top-p">
-                        <input id="gen-repetition-penalty" type="number" step="0.01" min="1.0" max="2.0" value="1.08"
-                            class="border border-gray-200 rounded-lg px-2 py-1 text-xs text-gray-700 bg-white"
-                            title="Repetition penalty">
-                    </div>
+                </div>
 
-                    <div
-                        class="flex space-x-3 bg-white border border-gray-200 rounded-xl p-2 shadow-sm focus-within:ring-2 focus-within:ring-accentBlue/20 focus-within:border-accentBlue transition-all">
-                        <input type="text" id="prompt-input"
-                            class="flex-1 bg-transparent border-none text-gray-800 focus:ring-0 placeholder-gray-400 font-sans"
-                            placeholder="e.g. 宇宙について教えてください..." onkeypress="if(event.key === 'Enter') generateText()">
+                <div class="bg-white border-t border-gray-100 p-6">
+                    <div class="relative flex items-end gap-3 max-w-4xl mx-auto">
+                        <textarea id="prompt-input" rows="1" placeholder="Message AI Factory Engine..."
+                            class="w-full bg-[#fafafa] text-black border border-gray-100 focus:border-black focus:bg-white px-4 pr-12 py-3 focus:outline-none resize-none overflow-hidden transition-all text-sm"
+                            onkeypress="if(event.key === 'Enter') generateText()"></textarea>
+
                         <button onclick="generateText()"
-                            class="bg-gradient-to-r from-accentBlue to-accentPurple hover:opacity-90 text-white p-3 rounded-lg transition-all duration-300 shadow-md">
-                            <svg class="w-5 h-5 transform -rotate-45" fill="none" stroke="currentColor"
-                                viewBox="0 0 24 24">
+                            class="absolute right-2 bottom-2 p-2 bg-black text-white hover:bg-gray-800 transition-colors">
+                            <svg class="w-4 h-4 transform -rotate-45" fill="none" stroke="currentColor"
+                                viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                     d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path>
                             </svg>
@@ -934,13 +1104,8 @@
         let systemChart = null;
         let trainingChart = null;
         let corpusChart = null;
-        const chartHistory = {
-            labels: [],
-            cpu: [],
-            ram: [],
-            trainLoss: [],
-            valLoss: []
-        };
+        let systemRange = localStorage.getItem("chart_range_system") || "hour";
+        let trainingRange = localStorage.getItem("chart_range_training") || "day";
 
         function adminHeaders() {
             const headers = { 'Content-Type': 'application/json' };
@@ -985,7 +1150,7 @@
         }
 
         function initCharts() {
-            if (typeof Chart === 'undefined') return;
+            if (typeof Chart === 'undefined') return; Chart.defaults.color = '#666666';
             const commonOptions = {
                 responsive: true,
                 maintainAspectRatio: false,
@@ -994,8 +1159,8 @@
                     legend: { labels: { boxWidth: 12, usePointStyle: true } }
                 },
                 scales: {
-                    x: { grid: { color: 'rgba(20,46,52,0.08)' } },
-                    y: { grid: { color: 'rgba(20,46,52,0.08)' } }
+                    x: { grid: { color: 'rgba(0,0,0,0.04)' } },
+                    y: { grid: { color: 'rgba(0,0,0,0.04)' } }
                 }
             };
 
@@ -1006,13 +1171,13 @@
                     data: {
                         labels: [],
                         datasets: [
-                            { label: 'CPU %', data: [], borderColor: '#0e7490', backgroundColor: 'rgba(14,116,144,0.16)', tension: 0.25 },
-                            { label: 'RAM %', data: [], borderColor: '#f97316', backgroundColor: 'rgba(249,115,22,0.16)', tension: 0.25 }
+                            { label: 'CPU %', data: [], borderColor: '#111111', backgroundColor: 'rgba(0,0,0,0.05)', tension: 0.25 },
+                            { label: 'RAM %', data: [], borderColor: '#888888', backgroundColor: 'rgba(0,0,0,0.02)', tension: 0.25 }
                         ]
                     },
                     options: {
                         ...commonOptions,
-                        scales: { ...commonOptions.scales, y: { min: 0, max: 100, grid: { color: 'rgba(20,46,52,0.08)' } } }
+                        scales: { ...commonOptions.scales, y: { min: 0, max: 100, grid: { color: 'rgba(0,0,0,0.04)' } } }
                     }
                 });
             }
@@ -1040,7 +1205,7 @@
                         labels: ['Wiki', 'Web', 'RSS', 'News', 'arXiv', 'Docs'],
                         datasets: [{
                             data: [0, 0, 0, 0, 0, 0],
-                            backgroundColor: ['#22c55e', '#0ea5e9', '#14b8a6', '#f59e0b', '#8b5cf6', '#f97316']
+                            backgroundColor: ['#22c55e', '#0ea5e9', '#14b8a6', '#f59e0b', '#8b5cf6', '#888888']
                         }]
                     },
                     options: {
@@ -1051,11 +1216,6 @@
                     }
                 });
             }
-        }
-
-        function pushHistory(target, value, maxLen = 30) {
-            target.push(value);
-            if (target.length > maxLen) target.shift();
         }
 
         function adjustTooltipPosition(tooltip) {
@@ -1095,26 +1255,14 @@
             });
         }
 
-        function updateChartsFromStatus(data) {
-            const label = new Date().toLocaleTimeString([], { minute: '2-digit', second: '2-digit' });
-            pushHistory(chartHistory.labels, label);
-            pushHistory(chartHistory.cpu, Number(data.system?.cpu_percent || 0));
-            pushHistory(chartHistory.ram, Number(data.system?.ram_percent || 0));
-            pushHistory(chartHistory.trainLoss, Number(data.stats?.current_loss || 0));
-            pushHistory(chartHistory.valLoss, Number(data.stats?.current_val_loss || 0));
+        function setStatusLine(elementId, mode, text) {
+            const el = document.getElementById(elementId);
+            if (!el) return;
+            el.className = `status-line status-${mode}`;
+            el.textContent = text;
+        }
 
-            if (systemChart) {
-                systemChart.data.labels = [...chartHistory.labels];
-                systemChart.data.datasets[0].data = [...chartHistory.cpu];
-                systemChart.data.datasets[1].data = [...chartHistory.ram];
-                systemChart.update();
-            }
-            if (trainingChart) {
-                trainingChart.data.labels = [...chartHistory.labels];
-                trainingChart.data.datasets[0].data = [...chartHistory.trainLoss];
-                trainingChart.data.datasets[1].data = [...chartHistory.valLoss];
-                trainingChart.update();
-            }
+        function updateCorpusChartFromStatus(data) {
             if (corpusChart) {
                 corpusChart.data.datasets[0].data = [
                     Number(data.stats?.collected_docs_wiki || 0),
@@ -1125,6 +1273,77 @@
                     Number(data.stats?.collected_docs_docs || 0)
                 ];
                 corpusChart.update();
+            }
+        }
+
+        function toLocalLabel(ts) {
+            const d = new Date(ts);
+            if (Number.isNaN(d.getTime())) return "-";
+            return d.toLocaleString([], { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+        }
+
+        function onSystemRangeChange() {
+            const el = document.getElementById('system-range');
+            systemRange = el?.value || 'hour';
+            localStorage.setItem("chart_range_system", systemRange);
+            fetchSystemMetrics();
+        }
+
+        function onTrainingRangeChange() {
+            const el = document.getElementById('training-range');
+            trainingRange = el?.value || 'day';
+            localStorage.setItem("chart_range_training", trainingRange);
+            fetchTrainingMetrics();
+        }
+
+        async function fetchSystemMetrics() {
+            try {
+                const response = await fetch(`/api/metrics/system?range=${encodeURIComponent(systemRange)}`);
+                const data = await response.json();
+                if (data.status !== "success" || !Array.isArray(data.series)) return;
+                if (!systemChart) return;
+                systemChart.data.labels = data.series.map(row => toLocalLabel(row.ts));
+                systemChart.data.datasets[0].data = data.series.map(row => Number(row.cpu_usage || 0));
+                systemChart.data.datasets[1].data = data.series.map(row => Number(row.ram_usage || 0));
+                systemChart.update();
+            } catch (e) {
+                console.error("Failed to fetch system metrics:", e);
+            }
+        }
+
+        async function fetchTrainingMetrics() {
+            try {
+                const response = await fetch(`/api/metrics/training?range=${encodeURIComponent(trainingRange)}`);
+                const data = await response.json();
+                if (data.status !== "success" || !Array.isArray(data.series)) return;
+                if (!trainingChart) return;
+                trainingChart.data.labels = data.series.map(row => toLocalLabel(row.ts));
+                trainingChart.data.datasets[0].data = data.series.map(row => Number(row.train_loss || 0));
+                trainingChart.data.datasets[1].data = data.series.map(row => Number(row.val_loss || 0));
+                trainingChart.update();
+
+                const tbody = document.getElementById('training-history-body');
+                if (tbody) {
+                    tbody.innerHTML = '';
+                    const recent = [...data.series].slice(-20).reverse();
+                    if (recent.length === 0) {
+                        tbody.innerHTML = '<tr><td colspan="5" class="py-4 text-center empty-hint">No training history yet. 学習開始後に表示されます。</td></tr>';
+                    } else {
+                        recent.forEach(row => {
+                            const tr = document.createElement('tr');
+                            tr.innerHTML = `
+                                <td data-label="Time" class="py-2 pr-4 text-xs text-gray-500">${toLocalLabel(row.ts)}</td>
+                                <td data-label="Epoch" class="py-2 px-4 text-xs font-mono text-gray-800">${Number(row.epoch || 0)}</td>
+                                <td data-label="Train" class="py-2 px-4 text-xs font-mono text-red-500">${Number(row.train_loss || 0).toFixed(4)}</td>
+                                <td data-label="Val" class="py-2 px-4 text-xs font-mono text-gray-800">${Number(row.val_loss || 0).toFixed(4)}</td>
+                                <td data-label="Best" class="py-2 pl-4 text-xs font-mono text-gray-700">${Number(row.best_val_loss || 0).toFixed(4)}</td>
+                            `;
+                            tbody.appendChild(tr);
+                        });
+                    }
+                }
+            } catch (e) {
+                console.error("Failed to fetch training metrics:", e);
             }
         }
 
@@ -1156,9 +1375,9 @@
                 const roleBadge = document.getElementById('current-role-badge');
                 roleBadge.textContent = `Role: ${String(data.system_role || 'worker').toUpperCase()}`;
                 if ((data.system_role || 'worker') === 'master') {
-                    roleBadge.className = "text-xs bg-indigo-100 text-indigo-700 px-3 py-2 rounded-full border border-indigo-200 font-semibold uppercase tracking-wider";
+                    roleBadge.className = "text-xs bg-gray-100 text-gray-800 px-3 py-2 rounded-full border border-gray-200 font-semibold uppercase tracking-wider";
                 } else {
-                    roleBadge.className = "text-xs bg-slate-100 text-slate-700 px-3 py-2 rounded-full border border-slate-200 font-semibold uppercase tracking-wider";
+                    roleBadge.className = "text-xs bg-white text-slate-700 px-3 py-2 rounded-full border border-gray-200 font-semibold uppercase tracking-wider";
                 }
 
                 if (data.auto_profile) {
@@ -1197,14 +1416,14 @@
                     masterToggleText.textContent = "システム停止";
                     masterToggleIcon.innerHTML = `<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8 7a1 1 0 00-1 1v4a1 1 0 001 1h4a1 1 0 001-1V8a1 1 0 00-1-1H8z" clip-rule="evenodd"></path>`;
                     masterToggleIcon.className = "w-4 h-4 text-red-500";
-                    currentPhase.className = "text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-accentBlue to-accentPurple";
+                    currentPhase.className = "text-2xl font-bold bg-clip-text text-transparent bg-black";
                 } else {
                     statusDot.className = "w-2.5 h-2.5 rounded-full bg-gray-400";
                     statusText.textContent = "停止中";
                     statusText.className = "text-sm font-bold text-gray-500 uppercase tracking-widest";
                     masterToggleText.textContent = "システム起動";
                     masterToggleIcon.innerHTML = `<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd"></path>`;
-                    masterToggleIcon.className = "w-4 h-4 text-green-500";
+                    masterToggleIcon.className = "w-4 h-4 text-green-600";
                     currentPhase.className = "text-2xl font-bold text-gray-400";
                 }
 
@@ -1218,9 +1437,25 @@
                 document.getElementById('docs-blocked').textContent = data.stats.blocked_docs || 0;
                 document.getElementById('dataset-size').textContent = data.stats.dataset_size_mb + " MB";
                 document.getElementById('current-epoch').textContent = data.stats.current_epoch;
+                const overviewEpoch = document.getElementById('overview-current-epoch');
+                if (overviewEpoch) overviewEpoch.textContent = data.stats.current_epoch;
+                const trainingQuickEpoch = document.getElementById('training-quick-epoch');
+                if (trainingQuickEpoch) trainingQuickEpoch.textContent = data.stats.current_epoch;
                 document.getElementById('current-loss').textContent = data.stats.current_loss.toFixed(4);
+                const overviewLoss = document.getElementById('overview-current-loss');
+                if (overviewLoss) overviewLoss.textContent = data.stats.current_loss.toFixed(4);
+                const trainingQuickLoss = document.getElementById('training-quick-loss');
+                if (trainingQuickLoss) trainingQuickLoss.textContent = data.stats.current_loss.toFixed(4);
                 document.getElementById('current-val-loss').textContent = (data.stats.current_val_loss || 0).toFixed(4);
+                const overviewValLoss = document.getElementById('overview-current-val-loss');
+                if (overviewValLoss) overviewValLoss.textContent = (data.stats.current_val_loss || 0).toFixed(4);
+                const trainingQuickVal = document.getElementById('training-quick-val');
+                if (trainingQuickVal) trainingQuickVal.textContent = (data.stats.current_val_loss || 0).toFixed(4);
                 document.getElementById('best-val-loss').textContent = `best: ${(data.stats.best_val_loss || 0).toFixed(4)}`;
+                const overviewBestVal = document.getElementById('overview-best-val-loss');
+                if (overviewBestVal) overviewBestVal.textContent = `best: ${(data.stats.best_val_loss || 0).toFixed(4)}`;
+                const trainingQuickBest = document.getElementById('training-quick-best');
+                if (trainingQuickBest) trainingQuickBest.textContent = `best: ${(data.stats.best_val_loss || 0).toFixed(4)}`;
 
                 // 稼働ワーカー推定は /api/nodes 集計結果を優先表示
 
@@ -1228,7 +1463,7 @@
                 document.getElementById('ram-percent').textContent = data.system.ram_percent.toFixed(1) + "%";
                 document.getElementById('cpu-bar').style.width = data.system.cpu_percent + "%";
                 document.getElementById('ram-bar').style.width = data.system.ram_percent + "%";
-                updateChartsFromStatus(data);
+                updateCorpusChartFromStatus(data);
 
                 const alertBox = document.getElementById('system-alert');
                 if (data.system.ram_percent >= 92) {
@@ -1253,9 +1488,9 @@
                     line.className = "py-0.5 whitespace-pre-wrap break-all";
                     // Colorize basic log patterns
                     let formattedLog = log
-                        .replace(/\[Error\]|error/gi, '<span class="text-rose-600 font-semibold">$&</span>')
-                        .replace(/\[Network\]/g, '<span class="text-accentBlue font-semibold">$&</span>')
-                        .replace(/Phase changed to:/g, '<span class="text-accentPurple font-semibold">$&</span>');
+                        .replace(/\[Error\]|error/gi, '<span class="text-red-500 font-semibold">$&</span>')
+                        .replace(/\[Network\]/g, '<span class="text-black font-semibold">$&</span>')
+                        .replace(/Phase changed to:/g, '<span class="text-gray-600 font-semibold">$&</span>');
                     line.innerHTML = formattedLog;
                     logContainer.appendChild(line);
                 });
@@ -1281,7 +1516,7 @@
                     tbody.innerHTML = ''; // Clear existing
 
                     if (data.nodes.length === 0) {
-                        tbody.innerHTML = '<tr><td colspan="7" class="py-6 text-center text-gray-400">No nodes connected.</td></tr>';
+                        tbody.innerHTML = '<tr><td colspan="7" class="py-6 text-center empty-hint">No nodes connected. 親機/子機を起動してください。</td></tr>';
                         return;
                     }
 
@@ -1308,27 +1543,27 @@
                         }
 
                         // Status Badge Color
-                        let statusColor = "bg-gray-100 text-gray-500 border-gray-200"; // default/offline
-                        if (displayStatus === 'running') statusColor = "bg-green-100 text-green-700 border-green-200";
+                        let statusColor = "bg-white text-gray-500 border-gray-200"; // default/offline
+                        if (displayStatus === 'running') statusColor = "bg-green-100 text-green-600 border-green-200";
                         if (displayStatus === 'paused') statusColor = "bg-yellow-100 text-yellow-700 border-yellow-200";
 
                         const roleBadge = node.role === 'master'
-                            ? `<span class="bg-indigo-100 text-indigo-700 font-semibold px-2 py-0.5 rounded text-[11px] leading-tight uppercase align-middle">Master</span>`
-                            : `<span class="bg-slate-100 text-slate-600 font-medium px-2 py-0.5 rounded text-[11px] leading-tight uppercase align-middle">Worker</span>`;
+                            ? `<span class="bg-gray-100 text-gray-800 font-semibold px-2 py-0.5 rounded text-[11px] leading-tight uppercase align-middle">Master</span>`
+                            : `<span class="bg-white text-slate-600 font-medium px-2 py-0.5 rounded text-[11px] leading-tight uppercase align-middle">Worker</span>`;
 
                         // UI Row Create
                         tr.innerHTML = `
-                            <td class="py-3 pr-4 font-mono text-gray-600 text-xs">...${node.node_id.substring(node.node_id.length - 8)}</td>
-                            <td class="py-3 px-4">${roleBadge}</td>
-                            <td class="py-3 px-4">
+                            <td data-label="Node ID" class="py-3 pr-4 font-mono text-gray-700 text-xs">...${node.node_id.substring(node.node_id.length - 8)}</td>
+                            <td data-label="Role" class="py-3 px-4">${roleBadge}</td>
+                            <td data-label="Status" class="py-3 px-4">
                                 <span class="px-2 py-1 rounded-md text-xs font-bold uppercase tracking-wider border ${statusColor}">
                                     ${displayStatus}
                                 </span>
                             </td>
-                            <td class="py-3 px-4 font-mono text-xs ${isOffline ? 'text-gray-300' : 'text-gray-700'}">${isOffline ? '--' : node.cpu_usage.toFixed(1) + '%'}</td>
-                            <td class="py-3 px-4 font-mono text-xs ${isOffline ? 'text-gray-300' : 'text-gray-700'}">${isOffline ? '--' : node.ram_usage.toFixed(1) + '%'}</td>
-                            <td class="py-3 px-4 text-xs text-gray-400" title="${lastSeenDate.toLocaleString()}">${lastSeenDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</td>
-                            <td class="py-3 pl-4 text-right space-x-1">
+                            <td data-label="CPU" class="py-3 px-4 font-mono text-xs ${isOffline ? 'text-gray-300' : 'text-gray-800'}">${isOffline ? '--' : node.cpu_usage.toFixed(1) + '%'}</td>
+                            <td data-label="Memory" class="py-3 px-4 font-mono text-xs ${isOffline ? 'text-gray-300' : 'text-gray-800'}">${isOffline ? '--' : node.ram_usage.toFixed(1) + '%'}</td>
+                            <td data-label="Last Seen" class="py-3 px-4 text-xs text-gray-400" title="${lastSeenDate.toLocaleString()}">${lastSeenDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</td>
+                            <td data-label="Control" class="py-3 pl-4 text-right space-x-1">
                                 <button onclick="controlNode('${node.node_id}', 'start')" class="p-1.5 rounded-md hover:bg-green-50 text-gray-400 hover:text-green-600 transition disabled:opacity-30 disabled:hover:bg-transparent" title="Start Engine" ${isOffline ? 'disabled' : ''}>
                                     <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd"></path></svg>
                                 </button>
@@ -1364,7 +1599,7 @@
                 const tbody = document.getElementById('eval-table-body');
                 tbody.innerHTML = '';
                 if (data.status !== 'success' || !data.runs || data.runs.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="4" class="py-4 text-center text-gray-400">No evaluation yet.</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="4" class="py-4 text-center empty-hint">No evaluation yet. 「評価実行」を押してください。</td></tr>';
                     return;
                 }
                 data.runs.forEach(run => {
@@ -1372,10 +1607,10 @@
                     const created = new Date(run.created_at);
                     const details = run.result_json?.results?.slice(0, 2)?.map(r => `${r.id}:${(r.score * 100).toFixed(0)}%`).join(", ") || '-';
                     tr.innerHTML = `
-                        <td class="py-2 pr-4 text-xs text-gray-500">${created.toLocaleString()}</td>
-                        <td class="py-2 px-4 text-xs font-semibold text-gray-700">${run.model_tag}</td>
-                        <td class="py-2 px-4 text-xs font-mono text-emerald-700">${(run.avg_score * 100).toFixed(1)}%</td>
-                        <td class="py-2 pl-4 text-xs text-gray-500">${details}</td>
+                        <td data-label="Time" class="py-2 pr-4 text-xs text-gray-500">${created.toLocaleString()}</td>
+                        <td data-label="Model" class="py-2 px-4 text-xs font-semibold text-gray-800">${run.model_tag}</td>
+                        <td data-label="Avg Score" class="py-2 px-4 text-xs font-mono text-black font-semibold">${(run.avg_score * 100).toFixed(1)}%</td>
+                        <td data-label="Details" class="py-2 pl-4 text-xs text-gray-500">${details}</td>
                     `;
                     tbody.appendChild(tr);
                 });
@@ -1388,15 +1623,12 @@
             try {
                 const response = await fetch('/api/evals/status');
                 const data = await response.json();
-                const statusLine = document.getElementById('eval-status-line');
-                statusLine.textContent = `Eval status: ${data.status}`;
                 if (data.status === 'running') {
-                    statusLine.className = "text-xs text-amber-600 mb-2";
+                    setStatusLine('eval-status-line', 'running', 'Eval status: running');
                 } else if (data.last_error) {
-                    statusLine.className = "text-xs text-rose-600 mb-2";
-                    statusLine.textContent = `Eval status: idle (last error: ${data.last_error.slice(0, 80)})`;
+                    setStatusLine('eval-status-line', 'failed', `Eval status: idle (last error: ${data.last_error.slice(0, 80)})`);
                 } else {
-                    statusLine.className = "text-xs text-gray-500 mb-2";
+                    setStatusLine('eval-status-line', 'idle', 'Eval status: idle');
                 }
             } catch (error) {
                 console.error("Failed to fetch eval status:", error);
@@ -1404,21 +1636,17 @@
         }
 
         async function runEvaluation() {
-            const statusLine = document.getElementById('eval-status-line');
             try {
                 const response = await fetch('/api/evals/run', { method: 'POST', headers: adminHeaders() });
                 const data = await response.json();
                 if (!response.ok || data.status === 'error') {
-                    statusLine.className = "text-xs text-rose-600 mb-2";
-                    statusLine.textContent = `Eval status: failed (${data.message || `HTTP ${response.status}`})`;
+                    setStatusLine('eval-status-line', 'failed', `Eval status: failed (${data.message || `HTTP ${response.status}`})`);
                     return;
                 }
-                statusLine.className = "text-xs text-amber-600 mb-2";
-                statusLine.textContent = `Eval status: ${data.status} (${data.message || ''})`;
+                setStatusLine('eval-status-line', 'running', `Eval status: ${data.status} (${data.message || ''})`);
                 fetchEvalStatus();
             } catch (error) {
-                statusLine.className = "text-xs text-rose-600 mb-2";
-                statusLine.textContent = "Eval status: request failed";
+                setStatusLine('eval-status-line', 'failed', 'Eval status: request failed');
                 console.error("Failed to run evaluation:", error);
             }
         }
@@ -1436,8 +1664,7 @@
                     body: JSON.stringify(body)
                 });
                 const data = await response.json();
-                const line = document.getElementById('hf-train-status-line');
-                line.textContent = `HF status: ${data.status} (${data.message || ''})`;
+                setStatusLine('hf-train-status-line', 'running', `HF status: ${data.status} (${data.message || ''})`);
                 fetchHfTrainStatus();
             } catch (error) {
                 console.error("Failed to run hf train:", error);
@@ -1448,16 +1675,12 @@
             try {
                 const response = await fetch('/api/migration/hf-train/status');
                 const data = await response.json();
-                const line = document.getElementById('hf-train-status-line');
                 if (data.status === 'running') {
-                    line.className = "text-xs text-amber-600 mt-2";
-                    line.textContent = "HF status: running";
+                    setStatusLine('hf-train-status-line', 'running', 'HF status: running');
                 } else if (data.last_error) {
-                    line.className = "text-xs text-rose-600 mt-2";
-                    line.textContent = `HF status: idle (last error: ${String(data.last_error).slice(0, 120)})`;
+                    setStatusLine('hf-train-status-line', 'failed', `HF status: idle (last error: ${String(data.last_error).slice(0, 120)})`);
                 } else {
-                    line.className = "text-xs text-gray-500 mt-2";
-                    line.textContent = "HF status: idle";
+                    setStatusLine('hf-train-status-line', 'idle', 'HF status: idle');
                 }
             } catch (error) {
                 console.error("Failed to fetch hf train status:", error);
@@ -1478,8 +1701,7 @@
                     body: JSON.stringify(body)
                 });
                 const data = await response.json();
-                const line = document.getElementById('gguf-export-status-line');
-                line.textContent = `GGUF status: ${data.status} (${data.message || ''})`;
+                setStatusLine('gguf-export-status-line', 'running', `GGUF status: ${data.status} (${data.message || ''})`);
                 fetchGgufExportStatus();
             } catch (error) {
                 console.error("Failed to run gguf export:", error);
@@ -1490,16 +1712,12 @@
             try {
                 const response = await fetch('/api/migration/gguf-export/status');
                 const data = await response.json();
-                const line = document.getElementById('gguf-export-status-line');
                 if (data.status === 'running') {
-                    line.className = "text-xs text-amber-600 mt-2";
-                    line.textContent = "GGUF status: running";
+                    setStatusLine('gguf-export-status-line', 'running', 'GGUF status: running');
                 } else if (data.last_error) {
-                    line.className = "text-xs text-rose-600 mt-2";
-                    line.textContent = `GGUF status: idle (last error: ${String(data.last_error).slice(0, 120)})`;
+                    setStatusLine('gguf-export-status-line', 'failed', `GGUF status: idle (last error: ${String(data.last_error).slice(0, 120)})`);
                 } else {
-                    line.className = "text-xs text-gray-500 mt-2";
-                    line.textContent = "GGUF status: idle";
+                    setStatusLine('gguf-export-status-line', 'idle', 'GGUF status: idle');
                 }
             } catch (error) {
                 console.error("Failed to fetch gguf export status:", error);
@@ -1513,7 +1731,7 @@
                 const tbody = document.getElementById('model-table-body');
                 tbody.innerHTML = '';
                 if (data.status !== 'success' || !data.models || data.models.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="5" class="py-4 text-center text-gray-400">No model version yet.</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="5" class="py-4 text-center empty-hint">No model version yet. まず学習と評価を実行してください。</td></tr>';
                     return;
                 }
                 data.models.forEach(model => {
@@ -1521,11 +1739,11 @@
                     const created = new Date(model.created_at);
                     const pathTail = (model.checkpoint_path || '-').split('/').slice(-1)[0];
                     tr.innerHTML = `
-                        <td class="py-2 pr-4 text-xs text-gray-500">${created.toLocaleString()}</td>
-                        <td class="py-2 px-4 text-xs font-semibold text-gray-700">${model.model_tag || '-'}</td>
-                        <td class="py-2 px-4 text-xs font-mono text-emerald-700">${((model.avg_score || 0) * 100).toFixed(1)}%</td>
-                        <td class="py-2 px-4 text-xs ${model.promoted ? 'text-indigo-700' : 'text-gray-500'}">${model.promoted ? 'yes' : 'no'}</td>
-                        <td class="py-2 pl-4 text-xs text-gray-500">${pathTail}</td>
+                        <td data-label="Time" class="py-2 pr-4 text-xs text-gray-500">${created.toLocaleString()}</td>
+                        <td data-label="Tag" class="py-2 px-4 text-xs font-semibold text-gray-800">${model.model_tag || '-'}</td>
+                        <td data-label="Score" class="py-2 px-4 text-xs font-mono text-black font-semibold">${((model.avg_score || 0) * 100).toFixed(1)}%</td>
+                        <td data-label="Promoted" class="py-2 px-4 text-xs ${model.promoted ? 'text-gray-800' : 'text-gray-500'}">${model.promoted ? 'yes' : 'no'}</td>
+                        <td data-label="Checkpoint" class="py-2 pl-4 text-xs text-gray-500">${pathTail}</td>
                     `;
                     tbody.appendChild(tr);
                 });
@@ -1541,17 +1759,17 @@
                 const tbody = document.getElementById('policy-table-body');
                 tbody.innerHTML = '';
                 if (data.status !== 'success' || !data.policies || data.policies.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="5" class="py-4 text-center text-gray-400">No policy yet.</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="5" class="py-4 text-center empty-hint">No policy yet. 右側のフォームから追加してください。</td></tr>';
                     return;
                 }
                 data.policies.forEach(p => {
                     const tr = document.createElement('tr');
                     tr.innerHTML = `
-                        <td class="py-2 pr-4 text-xs text-gray-600">${p.domain_pattern}</td>
-                        <td class="py-2 px-4 text-xs text-gray-600">${p.source_type}</td>
-                        <td class="py-2 px-4 text-xs text-gray-600">${p.license_tag}</td>
-                        <td class="py-2 px-4 text-xs ${p.allow_training ? 'text-emerald-700' : 'text-rose-600'}">${p.allow_training ? 'yes' : 'no'}</td>
-                        <td class="py-2 pl-4 text-xs font-mono text-gray-600">${Number(p.base_weight || 0).toFixed(2)}</td>
+                        <td data-label="Domain" class="py-2 pr-4 text-xs text-gray-700">${p.domain_pattern}</td>
+                        <td data-label="Type" class="py-2 px-4 text-xs text-gray-700">${p.source_type}</td>
+                        <td data-label="License" class="py-2 px-4 text-xs text-gray-700">${p.license_tag}</td>
+                        <td data-label="Allow" class="py-2 px-4 text-xs ${p.allow_training ? 'text-black font-semibold' : 'text-red-500'}">${p.allow_training ? 'yes' : 'no'}</td>
+                        <td data-label="Weight" class="py-2 pl-4 text-xs font-mono text-gray-700">${Number(p.base_weight || 0).toFixed(2)}</td>
                     `;
                     tbody.appendChild(tr);
                 });
@@ -1589,18 +1807,18 @@
                 const tbody = document.getElementById('dataset-table-body');
                 tbody.innerHTML = '';
                 if (data.status !== 'success' || !data.datasets || data.datasets.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="5" class="py-4 text-center text-gray-400">No dataset version yet.</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="5" class="py-4 text-center empty-hint">No dataset version yet. パイプライン起動後に表示されます。</td></tr>';
                     return;
                 }
                 data.datasets.forEach(d => {
                     const created = new Date(d.created_at);
                     const tr = document.createElement('tr');
                     tr.innerHTML = `
-                        <td class="py-2 pr-4 text-xs text-gray-500">${created.toLocaleString()}</td>
-                        <td class="py-2 px-4 text-xs text-gray-700 font-semibold">${d.dataset_tag}</td>
-                        <td class="py-2 px-4 text-xs text-gray-600">${d.total_docs}</td>
-                        <td class="py-2 px-4 text-xs font-mono text-gray-700">${d.train_tokens}/${d.val_tokens}</td>
-                        <td class="py-2 pl-4 text-xs text-rose-600">${d.blocked_docs}</td>
+                        <td data-label="Time" class="py-2 pr-4 text-xs text-gray-500">${created.toLocaleString()}</td>
+                        <td data-label="Tag" class="py-2 px-4 text-xs text-gray-800 font-semibold">${d.dataset_tag}</td>
+                        <td data-label="Docs" class="py-2 px-4 text-xs text-gray-700">${d.total_docs}</td>
+                        <td data-label="Train/Val" class="py-2 px-4 text-xs font-mono text-gray-800">${d.train_tokens}/${d.val_tokens}</td>
+                        <td data-label="Blocked" class="py-2 pl-4 text-xs text-red-500">${d.blocked_docs}</td>
                     `;
                     tbody.appendChild(tr);
                 });
@@ -1611,27 +1829,23 @@
 
         async function promoteBestModel() {
             const btn = document.getElementById('promote-model-btn');
-            const statusLine = document.getElementById('model-status-line');
             const prevLabel = btn.textContent;
             btn.disabled = true;
             btn.classList.add('opacity-60');
             btn.textContent = 'Promoting...';
-            statusLine.textContent = 'Model status: promoting ckpt_best -> ckpt_production';
+            setStatusLine('model-status-line', 'running', 'Model status: promoting ckpt_best -> ckpt_production');
             try {
                 const response = await fetch('/api/models/promote', { method: 'POST', headers: adminHeaders() });
                 const data = await response.json();
                 if (data.status === 'success') {
-                    statusLine.className = "text-xs text-emerald-700 mb-2";
-                    statusLine.textContent = `Model status: ${data.message || 'promotion complete'}`;
+                    setStatusLine('model-status-line', 'success', `Model status: ${data.message || 'promotion complete'}`);
                     await fetchModels();
                     await fetchRuntimeConfig();
                 } else {
-                    statusLine.className = "text-xs text-rose-600 mb-2";
-                    statusLine.textContent = `Model status: promote failed (${data.message || 'unknown error'})`;
+                    setStatusLine('model-status-line', 'failed', `Model status: promote failed (${data.message || 'unknown error'})`);
                 }
             } catch (error) {
-                statusLine.className = "text-xs text-rose-600 mb-2";
-                statusLine.textContent = 'Model status: promote request failed';
+                setStatusLine('model-status-line', 'failed', 'Model status: promote request failed');
                 console.error("Failed to promote model:", error);
             } finally {
                 btn.disabled = false;
@@ -1726,7 +1940,7 @@
 
             // Append User Question
             const userDiv = document.createElement('div');
-            userDiv.className = 'w-[85%] self-end bg-accentBlue text-white p-4 rounded-tl-xl rounded-tr-sm rounded-bl-xl rounded-br-xl shadow-sm text-sm';
+            userDiv.className = 'w-[85%] self-end bg-black text-white p-4 rounded-tl-xl rounded-tr-sm rounded-bl-xl rounded-br-xl shadow-none text-sm';
             userDiv.textContent = devMode ? `[DEV] ${prompt}` : prompt;
             chatHistory.appendChild(userDiv);
 
@@ -1735,7 +1949,7 @@
 
             // Optional Loading Bubbles
             const aiDiv = document.createElement('div');
-            aiDiv.className = 'w-[85%] self-start bg-white border border-gray-200 text-gray-800 p-4 rounded-tl-sm rounded-tr-xl rounded-bl-xl rounded-br-xl shadow-sm text-sm';
+            aiDiv.className = 'w-[85%] self-start bg-white border border-gray-200 text-gray-900 p-4 rounded-tl-sm rounded-tr-xl rounded-bl-xl rounded-br-xl shadow-none text-sm';
             aiDiv.innerHTML = '<span class="text-gray-400 italic">Thinking...</span>';
             chatHistory.appendChild(aiDiv);
             chatHistory.scrollTop = chatHistory.scrollHeight;
@@ -1757,12 +1971,12 @@
                 const data = await response.json();
 
                 if (data.status === 'success') {
-                    aiDiv.innerHTML = '<span class="font-bold text-accentBlue mb-1 block">Agent Response:</span>' + data.text.replace(/\n/g, '<br>');
+                    aiDiv.innerHTML = '<span class="font-bold text-black mb-1 block">Agent Response:</span>' + data.text.replace(/\n/g, '<br>');
                 } else {
-                    aiDiv.innerHTML = `<span class="text-rose-500 font-bold">Error:</span> ${data.message}`;
+                    aiDiv.innerHTML = `<span class="text-red-500 font-bold">Error:</span> ${data.message}`;
                 }
             } catch (err) {
-                aiDiv.innerHTML = `<span class="text-rose-500 font-bold">Error:</span> Failed to connect to inference server.`;
+                aiDiv.innerHTML = `<span class="text-red-500 font-bold">Error:</span> Failed to connect to inference server.`;
             }
             chatHistory.scrollTop = chatHistory.scrollHeight;
         }
@@ -1777,14 +1991,22 @@
         setInterval(fetchDatasets, 20000);
         setInterval(fetchHfTrainStatus, 5000);
         setInterval(fetchGgufExportStatus, 5000);
+        setInterval(fetchSystemMetrics, 10000);
+        setInterval(fetchTrainingMetrics, 15000);
 
         // Initial Fetch
         switchDashboardSection('overview');
+        const systemRangeEl = document.getElementById('system-range');
+        const trainingRangeEl = document.getElementById('training-range');
+        if (systemRangeEl) systemRangeEl.value = systemRange;
+        if (trainingRangeEl) trainingRangeEl.value = trainingRange;
         initCharts();
         setupHelpTooltips();
         fetchRuntimeConfig();
         fetchStatus();
         fetchNodes();
+        fetchSystemMetrics();
+        fetchTrainingMetrics();
         fetchEvaluations();
         fetchEvalStatus();
         fetchModels();
