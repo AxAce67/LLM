@@ -1643,12 +1643,27 @@
         // ---------- Control Actions ----------
         async function togglePipeline() {
             const action = isRunning ? 'stop' : 'start';
-            await fetch('/api/control', {
-                method: 'POST',
-                headers: adminHeaders(),
-                body: JSON.stringify({ action: action })
-            });
-            fetchStatus();
+            try {
+                const response = await fetch('/api/control', {
+                    method: 'POST',
+                    headers: adminHeaders(),
+                    body: JSON.stringify({ action: action })
+                });
+                const data = await response.json().catch(() => ({}));
+                if (!response.ok || data.status === 'error') {
+                    if (response.status === 403) {
+                        alert("管理トークンが未設定または不一致です。ADMIN_API_TOKENを設定してください。");
+                        setAdminToken();
+                    } else {
+                        alert(`制御に失敗しました: ${data.message || `HTTP ${response.status}`}`);
+                    }
+                    return;
+                }
+                fetchStatus();
+            } catch (e) {
+                console.error("Toggle failed:", e);
+                alert("制御リクエストに失敗しました。");
+            }
         }
 
         async function controlNode(nodeId, action) {
