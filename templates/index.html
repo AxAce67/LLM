@@ -1459,7 +1459,26 @@
                 const trainingQuickBest = document.getElementById('training-quick-best');
                 if (trainingQuickBest) trainingQuickBest.textContent = `best: ${(data.stats.best_val_loss || 0).toFixed(4)}`;
 
-                // 稼働ワーカー推定は /api/nodes 集計結果を優先表示
+                // 稼働ワーカー表示: /api/nodes 集計が理想だが、失敗時は /api/status を使う
+                const activeWorkersSpan = document.getElementById('active-workers');
+                if (activeWorkersSpan) {
+                    const fallbackWorkers = Number(data.stats?.active_workers || 0);
+                    activeWorkersSpan.textContent = String(fallbackWorkers);
+                }
+
+                // 自動プロファイル表示: runtime-config 失敗時のフォールバック
+                const autoProfileLine = document.getElementById('auto-profile-line');
+                if (autoProfileLine && data.system) {
+                    const cores = Number(data.system.cpu_cores || 0);
+                    const avail = Number(data.system.available_ram_gb || 0);
+                    const total = Number(data.system.total_ram_gb || 0);
+                    const model = String(data.system.suggested_model_size || 'small');
+                    const maxTok = Number(data.system.suggested_max_tokens || 256);
+                    if (cores > 0 && total > 0) {
+                        autoProfileLine.textContent =
+                            `CPU | ${cores} cores | RAM ${avail.toFixed(2)}/${total.toFixed(2)} GB | model=${model} | gen<=${maxTok}`;
+                    }
+                }
 
                 const cpuPercentEl = document.getElementById('cpu-percent');
                 const ramPercentEl = document.getElementById('ram-percent');
