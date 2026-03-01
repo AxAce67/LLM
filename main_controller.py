@@ -317,6 +317,33 @@ def _checkpoint_paths() -> tuple[str, str]:
 def _run_training_with_retry(state: SystemState, max_steps: int):
     from model import trainer
 
+    def _metric_cb(payload: dict):
+        try:
+            epoch = int(payload.get("epoch", 0) or 0)
+            train_loss = payload.get("train_loss")
+            val_loss = payload.get("val_loss")
+            best_val = payload.get("best_val_loss")
+
+            if train_loss is not None:
+                state.state["stats"]["current_loss"] = round(float(train_loss), 4)
+            if val_loss is not None:
+                state.state["stats"]["current_val_loss"] = round(float(val_loss), 4)
+            if best_val is not None:
+                state.state["stats"]["best_val_loss"] = round(float(best_val), 4)
+            if epoch > 0:
+                state.state["stats"]["current_epoch"] = epoch
+            state.save()
+
+            state.db_manager.insert_training_metric(
+                node_id=state.node_id,
+                epoch=epoch,
+                train_loss=float(train_loss or 0.0),
+                val_loss=float(val_loss or 0.0),
+                best_val_loss=float(best_val or 0.0),
+            )
+        except Exception as e:
+            state.log(f"[TrainMetric] callback error: {e}")
+
     retries = max(0, int(os.environ.get("TRAIN_RETRY_MAX", "2")))
     latest_ckpt, backup_ckpt = _checkpoint_paths()
     if os.path.exists(latest_ckpt):
@@ -331,7 +358,7 @@ def _run_training_with_retry(state: SystemState, max_steps: int):
         attempt += 1
         try:
             state.log(f"[TrainJob] Attempt {attempt}/{retries + 1}")
-            return trainer.train_step(max_steps=max_steps, log_fn=state.log)
+            return trainer.train_step(max_steps=max_steps, log_fn=state.log, metric_cb=_metric_cb)
         except Exception as e:
             state.log(f"[TrainJob] Attempt {attempt} failed: {e}")
             if os.path.exists(backup_ckpt):

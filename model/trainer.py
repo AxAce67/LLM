@@ -90,7 +90,7 @@ def estimate_val_loss(model, val_loader, device, eval_batches=20):
         model.train()
     return float(sum(losses) / max(1, len(losses)))
 
-def train_step(max_steps=50, log_fn=None):
+def train_step(max_steps=50, log_fn=None, metric_cb=None):
     """
     メインコントローラーから定期的に呼ばれる、指定ステップ数の学習を行う関数。
     途中でチェックポイント(重みデータ)を保存しながら進める。
@@ -263,6 +263,15 @@ def train_step(max_steps=50, log_fn=None):
                     f"loss={lossf:.4f} lr={optimizer.param_groups[0]['lr']:.6e} "
                     f"time_ms={process_time_ms:.2f}"
                 )
+            if callable(metric_cb):
+                metric_cb(
+                    {
+                        "epoch": start_step + step,
+                        "train_loss": float(lossf),
+                        "val_loss": float(val_loss) if val_loss is not None else None,
+                        "best_val_loss": float(best_val_loss) if best_val_loss != float("inf") else None,
+                    }
+                )
 
         # 検証ロス評価とベスト更新
         if (step + 1) % eval_every == 0 or step == max_steps - 1:
@@ -273,6 +282,15 @@ def train_step(max_steps=50, log_fn=None):
                 if callable(log_fn):
                     best_text = "inf" if best_val_loss == float("inf") else f"{best_val_loss:.4f}"
                     log_fn(f"[Validation] step={start_step + step} val_loss={val_loss:.4f} best={best_text}")
+                if callable(metric_cb):
+                    metric_cb(
+                        {
+                            "epoch": start_step + step,
+                            "train_loss": float(lossf),
+                            "val_loss": float(val_loss),
+                            "best_val_loss": float(best_val_loss) if best_val_loss != float("inf") else None,
+                        }
+                    )
                 if improved:
                     best_val_loss = val_loss
                     stale_count = 0
