@@ -857,6 +857,7 @@ class DBManager:
     def _metric_window_clause(self, range_key: str) -> str | None:
         windows = {
             "all": None,
+            "10s": "NOW() - INTERVAL '10 second'",
             "hour": "NOW() - INTERVAL '1 hour'",
             "day": "NOW() - INTERVAL '1 day'",
             "week": "NOW() - INTERVAL '7 day'",
@@ -868,6 +869,7 @@ class DBManager:
     def _metric_bucket(self, range_key: str) -> str:
         buckets = {
             "all": "day",
+            "10s": "second",
             "hour": "minute",
             "day": "hour",
             "week": "hour",

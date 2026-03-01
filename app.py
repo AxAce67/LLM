@@ -432,18 +432,20 @@ async def list_datasets():
         return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
 
 @app.get("/api/metrics/system")
-async def metrics_system(range: str = "hour"):
+async def metrics_system(range: str = "hour", scope: str = "all"):
     try:
-        rows = state_manager.db_manager.get_runtime_metric_series(range_key=range, node_id=state_manager.node_id, limit=1200)
-        return JSONResponse(content=jsonable_encoder({"status": "success", "range": range, "series": rows}))
+        node_id = state_manager.node_id if (scope or "").lower() == "current" else None
+        rows = state_manager.db_manager.get_runtime_metric_series(range_key=range, node_id=node_id, limit=1200)
+        return JSONResponse(content=jsonable_encoder({"status": "success", "range": range, "scope": scope, "series": rows}))
     except Exception as e:
         return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
 
 @app.get("/api/metrics/training")
-async def metrics_training(range: str = "day"):
+async def metrics_training(range: str = "day", scope: str = "all"):
     try:
-        rows = state_manager.db_manager.get_training_metric_series(range_key=range, node_id=state_manager.node_id, limit=1200)
-        return JSONResponse(content=jsonable_encoder({"status": "success", "range": range, "series": rows}))
+        node_id = state_manager.node_id if (scope or "").lower() == "current" else None
+        rows = state_manager.db_manager.get_training_metric_series(range_key=range, node_id=node_id, limit=1200)
+        return JSONResponse(content=jsonable_encoder({"status": "success", "range": range, "scope": scope, "series": rows}))
     except Exception as e:
         return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
 
