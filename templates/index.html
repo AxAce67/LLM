@@ -1555,6 +1555,7 @@
 
                     data.nodes.forEach(node => {
                         const tr = document.createElement('tr');
+                        const role = String(node.role || '').toLowerCase();
 
                         // Offline判定 (最終報告から120秒以上経過)
                         let lastSeenDate = new Date(node.last_heartbeat);
@@ -1562,7 +1563,7 @@
                         let displayStatus = isOffline ? 'offline' : node.status;
                         if (isOffline) offlineCount += 1; else onlineCount += 1;
                         if (displayStatus === 'running') runningCount += 1;
-                        if (node.role === 'worker') workerCount += 1;
+                        if (role === 'worker') workerCount += 1;
                         if (!isOffline) {
                             onlineWorkerSlots += Number(node.active_workers || 0);
                         }
@@ -1572,7 +1573,7 @@
                         if (displayStatus === 'running') statusColor = "bg-green-100 text-green-600 border-green-200";
                         if (displayStatus === 'paused') statusColor = "bg-yellow-100 text-yellow-700 border-yellow-200";
 
-                        const roleBadge = node.role === 'master'
+                        const roleBadge = role === 'master'
                             ? `<span class="bg-gray-100 text-gray-800 font-semibold px-2 py-0.5 rounded text-[11px] leading-tight uppercase align-middle">Master</span>`
                             : `<span class="bg-white text-slate-600 font-medium px-2 py-0.5 rounded text-[11px] leading-tight uppercase align-middle">Worker</span>`;
 
