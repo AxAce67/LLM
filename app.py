@@ -153,6 +153,9 @@ async def generate_response(req: GenerateRequest):
             repetition_penalty=req.repetition_penalty,
             device=device
         )
+        # 念のため: 実装差分でプロンプトが含まれて返ってきた場合は除去する
+        if output_text.startswith(prompt):
+            output_text = output_text[len(prompt):].lstrip()
         return JSONResponse(content={"status": "success", "text": output_text})
         
     except FileNotFoundError as e:

@@ -89,12 +89,12 @@ def generate_text(
     与えられた文章(prompt)の続きを生成する
     """
     # 1. ユーザーの入力テキストをトークンIDのリスト(数字の列)に変換
-    idx = sp.EncodeAsIds(prompt)
-    if not idx:
-        idx = [sp.bos_id()] if sp.bos_id() != -1 else [1]
+    prompt_ids = sp.EncodeAsIds(prompt)
+    if not prompt_ids:
+        prompt_ids = [sp.bos_id()] if sp.bos_id() != -1 else [1]
         
     # PyTorchのテンソル(1 x T)に変換してデバイスへ送る
-    x = torch.tensor(idx, dtype=torch.long, device=device).unsqueeze(0)
+    x = torch.tensor(prompt_ids, dtype=torch.long, device=device).unsqueeze(0)
     
     # 生成ループ
     print(f"\n[Prompt]: {prompt}")
@@ -152,9 +152,12 @@ def generate_text(
         
     print("\n")
     
-    # 最終的に生成された文字列全体を返す
-    final_output = sp.DecodeIds(x[0].tolist())
-    return final_output
+    # プロンプト部分は返さず、新規生成トークンのみ返す
+    full_ids = x[0].tolist()
+    new_ids = full_ids[len(prompt_ids):]
+    if not new_ids:
+        return ""
+    return sp.DecodeIds(new_ids)
 
 if __name__ == "__main__":
     device = 'cpu'
