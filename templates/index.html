@@ -1194,6 +1194,11 @@
             else el.className = 'mb-3 text-xs text-gray-500';
         }
 
+        function setTextIfExists(id, value) {
+            const el = document.getElementById(id);
+            if (el) el.textContent = String(value);
+        }
+
         // ---------- Tab Management ----------
         function switchTab(tabId) {
             document.getElementById('view-dashboard').classList.add('hidden');
@@ -1830,24 +1835,20 @@
                     }
 
                     const totalNodes = visibleNodes.length;
-                    document.getElementById('nodes-online').textContent = String(onlineCount);
-                    document.getElementById('nodes-running').textContent = String(runningCount);
-                    document.getElementById('nodes-offline').textContent = String(offlineCount);
-                    document.getElementById('nodes-worker-ratio').textContent = totalNodes > 0
+                    setTextIfExists('nodes-online', onlineCount);
+                    setTextIfExists('nodes-running', runningCount);
+                    setTextIfExists('nodes-offline', offlineCount);
+                    setTextIfExists('nodes-worker-ratio', totalNodes > 0
                         ? `${Math.round((workerCount / totalNodes) * 100)}%`
-                        : '0%';
+                        : '0%');
                     const activeWorkersSpan = document.getElementById('active-workers');
                     if (activeWorkersSpan) {
                         activeWorkersSpan.textContent = String(onlineWorkerSlots);
                     }
-                    const onlineMini = document.getElementById('nodes-online-mini');
-                    const runningMini = document.getElementById('nodes-running-mini');
-                    const offlineMini = document.getElementById('nodes-offline-mini');
-                    const workerMini = document.getElementById('nodes-worker-mini');
-                    if (onlineMini) onlineMini.textContent = String(onlineCount);
-                    if (runningMini) runningMini.textContent = String(runningCount);
-                    if (offlineMini) offlineMini.textContent = String(offlineCount);
-                    if (workerMini) workerMini.textContent = String(onlineWorkerSlots);
+                    setTextIfExists('nodes-online-mini', onlineCount);
+                    setTextIfExists('nodes-running-mini', runningCount);
+                    setTextIfExists('nodes-offline-mini', offlineCount);
+                    setTextIfExists('nodes-worker-mini', onlineWorkerSlots);
                     if (preferredSelect) {
                         const current = (haStatus?.preferred_master_node_id || '').trim();
                         preferredSelect.innerHTML = '';
