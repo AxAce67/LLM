@@ -62,7 +62,7 @@ jobs:
       - name: Run pytest
         run: |
           set -euo pipefail
-          pytest -q
+          PYTHONPATH=. pytest -q
 
   compose-validate:
     name: Docker Compose Validate
