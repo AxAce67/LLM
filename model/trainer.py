@@ -213,7 +213,9 @@ def train_step(max_steps=50, log_fn=None, metric_cb=None, should_stop_cb=None):
         warmup = cfg.warmup_steps
         if step_idx < warmup:
             return learning_rate * (step_idx + 1) / warmup
-        progress = (step_idx - warmup) / max(1, max_steps - warmup)
+        total = max(warmup + 1, cfg.total_training_steps)
+        progress = (step_idx - warmup) / max(1, total - warmup)
+        progress = max(0.0, min(1.0, progress))
         cosine = 0.5 * (1.0 + math.cos(math.pi * progress))
         return learning_rate * (cfg.min_lr_ratio + (1.0 - cfg.min_lr_ratio) * cosine)
 

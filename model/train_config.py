@@ -17,6 +17,7 @@ class TrainConfig:
     weight_decay: float
     grad_accum_steps: int
     warmup_steps: int
+    total_training_steps: int
     min_lr_ratio: float
     cpu_threads: int
 
@@ -49,6 +50,7 @@ def load_train_config() -> TrainConfig:
         weight_decay=float(os.environ.get("TRAIN_WEIGHT_DECAY", "0.1")),
         grad_accum_steps=max(1, int(os.environ.get("TRAIN_GRAD_ACCUM_STEPS", "1"))),
         warmup_steps=max(1, int(os.environ.get("TRAIN_WARMUP_STEPS", "20"))),
+        total_training_steps=max(2, int(os.environ.get("TRAIN_TOTAL_STEPS", "20000"))),
         min_lr_ratio=float(os.environ.get("TRAIN_MIN_LR_RATIO", "0.1")),
         cpu_threads=max(1, int(os.environ.get("PYTORCH_CPU_THREADS", str(cpu_default)))),
     )
