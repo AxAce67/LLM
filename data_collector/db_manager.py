@@ -24,10 +24,84 @@ class DBManager:
         self.database_url = os.environ.get("DATABASE_URL")
         if not self.database_url:
             raise ValueError("DATABASE_URL must be set.")
+        self._ha_lock_conn = None
+        self._ha_lock_key = None
         self._init_postgres_schema()
 
     def _connect(self):
         return psycopg2.connect(self.database_url)
+
+    def _ensure_ha_lock_conn(self):
+        if self._ha_lock_conn is not None and not self._ha_lock_conn.closed:
+            return self._ha_lock_conn
+        conn = psycopg2.connect(self.database_url)
+        conn.autocommit = True
+        self._ha_lock_conn = conn
+        return conn
+
+    def try_acquire_ha_leader_lock(self, lock_key: int) -> bool:
+        """
+        PostgreSQL advisory lock でHAリーダーを1台に限定する。
+        成功時はこのDBManagerインスタンスの接続セッションにロックが保持される。
+        """
+        try:
+            conn = self._ensure_ha_lock_conn()
+            with conn.cursor() as cur:
+                cur.execute("SELECT pg_try_advisory_lock(%s)", (int(lock_key),))
+                row = cur.fetchone()
+            ok = bool(row and row[0])
+            if ok:
+                self._ha_lock_key = int(lock_key)
+            else:
+                # 取得失敗時は接続を閉じて無駄なセッションを残さない
+                try:
+                    conn.close()
+                except Exception:
+                    pass
+                self._ha_lock_conn = None
+                self._ha_lock_key = None
+            return ok
+        except Exception as e:
+            print(f"[DB Error] Failed to acquire HA leader lock: {e}")
+            self._ha_lock_conn = None
+            self._ha_lock_key = None
+            return False
+
+    def ha_leader_lock_alive(self) -> bool:
+        """
+        現在保持しているHAロック接続が生きているか判定する。
+        接続断が起きた場合はロック喪失扱いとする。
+        """
+        try:
+            if self._ha_lock_conn is None or self._ha_lock_conn.closed:
+                return False
+            with self._ha_lock_conn.cursor() as cur:
+                cur.execute("SELECT 1")
+                cur.fetchone()
+            return True
+        except Exception:
+            self._ha_lock_conn = None
+            self._ha_lock_key = None
+            return False
+
+    def release_ha_leader_lock(self):
+        try:
+            if self._ha_lock_conn is None:
+                return
+            if not self._ha_lock_conn.closed and self._ha_lock_key is not None:
+                try:
+                    with self._ha_lock_conn.cursor() as cur:
+                        cur.execute("SELECT pg_advisory_unlock(%s)", (int(self._ha_lock_key),))
+                        cur.fetchone()
+                except Exception:
+                    pass
+            try:
+                self._ha_lock_conn.close()
+            except Exception:
+                pass
+        finally:
+            self._ha_lock_conn = None
+            self._ha_lock_key = None
 
     def _init_postgres_schema(self):
         query = """

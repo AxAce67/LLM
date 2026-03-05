@@ -46,6 +46,12 @@ class SystemState:
         self._heartbeat_stop = threading.Event()
         self._last_runtime_metric_at = 0.0
         self._last_target_check_at = 0.0
+        self.ha_enabled = (
+            os.environ.get("HA_ENABLED", "0") == "1"
+            and self.role == "master"
+        )
+        self.ha_lock_key = int(os.environ.get("HA_LEADER_LOCK_KEY", "424242"))
+        self._ha_is_leader = False
         self.metric_sample_sec = max(5, int(os.environ.get("METRIC_SAMPLE_SEC", "5")))
         if not self.is_dashboard:
             self._start_heartbeat_thread()
@@ -154,7 +160,7 @@ class SystemState:
                 try:
                     cpu_usage = psutil.cpu_percent()
                     ram_usage = psutil.virtual_memory().percent
-                    current_status = "running" if self.state.get("is_running") else "paused"
+                    current_status = self._node_runtime_status()
                     self.db_manager.upsert_node_heartbeat(
                         node_id=self.node_id,
                         role=self.role,
@@ -261,7 +267,7 @@ class SystemState:
         # --- Node Heartbeat & Remote Control ---
         if not self.is_dashboard:
             try:
-                current_status = "running" if self.state.get("is_running") else "paused"
+                current_status = self._node_runtime_status()
                 self.db_manager.upsert_node_heartbeat(
                     node_id=self.node_id,
                     role=self.role,
@@ -328,7 +334,50 @@ class SystemState:
         self.state["is_running"] = running
         if not running:
             self.state["current_phase"] = "Idle"
+            self._release_ha_leader()
         self.save()
+
+    def _node_runtime_status(self) -> str:
+        if not self.state.get("is_running"):
+            return "paused"
+        if self.ha_enabled and not self._ha_is_leader:
+            return "standby"
+        return "running"
+
+    def _release_ha_leader(self):
+        if not self.ha_enabled:
+            return
+        if self._ha_is_leader:
+            self.log("[HA] Releasing leader lock.")
+        self._ha_is_leader = False
+        try:
+            self.db_manager.release_ha_leader_lock()
+        except Exception as e:
+            print(f"[HA] release lock error: {e}")
+
+    def ensure_ha_leader(self) -> bool:
+        """
+        HA有効時: リーダーのみ学習パイプラインを実行する。
+        非リーダーは standby として待機する。
+        """
+        if not self.ha_enabled:
+            return True
+        if not self.state.get("is_running"):
+            self._release_ha_leader()
+            return False
+
+        if self._ha_is_leader:
+            if self.db_manager.ha_leader_lock_alive():
+                return True
+            self._ha_is_leader = False
+            self.log("[HA] Leader lock lost. switching to standby.")
+
+        acquired = self.db_manager.try_acquire_ha_leader_lock(self.ha_lock_key)
+        if acquired:
+            self._ha_is_leader = True
+            self.log("[HA] Leader lock acquired. this node is ACTIVE.")
+            return True
+        return False
 
     def should_stop_now(self, read_remote: bool = True) -> bool:
         """
@@ -474,6 +523,14 @@ def run_pipeline(state: SystemState):
         if state.should_stop_now(read_remote=True):
             state.log("Pipeline paused. Waiting...")
             time.sleep(5)
+            continue
+
+        # HAモード: Activeノードのみ処理を実行
+        if not state.ensure_ha_leader():
+            if state.state.get("current_phase") != "Standby":
+                state.update_phase("Standby")
+                state.log("[HA] Standby mode. waiting for leader lock...")
+            time.sleep(max(2, int(os.environ.get("HA_CHECK_INTERVAL_SEC", "3"))))
             continue
             
         try:
