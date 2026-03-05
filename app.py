@@ -174,6 +174,10 @@ async def runtime_config():
         "db_ui_url": DB_UI_URL,
         "system_role": SYSTEM_ROLE,
         "postgres_host": POSTGRES_HOST,
+        "ha_enabled": bool(state_manager.ha_enabled),
+        "ha_lock_key": int(state_manager.ha_lock_key),
+        "ha_preemption_enabled": bool(getattr(state_manager, "ha_preemption_enabled", False)),
+        "preferred_master_node_id": str(getattr(state_manager, "preferred_master_node_id", "") or ""),
         "admin_token_required": bool(ADMIN_API_TOKEN_REQUIRED),
         "use_production_model": os.environ.get("USE_PRODUCTION_MODEL", "1") == "1",
         "production_checkpoint_exists": os.path.exists(production_ckpt),
@@ -520,6 +524,44 @@ async def get_nodes():
         return JSONResponse(content=jsonable_encoder({"status": "success", "nodes": nodes}))
     except Exception as e:
         return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
+
+
+@app.get("/api/ha/status")
+async def get_ha_status():
+    """
+    HAクラスタの可視化用ステータスを返す。
+    """
+    try:
+        state_manager.load()
+        nodes = state_manager.db_manager.get_all_nodes()
+        masters = [n for n in nodes if str(n.get("role", "")).lower() == "master"]
+        leader = next((n for n in masters if str(n.get("status", "")).lower() == "running"), None)
+        this_node = next((n for n in nodes if n.get("node_id") == state_manager.node_id), None)
+        standby_count = sum(1 for n in masters if str(n.get("status", "")).lower() == "standby")
+        running_count = sum(1 for n in masters if str(n.get("status", "")).lower() == "running")
+        paused_count = sum(1 for n in masters if str(n.get("status", "")).lower() == "paused")
+
+        payload = {
+            "status": "success",
+            "enabled": bool(state_manager.ha_enabled),
+            "lock_key": int(state_manager.ha_lock_key),
+            "preemption_enabled": bool(getattr(state_manager, "ha_preemption_enabled", False)),
+            "preferred_master_node_id": str(getattr(state_manager, "preferred_master_node_id", "") or ""),
+            "this_node_id": state_manager.node_id,
+            "this_role": state_manager.role,
+            "this_status": str(this_node.get("status", "unknown")) if this_node else "unknown",
+            "leader_node_id": leader.get("node_id") if leader else None,
+            "master_counts": {
+                "total": len(masters),
+                "running": running_count,
+                "standby": standby_count,
+                "paused": paused_count,
+            },
+        }
+        return JSONResponse(content=jsonable_encoder(payload))
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
+
 
 @app.post("/api/nodes/{node_id}/control")
 async def control_node(node_id: str, request: Request):

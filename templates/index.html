@@ -379,6 +379,10 @@
                 class="text-xs bg-gray-100 text-gray-800 px-3 py-1.5 rounded-md font-semibold tracking-wide whitespace-nowrap">
                 Role: Worker
             </span>
+            <span id="ha-mode-badge"
+                class="hidden text-xs bg-indigo-50 text-indigo-700 px-3 py-1.5 rounded-md border border-indigo-200 font-semibold tracking-wide whitespace-nowrap">
+                HA: OFF
+            </span>
             <div id="status-indicator"
                 class="flex items-center space-x-2 bg-gray-50 px-3 py-1.5 rounded-md border border-gray-200 whitespace-nowrap">
                 <span class="w-2 h-2 rounded-full bg-gray-400" id="status-dot"></span>
@@ -581,6 +585,12 @@
                                 <p id="auto-profile-line" class="text-[11px] text-gray-600 font-medium">Detecting
                                     runtime...</p>
                             </div>
+                            <div class="mt-4 bg-gray-50 rounded-xl p-4">
+                                <p class="text-[10px] text-gray-400 font-bold uppercase tracking-widest mb-1">HAクラスタ
+                                </p>
+                                <p id="ha-summary-line" class="text-[11px] text-gray-600 font-medium">HA: --</p>
+                                <p id="ha-leader-line" class="text-[11px] text-gray-500 font-mono mt-1">leader: --</p>
+                            </div>
                         </div>
 
                         <!-- Corpus Distribution -->
@@ -623,6 +633,7 @@
                         <div class="flex flex-col">
                             <h3 class="text-sm font-bold text-black uppercase tracking-widest">接続中ノード一覧</h3>
                             <p class="text-xs text-gray-500 mt-1">ノード単位の制御とテレメトリ</p>
+                            <p id="nodes-ha-hint" class="text-[11px] text-gray-500 mt-1">HA status: --</p>
                         </div>
                         <div class="flex flex-wrap items-center gap-2">
                             <button onclick="controlAllNodes('start', 'worker')"
@@ -1097,9 +1108,18 @@
             db_ui_url: null,
             system_role: "worker",
             postgres_host: "postgres",
+            ha_enabled: false,
+            ha_lock_key: 424242,
             admin_token_required: false,
             use_production_model: true,
             production_checkpoint_exists: false
+        };
+        let haStatus = {
+            enabled: false,
+            leader_node_id: null,
+            this_node_id: null,
+            this_status: "unknown",
+            master_counts: { total: 0, running: 0, standby: 0, paused: 0 }
         };
         let adminToken = localStorage.getItem("admin_api_token") || "";
         let dashboardSection = "overview";
@@ -1384,6 +1404,17 @@
                 } else {
                     roleBadge.className = "text-xs bg-white text-slate-700 px-3 py-2 rounded-full border border-gray-200 font-semibold uppercase tracking-wider";
                 }
+                const haBadge = document.getElementById('ha-mode-badge');
+                if (haBadge) {
+                    haBadge.classList.remove('hidden');
+                    if (data.ha_enabled) {
+                        haBadge.textContent = 'HA: ON';
+                        haBadge.className = "text-xs bg-indigo-50 text-indigo-700 px-3 py-2 rounded-full border border-indigo-200 font-semibold uppercase tracking-wider whitespace-nowrap";
+                    } else {
+                        haBadge.textContent = 'HA: OFF';
+                        haBadge.className = "text-xs bg-gray-100 text-gray-700 px-3 py-2 rounded-full border border-gray-200 font-semibold uppercase tracking-wider whitespace-nowrap";
+                    }
+                }
 
                 if (data.auto_profile) {
                     const p = data.auto_profile;
@@ -1401,6 +1432,38 @@
             }
         }
 
+        async function fetchHaStatus() {
+            try {
+                const response = await fetch('/api/ha/status');
+                const data = await response.json();
+                if (data.status !== 'success') return;
+                haStatus = data;
+                const summary = document.getElementById('ha-summary-line');
+                const leaderLine = document.getElementById('ha-leader-line');
+                const nodesHint = document.getElementById('nodes-ha-hint');
+                const leaderSuffix = data.leader_node_id ? `...${data.leader_node_id.slice(-8)}` : '--';
+                const preferredSuffix = data.preferred_master_node_id ? `...${String(data.preferred_master_node_id).slice(-8)}` : '--';
+                const running = Number(data.master_counts?.running || 0);
+                const standby = Number(data.master_counts?.standby || 0);
+                const total = Number(data.master_counts?.total || 0);
+                if (summary) {
+                    summary.textContent = data.enabled
+                        ? `HA: ON | masters=${total} active=${running} standby=${standby}`
+                        : 'HA: OFF';
+                }
+                if (leaderLine) {
+                    leaderLine.textContent = `leader: ${leaderSuffix}`;
+                }
+                if (nodesHint) {
+                    nodesHint.textContent = data.enabled
+                        ? `HA status: active=${running}, standby=${standby}, leader=${leaderSuffix}, preempt=${data.preemption_enabled ? 'on' : 'off'}, preferred=${preferredSuffix}`
+                        : 'HA status: disabled';
+                }
+            } catch (e) {
+                console.error("Failed to fetch HA status:", e);
+            }
+        }
+
         // ---------- System Overview Polling ----------
         async function fetchStatus() {
             try {
@@ -1413,8 +1476,18 @@
                 const masterToggleText = document.getElementById('master-toggle-text');
                 const masterToggleIcon = document.getElementById('master-toggle-icon');
                 const currentPhase = document.getElementById('current-phase');
+                const phaseLabel = String(data.current_phase || '');
+                const isStandby = (phaseLabel.toLowerCase() === 'standby');
 
-                if (isRunning) {
+                if (isRunning && isStandby) {
+                    statusDot.className = "w-2.5 h-2.5 rounded-full bg-blue-500";
+                    statusText.textContent = "待機中(HA)";
+                    statusText.className = "text-sm font-bold text-blue-600 uppercase tracking-widest";
+                    masterToggleText.textContent = "システム停止";
+                    masterToggleIcon.innerHTML = `<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8 7a1 1 0 00-1 1v4a1 1 0 001 1h4a1 1 0 001-1V8a1 1 0 00-1-1H8z" clip-rule="evenodd"></path>`;
+                    masterToggleIcon.className = "w-4 h-4 text-red-500";
+                    currentPhase.className = "text-2xl font-bold text-blue-500";
+                } else if (isRunning) {
                     statusDot.className = "w-2.5 h-2.5 rounded-full bg-green-500 animate-pulse";
                     statusText.textContent = "稼働中";
                     statusText.className = "text-sm font-bold text-green-600 uppercase tracking-widest";
@@ -1575,6 +1648,7 @@
                         let statusColor = "bg-white text-gray-500 border-gray-200"; // default/offline
                         if (displayStatus === 'running') statusColor = "bg-green-100 text-green-600 border-green-200";
                         if (displayStatus === 'paused') statusColor = "bg-yellow-100 text-yellow-700 border-yellow-200";
+                        if (displayStatus === 'standby') statusColor = "bg-blue-100 text-blue-700 border-blue-200";
 
                         const roleBadge = role === 'master'
                             ? `<span class="bg-gray-100 text-gray-800 font-semibold px-2 py-0.5 rounded text-[11px] leading-tight uppercase align-middle">Master</span>`
@@ -2013,6 +2087,7 @@
         // ---------- Setup & Loops ----------
         setInterval(fetchStatus, 2000);
         setInterval(fetchNodes, 5000); // Node table needs less frequent updates
+        setInterval(fetchHaStatus, 5000);
         setInterval(fetchEvaluations, 15000);
         setInterval(fetchEvalStatus, 5000);
         setInterval(fetchModels, 15000);
@@ -2034,6 +2109,7 @@
         fetchRuntimeConfig();
         fetchStatus();
         fetchNodes();
+        fetchHaStatus();
         fetchSystemMetrics();
         fetchTrainingMetrics();
         fetchEvaluations();

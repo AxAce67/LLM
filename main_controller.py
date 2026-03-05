@@ -52,6 +52,14 @@ class SystemState:
         )
         self.ha_lock_key = int(os.environ.get("HA_LEADER_LOCK_KEY", "424242"))
         self._ha_is_leader = False
+        self.ha_preemption_enabled = (
+            os.environ.get("HA_PREEMPTION_ENABLED", "0") == "1"
+            and self.ha_enabled
+        )
+        self.preferred_master_node_id = (os.environ.get("PREFERRED_MASTER_NODE_ID", "") or "").strip()
+        self.ha_preempt_online_sec = max(10, int(os.environ.get("HA_PREEMPT_ONLINE_SEC", "30")))
+        self.ha_preempt_signal_interval_sec = max(2, int(os.environ.get("HA_PREEMPT_SIGNAL_INTERVAL_SEC", "5")))
+        self._ha_last_preempt_signal_at = 0.0
         self.metric_sample_sec = max(5, int(os.environ.get("METRIC_SAMPLE_SEC", "5")))
         if not self.is_dashboard:
             self._start_heartbeat_thread()
@@ -371,6 +379,39 @@ class SystemState:
                 return True
             self._ha_is_leader = False
             self.log("[HA] Leader lock lost. switching to standby.")
+
+        # Priority preemption:
+        # preferred master が起動している間は、他masterを停止させてから昇格する。
+        if (
+            getattr(self, "ha_preemption_enabled", False)
+            and getattr(self, "preferred_master_node_id", "")
+            and self.node_id == self.preferred_master_node_id
+        ):
+            try:
+                active_nodes = self.db_manager.get_active_collector_nodes(
+                    online_window_sec=int(getattr(self, "ha_preempt_online_sec", 30)),
+                    include_master=True,
+                )
+                running_masters = [
+                    n for n in active_nodes
+                    if str(n.get("role", "")).lower() == "master"
+                    and n.get("node_id") != self.node_id
+                ]
+                if running_masters:
+                    now_ts = time.time()
+                    if (now_ts - getattr(self, "_ha_last_preempt_signal_at", 0.0)) >= getattr(self, "ha_preempt_signal_interval_sec", 5):
+                        victims = []
+                        for node in running_masters:
+                            victim_id = node.get("node_id")
+                            if victim_id:
+                                self.db_manager.set_node_target_status(victim_id, "stop")
+                                victims.append(victim_id[-8:])
+                        if victims:
+                            self.log(f"[HA] Preemption: requested STOP for masters={','.join(victims)}")
+                        self._ha_last_preempt_signal_at = now_ts
+                    return False
+            except Exception as e:
+                self.log(f"[HA] Preemption check error: {e}")
 
         acquired = self.db_manager.try_acquire_ha_leader_lock(self.ha_lock_key)
         if acquired:

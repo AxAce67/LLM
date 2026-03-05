@@ -7,6 +7,7 @@ class _DummyDB:
     def __init__(self):
         self.set_calls = []
         self.lock_ok = True
+        self.active_nodes = []
 
     def get_my_target_status(self, node_id):
         return "stop"
@@ -22,6 +23,9 @@ class _DummyDB:
 
     def release_ha_leader_lock(self):
         return None
+
+    def get_active_collector_nodes(self, online_window_sec=60, include_master=True):
+        return list(self.active_nodes)
 
 
 def _make_state_obj():
@@ -84,3 +88,23 @@ def test_ha_standby_when_lock_not_acquired():
     assert obj.ensure_ha_leader() is False
     assert obj._ha_is_leader is False
     assert obj._node_runtime_status() == "standby"
+
+
+def test_ha_preemption_preferred_node_requests_stop_before_leader_acquire():
+    obj = _make_state_obj()
+    obj.ha_enabled = True
+    obj.state["is_running"] = True
+    obj.ha_preemption_enabled = True
+    obj.preferred_master_node_id = obj.node_id
+    obj.ha_preempt_online_sec = 30
+    obj.ha_preempt_signal_interval_sec = 0
+    obj._ha_last_preempt_signal_at = 0.0
+    obj.db_manager.active_nodes = [
+        {"node_id": "master-a", "role": "master", "status": "running"},
+        {"node_id": obj.node_id, "role": "master", "status": "standby"},
+    ]
+    obj.db_manager.lock_ok = True
+
+    assert obj.ensure_ha_leader() is False
+    assert obj._ha_is_leader is False
+    assert ("master-a", "stop") in obj.db_manager.set_calls

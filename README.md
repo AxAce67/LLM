@@ -56,6 +56,16 @@ PostgreSQLのadvisory lockにより Active が1台だけ動作します。
 - Active障害時は Standby が自動昇格
 - このモードでは `localdb` は起動しません（共有DB前提）
 
+#### 優先親機プリエンプション（任意）
+
+「Bを起動したらAを止めてBをActiveにしたい」場合は以下を有効化します。
+
+- `HA_PREEMPTION_ENABLED=1`
+- `PREFERRED_MASTER_NODE_ID=<BのNODE_ID>`
+- `HA_PREEMPT_ONLINE_SEC=30`（B online判定秒）
+
+この設定時、優先親機Bは他の稼働親機へ `stop` 命令を送ってからリーダーロックを取得します。
+
 ## 2.1 ローカルPostgreSQL運用（推奨）
 
 親機と子機で役割を分けます。

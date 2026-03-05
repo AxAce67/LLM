@@ -32,6 +32,9 @@ DEPLOY_MODE="single-master"
 HA_ENABLED="0"
 HA_LEADER_LOCK_KEY="424242"
 HA_CHECK_INTERVAL_SEC="3"
+HA_PREEMPTION_ENABLED="0"
+PREFERRED_MASTER_NODE_ID=""
+HA_PREEMPT_ONLINE_SEC="30"
 
 echo -e "既存の親機がある場合はホスト/IPを入力してください。"
 read -p "既存親機ホスト/IP (未入力で新規クラスタ): " EXISTING_MASTER_HOST < /dev/tty
@@ -177,8 +180,20 @@ elif [[ "$SYSTEM_ROLE" == "master" && "$DEPLOY_MODE" == "ha-master" ]]; then
     POSTGRES_PORT="${INPUT_PORT:-5432}"
     read -p "HA leader lock key [424242]: " INPUT_HA_LOCK_KEY < /dev/tty
     read -p "HA check interval sec [3]: " INPUT_HA_CHECK_SEC < /dev/tty
+    read -p "HA preemption有効化? (優先親機起動時に他親機を停止) [Y/n]: " INPUT_HA_PREEMPTION < /dev/tty
+    read -p "優先親機のNODE_ID (空欄で無効): " INPUT_PREFERRED_MASTER_NODE_ID < /dev/tty
+    read -p "優先親機オンライン判定秒 [30]: " INPUT_HA_PREEMPT_ONLINE_SEC < /dev/tty
     HA_LEADER_LOCK_KEY="${INPUT_HA_LOCK_KEY:-424242}"
     HA_CHECK_INTERVAL_SEC="${INPUT_HA_CHECK_SEC:-3}"
+    HA_PREEMPTION_ENABLED="1"
+    if [[ "${INPUT_HA_PREEMPTION:-Y}" =~ ^[Nn]$ ]]; then
+        HA_PREEMPTION_ENABLED="0"
+    fi
+    PREFERRED_MASTER_NODE_ID="${INPUT_PREFERRED_MASTER_NODE_ID}"
+    HA_PREEMPT_ONLINE_SEC="${INPUT_HA_PREEMPT_ONLINE_SEC:-30}"
+    if [ -z "$PREFERRED_MASTER_NODE_ID" ]; then
+        HA_PREEMPTION_ENABLED="0"
+    fi
     echo -e "HA親機は共有PostgreSQLへ接続します（localdbは起動しません）。"
 else
     echo -e "子機は親機のPostgreSQLへ接続します。"
@@ -347,6 +362,9 @@ ADMIN_API_TOKEN_REQUIRED=${ADMIN_API_TOKEN_REQUIRED}
 HA_ENABLED=${HA_ENABLED}
 HA_LEADER_LOCK_KEY=${HA_LEADER_LOCK_KEY}
 HA_CHECK_INTERVAL_SEC=${HA_CHECK_INTERVAL_SEC}
+HA_PREEMPTION_ENABLED=${HA_PREEMPTION_ENABLED}
+PREFERRED_MASTER_NODE_ID=${PREFERRED_MASTER_NODE_ID}
+HA_PREEMPT_ONLINE_SEC=${HA_PREEMPT_ONLINE_SEC}
 EOF
 echo ".env を作成・更新しました。"
 
@@ -369,6 +387,11 @@ if [[ "$SYSTEM_ROLE" == "master" ]]; then
         echo -e "🗄️ DB Web UI(Adminer): http://localhost:${ADMINER_PORT}"
     else
         echo -e "🛡️ HA Mode: Active/Standby 自動切替 (shared DB: ${POSTGRES_HOST}:${POSTGRES_PORT})"
+        if [[ "$HA_PREEMPTION_ENABLED" == "1" ]]; then
+            echo -e "🎯 HA Preemption: ON (preferred node id: ${PREFERRED_MASTER_NODE_ID})"
+        else
+            echo -e "🎯 HA Preemption: OFF"
+        fi
     fi
 else
     echo -e "🤖 この子機はバックグラウンドで黙々と自動クロールを続けます。"
