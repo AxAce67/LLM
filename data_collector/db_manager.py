@@ -394,11 +394,29 @@ class DBManager:
             self._fs_stats_cached_at = now
         return stats
 
-    def stream_crawled_contents(self, batch_size: int = 1000) -> Generator[str, None, None]:
+    def stream_crawled_contents(
+        self,
+        batch_size: int = 1000,
+        training_only: bool = True,
+    ) -> Generator[str, None, None]:
+        """
+        crawled_data の本文をストリームで返す。
+        training_only=True の場合は allowed_for_training=TRUE の行のみ返す。
+        """
         with self._connect() as conn:
             with conn.cursor(name="crawled_data_stream", cursor_factory=DictCursor) as cur:
                 cur.itersize = batch_size
-                cur.execute("SELECT content FROM crawled_data ORDER BY id ASC")
+                if training_only:
+                    cur.execute(
+                        """
+                        SELECT content
+                        FROM crawled_data
+                        WHERE allowed_for_training = TRUE
+                        ORDER BY id ASC
+                        """
+                    )
+                else:
+                    cur.execute("SELECT content FROM crawled_data ORDER BY id ASC")
                 while True:
                     rows = cur.fetchmany(batch_size)
                     if not rows:
