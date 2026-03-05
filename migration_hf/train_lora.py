@@ -36,11 +36,13 @@ class TokenDataset(torch.utils.data.Dataset):
                 padding="max_length",
                 return_tensors="pt",
             )
+            labels = tok["input_ids"][0].clone()
+            labels[tok["attention_mask"][0] == 0] = -100
             self.samples.append(
                 {
                     "input_ids": tok["input_ids"][0],
                     "attention_mask": tok["attention_mask"][0],
-                    "labels": tok["input_ids"][0].clone(),
+                    "labels": labels,
                 }
             )
 
