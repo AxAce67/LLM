@@ -37,7 +37,24 @@ class SystemState:
         self.heartbeat_interval_sec = max(5, int(os.environ.get("NODE_HEARTBEAT_INTERVAL_SEC", "10")))
         self.node_id = self._load_or_create_node_id()
         
-        self.state = {
+        self.state = self._default_state_template()
+        self.db_manager = DBManager()
+        self.status_lock_path = f"{STATUS_FILE}.lock"
+        self._ckpt_stats_cache = None
+        self._ckpt_stats_mtime = None
+        self._heartbeat_thread = None
+        self._heartbeat_stop = threading.Event()
+        self._last_runtime_metric_at = 0.0
+        self.metric_sample_sec = max(5, int(os.environ.get("METRIC_SAMPLE_SEC", "5")))
+        if not self.is_dashboard:
+            self._start_heartbeat_thread()
+            self.save()
+        else:
+            # Dashboard側は初期状態を上書き保存しない（学習状態リセットを避ける）
+            self.load()
+
+    def _default_state_template(self) -> dict:
+        return {
             "node_id": self.node_id,
             "is_running": False,
             "current_phase": "Idle",
@@ -68,20 +85,43 @@ class SystemState:
                 "suggested_max_tokens": 256,
             }
         }
-        self.db_manager = DBManager()
-        self.status_lock_path = f"{STATUS_FILE}.lock"
-        self._ckpt_stats_cache = None
-        self._ckpt_stats_mtime = None
-        self._heartbeat_thread = None
-        self._heartbeat_stop = threading.Event()
-        self._last_runtime_metric_at = 0.0
-        self.metric_sample_sec = max(5, int(os.environ.get("METRIC_SAMPLE_SEC", "5")))
-        if not self.is_dashboard:
-            self._start_heartbeat_thread()
-            self.save()
-        else:
-            # Dashboard側は初期状態を上書き保存しない（学習状態リセットを避ける）
-            self.load()
+
+    def _merge_loaded_state(self, loaded_state: dict) -> dict:
+        """
+        ステータスファイルを安全に取り込む。
+        欠損キーはデフォルトで補完し、重要ID(node_id/role)はインスタンス値を優先。
+        """
+        merged = self._default_state_template()
+        if isinstance(self.state, dict):
+            # 直前メモリ状態も下敷きにする（未保存値を極力維持）
+            for k, v in self.state.items():
+                if k in ("stats", "system") and isinstance(v, dict):
+                    merged[k].update(v)
+                else:
+                    merged[k] = v
+
+        if isinstance(loaded_state, dict):
+            for k, v in loaded_state.items():
+                if k in ("stats", "system"):
+                    continue
+                if k in ("node_id", "role"):
+                    # ファイル上のIDでインスタンスIDを上書きしない
+                    continue
+                merged[k] = v
+
+            loaded_stats = loaded_state.get("stats")
+            if isinstance(loaded_stats, dict):
+                merged["stats"].update(loaded_stats)
+            loaded_system = loaded_state.get("system")
+            if isinstance(loaded_system, dict):
+                merged["system"].update(loaded_system)
+
+        # 重要フィールドは常にインスタンス値で確定
+        merged["node_id"] = self.node_id
+        merged["role"] = self.role
+        if not isinstance(merged.get("logs"), list):
+            merged["logs"] = []
+        return merged
 
     def _load_or_create_node_id(self) -> str:
         import uuid
@@ -176,9 +216,13 @@ class SystemState:
             try:
                 with self._status_file_lock():
                     with open(STATUS_FILE, "r", encoding="utf-8") as f:
-                        self.state = json.load(f)
+                        loaded = json.load(f)
+                        self.state = self._merge_loaded_state(loaded)
             except Exception as e:
                 print(f"Error loading status: {e}")
+        else:
+            # ファイルがない場合でも必要キーを保証
+            self.state = self._merge_loaded_state({})
                 
         # データベースから最新の統計情報を取得して結合する
         try:
