@@ -875,7 +875,8 @@ class DBManager:
     def _metric_window_clause(self, range_key: str) -> str | None:
         windows = {
             "all": None,
-            "10s": "NOW() - INTERVAL '10 second'",
+            # 10秒単位表示: 窓はある程度広く取り、10秒binで集約する
+            "10s": "NOW() - INTERVAL '10 minute'",
             "hour": "NOW() - INTERVAL '1 hour'",
             "day": "NOW() - INTERVAL '1 day'",
             "week": "NOW() - INTERVAL '7 day'",
@@ -903,27 +904,48 @@ class DBManager:
             cap = max(20, min(int(limit), 5000))
             where_node = "AND node_id = %s" if node_id else ""
             where_window = f"created_at >= ({window}) AND " if window else ""
-            params = [bucket]
-            if node_id:
-                params.append(node_id)
-            params.append(cap)
             with self._connect() as conn:
                 with conn.cursor(cursor_factory=DictCursor) as cur:
-                    cur.execute(
-                        f"""
-                        SELECT
-                            date_trunc(%s, created_at) AS ts,
-                            AVG(cpu_usage) AS cpu_usage,
-                            AVG(ram_usage) AS ram_usage
-                        FROM runtime_metrics
-                        WHERE {where_window}TRUE
-                        {where_node}
-                        GROUP BY ts
-                        ORDER BY ts ASC
-                        LIMIT %s
-                        """,
-                        tuple(params),
-                    )
+                    if (range_key or "").lower() == "10s":
+                        params = []
+                        if node_id:
+                            params.append(node_id)
+                        params.append(cap)
+                        cur.execute(
+                            f"""
+                            SELECT
+                                to_timestamp(floor(extract(epoch from created_at) / 10) * 10) AS ts,
+                                AVG(cpu_usage) AS cpu_usage,
+                                AVG(ram_usage) AS ram_usage
+                            FROM runtime_metrics
+                            WHERE {where_window}TRUE
+                            {where_node}
+                            GROUP BY ts
+                            ORDER BY ts ASC
+                            LIMIT %s
+                            """,
+                            tuple(params),
+                        )
+                    else:
+                        params = [bucket]
+                        if node_id:
+                            params.append(node_id)
+                        params.append(cap)
+                        cur.execute(
+                            f"""
+                            SELECT
+                                date_trunc(%s, created_at) AS ts,
+                                AVG(cpu_usage) AS cpu_usage,
+                                AVG(ram_usage) AS ram_usage
+                            FROM runtime_metrics
+                            WHERE {where_window}TRUE
+                            {where_node}
+                            GROUP BY ts
+                            ORDER BY ts ASC
+                            LIMIT %s
+                            """,
+                            tuple(params),
+                        )
                     return [dict(row) for row in cur.fetchall()]
         except Exception as e:
             print(f"[DB Error] Failed to fetch runtime metric series: {e}")
@@ -936,29 +958,52 @@ class DBManager:
             cap = max(20, min(int(limit), 5000))
             where_node = "AND node_id = %s" if node_id else ""
             where_window = f"created_at >= ({window}) AND " if window else ""
-            params = [bucket]
-            if node_id:
-                params.append(node_id)
-            params.append(cap)
             with self._connect() as conn:
                 with conn.cursor(cursor_factory=DictCursor) as cur:
-                    cur.execute(
-                        f"""
-                        SELECT
-                            date_trunc(%s, created_at) AS ts,
-                            MAX(epoch) AS epoch,
-                            AVG(train_loss) AS train_loss,
-                            AVG(val_loss) AS val_loss,
-                            MIN(best_val_loss) AS best_val_loss
-                        FROM training_metrics
-                        WHERE {where_window}TRUE
-                        {where_node}
-                        GROUP BY ts
-                        ORDER BY ts ASC
-                        LIMIT %s
-                        """,
-                        tuple(params),
-                    )
+                    if (range_key or "").lower() == "10s":
+                        params = []
+                        if node_id:
+                            params.append(node_id)
+                        params.append(cap)
+                        cur.execute(
+                            f"""
+                            SELECT
+                                to_timestamp(floor(extract(epoch from created_at) / 10) * 10) AS ts,
+                                MAX(epoch) AS epoch,
+                                AVG(train_loss) AS train_loss,
+                                AVG(val_loss) AS val_loss,
+                                MIN(best_val_loss) AS best_val_loss
+                            FROM training_metrics
+                            WHERE {where_window}TRUE
+                            {where_node}
+                            GROUP BY ts
+                            ORDER BY ts ASC
+                            LIMIT %s
+                            """,
+                            tuple(params),
+                        )
+                    else:
+                        params = [bucket]
+                        if node_id:
+                            params.append(node_id)
+                        params.append(cap)
+                        cur.execute(
+                            f"""
+                            SELECT
+                                date_trunc(%s, created_at) AS ts,
+                                MAX(epoch) AS epoch,
+                                AVG(train_loss) AS train_loss,
+                                AVG(val_loss) AS val_loss,
+                                MIN(best_val_loss) AS best_val_loss
+                            FROM training_metrics
+                            WHERE {where_window}TRUE
+                            {where_node}
+                            GROUP BY ts
+                            ORDER BY ts ASC
+                            LIMIT %s
+                            """,
+                            tuple(params),
+                        )
                     return [dict(row) for row in cur.fetchall()]
         except Exception as e:
             print(f"[DB Error] Failed to fetch training metric series: {e}")
