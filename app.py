@@ -569,11 +569,10 @@ async def control_pipeline(request: ControlRequest, raw_request: Request):
         except Exception as e:
             state_manager.log(f"[Control] failed to broadcast START: {e}")
         state_manager.set_running(True)
-        # ダッシュボード自身の行に stale な target_status を残さない
-        try:
-            state_manager.db_manager.set_node_target_status(state_manager.node_id, "unspecified")
-        except Exception:
-            pass
+        # NOTE:
+        # dashboard と engine が同じ node_id を共有している環境では、
+        # ここで "unspecified" を書くと engine 向け命令まで消してしまう。
+        # stale cleanup は engine 側が命令処理後に実施するため、ここでは行わない。
         state_manager.log("User requested: START")
         return {"status": "success", "message": "Pipeline started"}
     elif request.action == "stop":
@@ -583,11 +582,7 @@ async def control_pipeline(request: ControlRequest, raw_request: Request):
         except Exception as e:
             state_manager.log(f"[Control] failed to broadcast STOP: {e}")
         state_manager.set_running(False)
-        # ダッシュボード自身の行に stale な target_status を残さない
-        try:
-            state_manager.db_manager.set_node_target_status(state_manager.node_id, "unspecified")
-        except Exception:
-            pass
+        # stale cleanup は engine 側で命令受信後に実施する。
         state_manager.log("User requested: STOP")
         return {"status": "success", "message": "Pipeline stopped"}
     else:
