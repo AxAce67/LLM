@@ -57,6 +57,8 @@ services:
       - DATABASE_URL=${DATABASE_URL:-postgresql://${POSTGRES_USER:-llm_user}:${POSTGRES_PASSWORD:-llm_pass}@postgres:5432/${POSTGRES_DB:-llm}}
       # 親機/子機の役割 ("master" or "worker")
       - SYSTEM_ROLE=${SYSTEM_ROLE:-worker}
+      # dashboard と node_id が衝突しないよう、engine専用IDファイルを使う
+      - NODE_ID_FILE=/app/checkpoints/node_id_engine.txt
       - MAX_CRAWLER_WORKERS=${MAX_CRAWLER_WORKERS:-8}
       - ENABLE_TORCH_COMPILE=${ENABLE_TORCH_COMPILE:-0}
     # バックグラウンド起動時の実行コマンド
@@ -78,6 +80,8 @@ services:
     environment:
       - DATABASE_URL=${DATABASE_URL:-postgresql://${POSTGRES_USER:-llm_user}:${POSTGRES_PASSWORD:-llm_pass}@postgres:5432/${POSTGRES_DB:-llm}}
       - SYSTEM_ROLE=${SYSTEM_ROLE:-worker}
+      # engine と node_id を分離
+      - NODE_ID_FILE=/app/checkpoints/node_id_dashboard.txt
       - ADMIN_API_TOKEN=${ADMIN_API_TOKEN:-}
       - ADMIN_API_TOKEN_REQUIRED=${ADMIN_API_TOKEN_REQUIRED:-0}
       - DB_UI_URL=${DB_UI_URL:-http://localhost:8080}
