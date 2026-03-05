@@ -1,0 +1,82 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  python-syntax:
+    name: Python Syntax Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Compile Python files
+        run: |
+          set -euo pipefail
+          python -V
+          mapfile -t files < <(find . -type f -name '*.py' -not -path './venv/*' -not -path './.venv/*')
+          echo "python files: ${#files[@]}"
+          if [ "${#files[@]}" -eq 0 ]; then
+            echo "no python files found"
+            exit 1
+          fi
+          python -m py_compile "${files[@]}"
+
+  compose-validate:
+    name: Docker Compose Validate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate docker compose
+        run: |
+          set -euo pipefail
+          docker compose version
+          docker compose -f docker-compose.yml config >/tmp/compose.config.out
+          test -s /tmp/compose.config.out
+          echo "docker-compose.yml is valid"
+
+  repo-guards:
+    name: Repo Guards
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Prevent accidental secret file commits
+        run: |
+          set -euo pipefail
+          banned_files=(
+            ".env"
+            ".env.local"
+            ".env.production"
+            ".env.development"
+          )
+          for f in "${banned_files[@]}"; do
+            if git ls-files --error-unmatch "$f" >/dev/null 2>&1; then
+              echo "error: sensitive file is tracked: $f"
+              exit 1
+            fi
+          done
+          echo "secret file guard passed"
+
+      - name: Verify env template exists
+        run: |
+          set -euo pipefail
+          test -f .env.example
+          grep -q "SYSTEM_ROLE" .env.example
+          echo ".env.example sanity check passed"
