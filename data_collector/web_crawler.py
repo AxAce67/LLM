@@ -14,6 +14,8 @@ from data_collector.db_manager import DBManager
 
 _robots_cache = {}
 _robots_lock = threading.Lock()
+_robots_fetch_locks = {}
+_robots_fetch_locks_lock = threading.Lock()
 _domain_last_request = {}
 _domain_time_lock = threading.Lock()
 _domain_locks = {}
@@ -27,22 +29,37 @@ def _get_domain_lock(domain: str):
         return _domain_locks[domain]
 
 
+def _get_robots_fetch_lock(key: str):
+    with _robots_fetch_locks_lock:
+        if key not in _robots_fetch_locks:
+            _robots_fetch_locks[key] = threading.Lock()
+        return _robots_fetch_locks[key]
+
+
 def _allowed_by_robots(url: str, user_agent: str = "DIY-LLM-Crawler") -> bool:
     if os.environ.get("CRAWLER_RESPECT_ROBOTS", "1") != "1":
         return True
     parsed = urlparse(url)
     key = f"{parsed.scheme}://{parsed.netloc}"
+    # まずキャッシュを軽量ロックで確認
     with _robots_lock:
         rp = _robots_cache.get(key)
-        if rp is None:
-            rp = RobotFileParser()
-            rp.set_url(f"{key}/robots.txt")
-            try:
-                rp.read()
-            except Exception:
-                # robotsが取れない場合は保守的に許可（収集停止を避ける）
-                pass
-            _robots_cache[key] = rp
+    if rp is None:
+        # robots.txt の取得はドメイン単位ロックで直列化し、他ドメインは並列に進める
+        fetch_lock = _get_robots_fetch_lock(key)
+        with fetch_lock:
+            with _robots_lock:
+                rp = _robots_cache.get(key)
+            if rp is None:
+                rp = RobotFileParser()
+                rp.set_url(f"{key}/robots.txt")
+                try:
+                    rp.read()
+                except Exception:
+                    # robotsが取れない場合は保守的に許可（収集停止を避ける）
+                    pass
+                with _robots_lock:
+                    _robots_cache[key] = rp
     try:
         return rp.can_fetch(user_agent, url)
     except Exception:
@@ -53,13 +70,16 @@ def _respect_domain_rate_limit(domain: str):
     min_interval = float(os.environ.get("CRAWLER_DOMAIN_MIN_INTERVAL_SEC", "0.5"))
     if min_interval <= 0:
         return
+    wait_sec = 0.0
     with _domain_time_lock:
         now = time.time()
         last = _domain_last_request.get(domain, 0.0)
-        wait_sec = (last + min_interval) - now
-        if wait_sec > 0:
-            time.sleep(wait_sec)
-        _domain_last_request[domain] = time.time()
+        scheduled = max(now, last + min_interval)
+        _domain_last_request[domain] = scheduled
+        wait_sec = max(0.0, scheduled - now)
+    if wait_sec > 0:
+        # sleepはロック外で行い、他ドメインの処理をブロックしない
+        time.sleep(wait_sec)
 
 
 def _is_same_domain(base_domain: str, candidate_url: str) -> bool:
