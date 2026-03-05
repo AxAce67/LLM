@@ -28,6 +28,10 @@ DOCKER_PROFILE=""
 DETECTED_MASTER=0
 POSTGRES_HOST="postgres"
 POSTGRES_PORT="5432"
+DEPLOY_MODE="single-master"
+HA_ENABLED="0"
+HA_LEADER_LOCK_KEY="424242"
+HA_CHECK_INTERVAL_SEC="3"
 
 echo -e "既存の親機がある場合はホスト/IPを入力してください。"
 read -p "既存親機ホスト/IP (未入力で新規クラスタ): " EXISTING_MASTER_HOST < /dev/tty
@@ -38,10 +42,8 @@ if [ -n "$EXISTING_MASTER_HOST" ]; then
         MASTER_ROLE=$(curl -fsS --max-time 3 "http://${EXISTING_MASTER_HOST}:${DASH_PORT}/api/runtime-config" | python3 -c "import json,sys; print(json.load(sys.stdin).get('system_role',''))" 2>/dev/null || true)
         if [ "$MASTER_ROLE" = "master" ]; then
             DETECTED_MASTER=1
-            SYSTEM_ROLE="worker"
-            DOCKER_PROFILE=""
             POSTGRES_HOST="$EXISTING_MASTER_HOST"
-            echo -e "\n[Auto Detect] 既存の親機を検知しました。役割は Worker 固定になります。"
+            echo -e "\n[Auto Detect] 既存の親機を検知しました。"
         fi
     fi
 fi
@@ -50,21 +52,59 @@ fi
 if [ "$DETECTED_MASTER" -eq 0 ]; then
     echo -e "このマシンの役割（Role）を選択してください。"
     echo -e "  1) 子機 / Worker (データ収集専用・推奨)"
-    echo -e "  2) 親機 / Master (ダッシュボード稼働・データ収集兼任)"
+    echo -e "  2) 親機 / Master (単機運用: ローカルDB付き)"
+    echo -e "  3) 親機 / HA-Master (Active/Standby: 共有DB接続)"
 
     while true; do
-        read -p "番号を入力 (1 または 2): " ROLE_CHOICE < /dev/tty
+        read -p "番号を入力 (1 / 2 / 3): " ROLE_CHOICE < /dev/tty
         case $ROLE_CHOICE in
             1)
                 SYSTEM_ROLE="worker"
+                DEPLOY_MODE="worker"
                 DOCKER_PROFILE=""
                 echo -e "\n[🤖 Worker Mode] 子機としてインストールを開始します。"
                 break
                 ;;
             2)
                 SYSTEM_ROLE="master"
+                DEPLOY_MODE="single-master"
                 DOCKER_PROFILE="--profile master"
                 echo -e "\n[🌟 Master Mode] 親機としてインストールを開始します。"
+                break
+                ;;
+            3)
+                SYSTEM_ROLE="master"
+                DEPLOY_MODE="ha-master"
+                HA_ENABLED="1"
+                DOCKER_PROFILE="--profile master"
+                echo -e "\n[🛡️ HA Master Mode] 親機(Active/Standby)としてインストールを開始します。"
+                break
+                ;;
+            *)
+                echo "[!] 無効な入力です。1 / 2 / 3 を入力してください。"
+                ;;
+        esac
+    done
+else
+    echo -e "このマシンの役割（Role）を選択してください。"
+    echo -e "  1) 子機 / Worker (データ収集専用)"
+    echo -e "  2) 親機 / HA-Master (既存親機クラスタへ参加)"
+    while true; do
+        read -p "番号を入力 (1 または 2): " ROLE_CHOICE < /dev/tty
+        case $ROLE_CHOICE in
+            1)
+                SYSTEM_ROLE="worker"
+                DEPLOY_MODE="worker"
+                DOCKER_PROFILE=""
+                echo -e "\n[🤖 Worker Mode] 子機としてインストールを開始します。"
+                break
+                ;;
+            2)
+                SYSTEM_ROLE="master"
+                DEPLOY_MODE="ha-master"
+                HA_ENABLED="1"
+                DOCKER_PROFILE="--profile master"
+                echo -e "\n[🛡️ HA Master Mode] 既存クラスタへ参加します。"
                 break
                 ;;
             *)
@@ -95,7 +135,7 @@ POSTGRES_DB="${INPUT_DB:-llm}"
 POSTGRES_USER="${INPUT_USER:-llm_user}"
 POSTGRES_PASSWORD="${INPUT_PASS:-llm_pass}"
 
-if [[ "$SYSTEM_ROLE" == "master" ]]; then
+if [[ "$SYSTEM_ROLE" == "master" && "$DEPLOY_MODE" == "single-master" ]]; then
     POSTGRES_HOST="postgres"
     POSTGRES_PORT="5432"
     DOCKER_PROFILE="$DOCKER_PROFILE --profile localdb"
@@ -119,7 +159,27 @@ if [[ "$SYSTEM_ROLE" == "master" ]]; then
             ALLOW_BOOTSTRAP_PASSWORD="1"
         fi
     fi
-    echo -e "親機はローカルPostgreSQLコンテナとAdminerを起動します。"
+    echo -e "親機(単機)はローカルPostgreSQLコンテナとAdminerを起動します。"
+elif [[ "$SYSTEM_ROLE" == "master" && "$DEPLOY_MODE" == "ha-master" ]]; then
+    ADMIN_API_TOKEN_REQUIRED="1"
+    while true; do
+        read -p "管理APIトークン(必須・長いランダム文字列推奨): " INPUT_ADMIN_API_TOKEN < /dev/tty
+        if [ -z "$INPUT_ADMIN_API_TOKEN" ]; then
+            echo "[!] HA親機では管理APIトークンが必須です。"
+        else
+            ADMIN_API_TOKEN="${INPUT_ADMIN_API_TOKEN}"
+            break
+        fi
+    done
+    read -p "共有Postgresホスト/IP [${POSTGRES_HOST}]: " INPUT_HOST < /dev/tty
+    read -p "共有Postgresポート [5432]: " INPUT_PORT < /dev/tty
+    POSTGRES_HOST="${INPUT_HOST:-$POSTGRES_HOST}"
+    POSTGRES_PORT="${INPUT_PORT:-5432}"
+    read -p "HA leader lock key [424242]: " INPUT_HA_LOCK_KEY < /dev/tty
+    read -p "HA check interval sec [3]: " INPUT_HA_CHECK_SEC < /dev/tty
+    HA_LEADER_LOCK_KEY="${INPUT_HA_LOCK_KEY:-424242}"
+    HA_CHECK_INTERVAL_SEC="${INPUT_HA_CHECK_SEC:-3}"
+    echo -e "HA親機は共有PostgreSQLへ接続します（localdbは起動しません）。"
 else
     echo -e "子機は親機のPostgreSQLへ接続します。"
     if [ "$DETECTED_MASTER" -eq 1 ]; then
@@ -175,8 +235,12 @@ if [ "$DRY_RUN" -eq 1 ]; then
     echo "  - postgres db/user: ${POSTGRES_DB} / ${POSTGRES_USER}"
     if [[ "$SYSTEM_ROLE" == "master" ]]; then
         echo "  - profiles: ${DOCKER_PROFILE}"
-        echo "  - adminer port: ${ADMINER_PORT}"
+        if [[ "$DEPLOY_MODE" == "single-master" ]]; then
+            echo "  - adminer port: ${ADMINER_PORT}"
+        fi
         echo "  - admin api token required: ${ADMIN_API_TOKEN_REQUIRED}"
+        echo "  - deploy mode: ${DEPLOY_MODE}"
+        echo "  - ha enabled: ${HA_ENABLED}"
     fi
     echo "  - next actions:"
     echo "    1) Docker存在確認（不足時は自動インストール）"
@@ -280,6 +344,9 @@ BOOTSTRAP_TOKEN=${BOOTSTRAP_TOKEN}
 ALLOW_BOOTSTRAP_PASSWORD=${ALLOW_BOOTSTRAP_PASSWORD}
 ADMIN_API_TOKEN=${ADMIN_API_TOKEN}
 ADMIN_API_TOKEN_REQUIRED=${ADMIN_API_TOKEN_REQUIRED}
+HA_ENABLED=${HA_ENABLED}
+HA_LEADER_LOCK_KEY=${HA_LEADER_LOCK_KEY}
+HA_CHECK_INTERVAL_SEC=${HA_CHECK_INTERVAL_SEC}
 EOF
 echo ".env を作成・更新しました。"
 
@@ -298,7 +365,11 @@ echo -e "🎉 インストールと起動がすべて完了しました！"
 if [[ "$SYSTEM_ROLE" == "master" ]]; then
     echo -e "📡 ブラウザから http://<このPCのIPアドレス>:8000 にアクセスして"
     echo -e "   稼働状況ダッシュボードを確認できます。"
-    echo -e "🗄️ DB Web UI(Adminer): http://localhost:${ADMINER_PORT}"
+    if [[ "$DEPLOY_MODE" == "single-master" ]]; then
+        echo -e "🗄️ DB Web UI(Adminer): http://localhost:${ADMINER_PORT}"
+    else
+        echo -e "🛡️ HA Mode: Active/Standby 自動切替 (shared DB: ${POSTGRES_HOST}:${POSTGRES_PORT})"
+    fi
 else
     echo -e "🤖 この子機はバックグラウンドで黙々と自動クロールを続けます。"
     echo -e "   親機のダッシュボードから、世界中の子機の働きを一括確認できます。"

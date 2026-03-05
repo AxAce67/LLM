@@ -42,9 +42,19 @@ bash setup.sh
 ```
 
 ※ インストール実行時、ターミナル上で対話的に以下の入力が求められます。
-1. システムの役割選択（親機／子機）
+1. システムの役割選択（子機 / 親機 / HA親機）
 2. PostgreSQL接続情報
 3. 親機の場合は `ADMIN_API_TOKEN`（管理API保護用、必須）
+
+### 2.0 HA親機（Active/Standby）モード
+
+`setup.sh` で `HA-Master` を選ぶと、`SYSTEM_ROLE=master` のまま
+PostgreSQLのadvisory lockにより Active が1台だけ動作します。
+
+- A/B 両方に同じ共有 `DATABASE_URL` を設定
+- `.env` に `HA_ENABLED=1` を設定（インストーラーが自動設定）
+- Active障害時は Standby が自動昇格
+- このモードでは `localdb` は起動しません（共有DB前提）
 
 ## 2.1 ローカルPostgreSQL運用（推奨）
 
