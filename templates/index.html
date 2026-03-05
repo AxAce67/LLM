@@ -657,7 +657,7 @@
                             </button>
                             <button onclick="cleanupStaleNodes()"
                                 class="text-xs border border-gray-300 text-black hover:bg-gray-100 transition-colors px-3 py-1.5 rounded-lg font-semibold">
-                                stale整理
+                                古いノード整理
                             </button>
                             <div class="help-tooltip">
                                 <button type="button" class="help-dot" aria-label="ノード一括操作の説明">?</button>
@@ -668,9 +668,27 @@
                             </div>
                         </div>
                     </div>
+                    <div class="mb-4 grid grid-cols-2 md:grid-cols-4 gap-2">
+                        <div class="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                            <p class="text-[10px] uppercase tracking-widest text-gray-500">Online</p>
+                            <p id="nodes-online-mini" class="text-lg font-semibold text-gray-900">0</p>
+                        </div>
+                        <div class="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                            <p class="text-[10px] uppercase tracking-widest text-gray-500">Running</p>
+                            <p id="nodes-running-mini" class="text-lg font-semibold text-green-600">0</p>
+                        </div>
+                        <div class="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                            <p class="text-[10px] uppercase tracking-widest text-gray-500">Offline</p>
+                            <p id="nodes-offline-mini" class="text-lg font-semibold text-gray-500">0</p>
+                        </div>
+                        <div class="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                            <p class="text-[10px] uppercase tracking-widest text-gray-500">Active Workers</p>
+                            <p id="nodes-worker-mini" class="text-lg font-semibold text-gray-900">0</p>
+                        </div>
+                    </div>
                     <div class="mb-4 grid grid-cols-1 md:grid-cols-4 gap-2">
                         <label class="text-xs text-gray-500 uppercase tracking-wider md:col-span-1 flex items-center">
-                            Preferred Master
+                            優先親機
                         </label>
                         <select id="ha-preferred-select" class="md:col-span-2 border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white"></select>
                         <button onclick="saveHaConfig()"
@@ -679,13 +697,14 @@
                         </button>
                         <label class="md:col-span-2 inline-flex items-center gap-2 text-xs text-gray-600">
                             <input id="ha-preempt-enabled" type="checkbox" class="accent-black" checked>
-                            preemption有効
+                            優先親機を優先昇格（preemption）
                         </label>
                         <label class="md:col-span-2 inline-flex items-center gap-2 text-xs text-gray-600">
                             <input id="nodes-show-dashboard-rows" type="checkbox" class="accent-black" onchange="fetchNodes()">
-                            dashboard行も表示
+                            管理(dashboard)行も表示
                         </label>
                     </div>
+                    <p id="nodes-action-status" class="mb-3 text-xs text-gray-500">操作待機中</p>
 
                     <div class="overflow-x-auto">
                         <table class="w-full text-left text-sm mobile-table">
@@ -1166,6 +1185,15 @@
             else localStorage.removeItem("admin_api_token");
         }
 
+        function setNodesActionStatus(message, tone = 'idle') {
+            const el = document.getElementById('nodes-action-status');
+            if (!el) return;
+            el.textContent = message;
+            if (tone === 'ok') el.className = 'mb-3 text-xs text-green-600';
+            else if (tone === 'ng') el.className = 'mb-3 text-xs text-red-500';
+            else el.className = 'mb-3 text-xs text-gray-500';
+        }
+
         // ---------- Tab Management ----------
         function switchTab(tabId) {
             document.getElementById('view-dashboard').classList.add('hidden');
@@ -1523,13 +1551,15 @@
                 });
                 const data = await response.json();
                 if (!response.ok || data.status === 'error') {
-                    alert(`HA設定保存に失敗: ${data.message || response.status}`);
+                    setNodesActionStatus(`HA設定保存に失敗: ${data.message || response.status}`, 'ng');
                     return;
                 }
+                setNodesActionStatus('HA設定を保存しました。', 'ok');
                 await fetchHaStatus();
                 await fetchNodes();
             } catch (e) {
                 console.error("Failed to save HA config:", e);
+                setNodesActionStatus('HA設定保存リクエストに失敗しました。', 'ng');
             }
         }
 
@@ -1542,15 +1572,15 @@
                 });
                 const data = await response.json();
                 if (!response.ok || data.status === 'error') {
-                    alert(`stale整理に失敗: ${data.message || response.status}`);
+                    setNodesActionStatus(`古いノード整理に失敗: ${data.message || response.status}`, 'ng');
                     return;
                 }
-                alert(`stale整理完了: deleted=${Number(data.deleted || 0)}, paused=${Number(data.paused || 0)}`);
+                setNodesActionStatus(`古いノード整理完了: deleted=${Number(data.deleted || 0)}, paused=${Number(data.paused || 0)}`, 'ok');
                 await fetchNodes();
                 await fetchHaStatus();
             } catch (e) {
                 console.error("Failed to cleanup stale nodes:", e);
-                alert("stale整理リクエストに失敗しました。");
+                setNodesActionStatus("古いノード整理リクエストに失敗しました。", 'ng');
             }
         }
 
@@ -1708,11 +1738,24 @@
                     const showDashRows = !!document.getElementById('nodes-show-dashboard-rows')?.checked;
                     const preferredSelect = document.getElementById('ha-preferred-select');
                     const masterCandidates = [];
+                    const nodes = Array.isArray(data.nodes) ? [...data.nodes] : [];
 
-                    if (data.nodes.length === 0) {
+                    if (nodes.length === 0) {
                         tbody.innerHTML = '<tr><td colspan="7" class="py-6 text-center empty-hint">No nodes connected. 親機/子機を起動してください。</td></tr>';
                         return;
                     }
+
+                    nodes.sort((a, b) => {
+                        const rank = (n) => {
+                            const k = String(n.ui_node_kind || '');
+                            if (k === 'engine-self') return 0;
+                            if (k === 'worker') return 1;
+                            if (k === 'master-peer') return 2;
+                            if (k === 'dashboard-self') return 3;
+                            return 4;
+                        };
+                        return rank(a) - rank(b);
+                    });
 
                     // 時間計算用（オフライン検知）
                     const nowTS = new Date().getTime();
@@ -1722,7 +1765,7 @@
                     let workerCount = 0;
                     let onlineWorkerSlots = 0;
 
-                    data.nodes.forEach(node => {
+                    nodes.forEach(node => {
                         if (String(node.role || '').toLowerCase() === 'master' && String(node.ui_node_kind || '') !== 'dashboard-self') {
                             masterCandidates.push(String(node.node_id || ''));
                         }
@@ -1791,6 +1834,14 @@
                     if (activeWorkersSpan) {
                         activeWorkersSpan.textContent = String(onlineWorkerSlots);
                     }
+                    const onlineMini = document.getElementById('nodes-online-mini');
+                    const runningMini = document.getElementById('nodes-running-mini');
+                    const offlineMini = document.getElementById('nodes-offline-mini');
+                    const workerMini = document.getElementById('nodes-worker-mini');
+                    if (onlineMini) onlineMini.textContent = String(onlineCount);
+                    if (runningMini) runningMini.textContent = String(runningCount);
+                    if (offlineMini) offlineMini.textContent = String(offlineCount);
+                    if (workerMini) workerMini.textContent = String(onlineWorkerSlots);
                     if (preferredSelect) {
                         const current = (haStatus?.preferred_master_node_id || '').trim();
                         preferredSelect.innerHTML = '';
