@@ -5,9 +5,20 @@ from typing import Set
 
 _JA_CHAR_RE = re.compile(r"[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff]")
 _EMAIL_RE = re.compile(r"\b[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}\b")
-_PHONE_RE = re.compile(r"\b(?:\+?\d{1,3}[-\s]?)?(?:\d{2,4}[-\s]?){2,4}\d{2,4}\b")
+# 区切り(-/space)を必須化し、日付(YYYY-MM-DD)のような誤検知を抑える
+_PHONE_RE = re.compile(
+    r"(?<!\d)(?:\+?\d{1,3}[-\s])?(?:\(?\d{1,4}\)?[-\s])\d{1,4}[-\s]\d{3,4}(?!\d)"
+)
 _JAPAN_POSTAL_RE = re.compile(r"\b\d{3}-\d{4}\b")
-_IPV4_RE = re.compile(r"\b(?:\d{1,3}\.){3}\d{1,3}\b")
+_DATE_LIKE_RE = re.compile(r"\b(?:19|20)\d{2}-\d{1,2}-\d{1,2}\b")
+# IPv4の厳密表現（0-255）: ただし version 1.2.3.4 との誤検知を避けるため contains_pii 側で文脈判定も行う
+_IPV4_RE = re.compile(
+    r"(?<![\d.])"
+    r"(?:25[0-5]|2[0-4]\d|1\d{2}|[1-9]?\d)"
+    r"(?:\.(?:25[0-5]|2[0-4]\d|1\d{2}|[1-9]?\d)){3}"
+    r"(?![\d.])"
+)
+_IP_CONTEXT_RE = re.compile(r"(?:\bip(?:v4)?\b|address|addr|host|サーバー|アドレス)", re.IGNORECASE)
 
 
 def normalize_text(text: str) -> str:
@@ -59,10 +70,25 @@ def contains_pii(text: str) -> bool:
     メール・電話・郵便番号・IPv4のような個人/機微情報を簡易検知する。
     """
     t = text or ""
-    return any(
-        p.search(t)
-        for p in (_EMAIL_RE, _PHONE_RE, _JAPAN_POSTAL_RE, _IPV4_RE)
-    )
+    if _EMAIL_RE.search(t) or _JAPAN_POSTAL_RE.search(t):
+        return True
+
+    # 電話番号: 区切り必須。日付文字列は除外。
+    for m in _PHONE_RE.finditer(t):
+        token = m.group(0)
+        if _DATE_LIKE_RE.fullmatch(token):
+            continue
+        return True
+
+    # IPv4: 厳密マッチ + 周辺文脈にIP関連語がある場合のみ検知
+    for m in _IPV4_RE.finditer(t):
+        start = max(0, m.start() - 16)
+        end = min(len(t), m.end() + 16)
+        window = t[start:end]
+        if _IP_CONTEXT_RE.search(window):
+            return True
+
+    return False
 
 
 def quality_score(text: str) -> float:
