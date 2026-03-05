@@ -120,7 +120,15 @@ def generate_text(
         if repetition_penalty > 1.0 and x.size(1) > 0:
             recent_tokens = set(x[0, -128:].tolist())
             for tok in recent_tokens:
-                logits[:, tok] /= repetition_penalty
+                # Hugging Face互換の符号対応ペナルティ:
+                # 正のlogitは除算、負のlogitは乗算にして、
+                # いずれの場合も繰り返しトークンの確率を下げる。
+                tok_logits = logits[:, tok]
+                logits[:, tok] = torch.where(
+                    tok_logits < 0,
+                    tok_logits * repetition_penalty,
+                    tok_logits / repetition_penalty,
+                )
 
         # Top-Kサンプリング(確率の低い突拍子もない単語を除外して安定させる)
         if top_k is not None:
