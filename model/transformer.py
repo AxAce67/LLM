@@ -27,10 +27,14 @@ class CausalSelfAttention(nn.Module):
 
         # フラッシュアテンション（PyTorch 2.0以降の高効率Attention）が使える場合は使うフラグ
         self.flash = hasattr(torch.nn.functional, 'scaled_dot_product_attention')
-        if not self.flash:
-            # 未来のトークンを見ないようにするための下三角行列マスク
-            self.register_buffer("bias", torch.tril(torch.ones(config.block_size, config.block_size))
-                                        .view(1, 1, config.block_size, config.block_size))
+        # state_dict互換性のため、biasバッファは常に登録する
+        # （Flash有効時はforwardで未使用だが、環境差分でキーが揺れないようにする）
+        self.register_buffer(
+            "bias",
+            torch.tril(torch.ones(config.block_size, config.block_size)).view(
+                1, 1, config.block_size, config.block_size
+            ),
+        )
 
     def forward(self, x):
         B, T, C = x.size() # Batch size, Sequence Length (Time), Channels (Embedding Dim)
