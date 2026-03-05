@@ -554,10 +554,17 @@ async def get_ha_status():
         for n in masters:
             hb = n.get("last_heartbeat")
             try:
-                if isinstance(hb, str):
+                hb_dt = None
+                if isinstance(hb, datetime):
+                    hb_dt = hb
+                elif isinstance(hb, str):
                     hb_dt = datetime.fromisoformat(hb.replace("Z", "+00:00"))
-                    if (now - hb_dt).total_seconds() <= online_window_sec:
-                        online_masters.append(n)
+                if hb_dt is None:
+                    continue
+                if hb_dt.tzinfo is None:
+                    hb_dt = hb_dt.replace(tzinfo=timezone.utc)
+                if (now - hb_dt).total_seconds() <= online_window_sec:
+                    online_masters.append(n)
             except Exception:
                 continue
         leader = next((n for n in online_masters if str(n.get("status", "")).lower() == "running"), None)
