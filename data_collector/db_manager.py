@@ -205,6 +205,12 @@ class DBManager:
         CREATE INDEX IF NOT EXISTS idx_training_metrics_created_at ON training_metrics(created_at DESC);
         CREATE INDEX IF NOT EXISTS idx_training_metrics_node_created_at ON training_metrics(node_id, created_at DESC);
 
+        CREATE TABLE IF NOT EXISTS system_config (
+            key TEXT PRIMARY KEY,
+            value TEXT NOT NULL DEFAULT '',
+            updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        );
+
         CREATE INDEX IF NOT EXISTS idx_crawled_data_fts
             ON crawled_data USING GIN (to_tsvector('simple', coalesce(title, '') || ' ' || coalesce(content, '')));
         """
@@ -683,6 +689,71 @@ class DBManager:
                 conn.commit()
         except Exception as e:
             print(f"[DB Error] Failed to set target status for all nodes (role={role}): {e}")
+
+    def pause_stale_nodes(self, older_than_sec: int = 600, role: str = "all") -> int:
+        """
+        長時間heartbeatがないノードを paused に補正する。
+        """
+        try:
+            older_than_sec = int(max(60, older_than_sec))
+            with self._connect() as conn:
+                with conn.cursor() as cur:
+                    if role == "all":
+                        cur.execute(
+                            """
+                            UPDATE system_nodes
+                            SET status = 'paused', target_status = 'unspecified'
+                            WHERE last_heartbeat < (NOW() - (%s || ' seconds')::interval)
+                              AND status <> 'paused'
+                            """,
+                            (older_than_sec,),
+                        )
+                    else:
+                        cur.execute(
+                            """
+                            UPDATE system_nodes
+                            SET status = 'paused', target_status = 'unspecified'
+                            WHERE role = %s
+                              AND last_heartbeat < (NOW() - (%s || ' seconds')::interval)
+                              AND status <> 'paused'
+                            """,
+                            (role, older_than_sec),
+                        )
+                    changed = cur.rowcount or 0
+                conn.commit()
+            return int(changed)
+        except Exception as e:
+            print(f"[DB Error] Failed to pause stale nodes: {e}")
+            return 0
+
+    def set_system_config(self, key: str, value: str):
+        try:
+            with self._connect() as conn:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        """
+                        INSERT INTO system_config (key, value, updated_at)
+                        VALUES (%s, %s, NOW())
+                        ON CONFLICT (key) DO UPDATE
+                        SET value = EXCLUDED.value, updated_at = NOW()
+                        """,
+                        ((key or "").strip(), str(value or "")),
+                    )
+                conn.commit()
+        except Exception as e:
+            print(f"[DB Error] Failed to set system_config key={key}: {e}")
+
+    def get_system_config(self, key: str, default: str = "") -> str:
+        try:
+            with self._connect() as conn:
+                with conn.cursor() as cur:
+                    cur.execute("SELECT value FROM system_config WHERE key = %s", ((key or "").strip(),))
+                    row = cur.fetchone()
+                    if row and row[0] is not None:
+                        return str(row[0])
+        except Exception as e:
+            print(f"[DB Error] Failed to get system_config key={key}: {e}")
+        return default
 
     def get_active_collector_nodes(self, online_window_sec: int = 60, include_master: bool = True) -> list[dict]:
         """

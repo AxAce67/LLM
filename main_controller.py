@@ -60,6 +60,7 @@ class SystemState:
         self.ha_preempt_online_sec = max(10, int(os.environ.get("HA_PREEMPT_ONLINE_SEC", "30")))
         self.ha_preempt_signal_interval_sec = max(2, int(os.environ.get("HA_PREEMPT_SIGNAL_INTERVAL_SEC", "5")))
         self._ha_last_preempt_signal_at = 0.0
+        self._ha_cfg_last_refresh_at = 0.0
         self.metric_sample_sec = max(5, int(os.environ.get("METRIC_SAMPLE_SEC", "5")))
         if not self.is_dashboard:
             self._start_heartbeat_thread()
@@ -370,6 +371,7 @@ class SystemState:
         """
         if not self.ha_enabled:
             return True
+        self._refresh_ha_runtime_config()
         if not self.state.get("is_running"):
             self._release_ha_leader()
             return False
@@ -419,6 +421,32 @@ class SystemState:
             self.log("[HA] Leader lock acquired. this node is ACTIVE.")
             return True
         return False
+
+    def _refresh_ha_runtime_config(self, force: bool = False):
+        """
+        DB上のHA動的設定を取り込む（環境変数を上書き可能）。
+        """
+        if not self.ha_enabled:
+            return
+        db = getattr(self, "db_manager", None)
+        if db is None or not hasattr(db, "get_system_config"):
+            return
+        now = time.time()
+        last = float(getattr(self, "_ha_cfg_last_refresh_at", 0.0) or 0.0)
+        if not force and (now - last) < 5.0:
+            return
+        self._ha_cfg_last_refresh_at = now
+        try:
+            pref = (db.get_system_config("preferred_master_node_id", self.preferred_master_node_id) or "").strip()
+            if pref:
+                self.preferred_master_node_id = pref
+            preempt = (db.get_system_config("ha_preemption_enabled", "1" if self.ha_preemption_enabled else "0") or "").strip()
+            self.ha_preemption_enabled = preempt in ("1", "true", "True", "yes", "on")
+            online_sec = (db.get_system_config("ha_preempt_online_sec", str(self.ha_preempt_online_sec)) or "").strip()
+            if online_sec.isdigit():
+                self.ha_preempt_online_sec = max(10, int(online_sec))
+        except Exception as e:
+            print(f"[HA] refresh config error: {e}")
 
     def should_stop_now(self, read_remote: bool = True) -> bool:
         """

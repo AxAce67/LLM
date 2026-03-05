@@ -58,6 +58,15 @@ class SourcePolicyRequest(BaseModel):
     base_weight: float = 1.0
     notes: str = ""
 
+class HAConfigRequest(BaseModel):
+    preferred_master_node_id: str = ""
+    preemption_enabled: bool = True
+    preempt_online_sec: int = Field(default=30, ge=10, le=3600)
+
+class CleanupNodesRequest(BaseModel):
+    older_than_sec: int = Field(default=600, ge=60, le=86400)
+    role: str = "all"
+
 
 _inference_lock = threading.Lock()
 _cached_model = None
@@ -234,6 +243,22 @@ async def control_all_nodes(request: Request):
             f"action={action} role={role}"
         )
         return JSONResponse(content={"status": "success", "message": f"Command {action} sent to role={role}"})
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
+
+
+@app.post("/api/nodes/cleanup-stale")
+async def cleanup_stale_nodes(req: CleanupNodesRequest, request: Request):
+    if not _is_admin_request(request):
+        state_manager.log(f"[API] forbidden /api/nodes/cleanup-stale from {request.client.host if request.client else 'unknown'}")
+        return JSONResponse(status_code=403, content={"status": "error", "message": "Forbidden"})
+    role = (req.role or "all").strip().lower()
+    if role not in ("all", "master", "worker"):
+        return JSONResponse(status_code=400, content={"status": "error", "message": "Invalid role"})
+    try:
+        changed = state_manager.db_manager.pause_stale_nodes(older_than_sec=int(req.older_than_sec), role=role)
+        state_manager.log(f"[NodeCleanup] paused stale nodes={changed} role={role} older_than_sec={req.older_than_sec}")
+        return JSONResponse(content={"status": "success", "changed": changed})
     except Exception as e:
         return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
 
@@ -534,6 +559,29 @@ async def get_nodes():
     """
     try:
         nodes = state_manager.db_manager.get_all_nodes()
+        dashboard_node_id = state_manager.node_id
+        engine_node_id = _read_node_id_file(ENGINE_NODE_ID_FILE)
+        now = datetime.now(timezone.utc)
+        stale_window_sec = max(30, int(os.environ.get("NODE_OFFLINE_WINDOW_SEC", "120")))
+        for n in nodes:
+            nid = str(n.get("node_id", ""))
+            if nid == dashboard_node_id:
+                n["ui_node_kind"] = "dashboard-self"
+            elif engine_node_id and nid == engine_node_id:
+                n["ui_node_kind"] = "engine-self"
+            elif str(n.get("role", "")).lower() == "master":
+                n["ui_node_kind"] = "master-peer"
+            else:
+                n["ui_node_kind"] = "worker"
+            hb = n.get("last_heartbeat")
+            n["is_stale"] = False
+            try:
+                hb_dt = hb if isinstance(hb, datetime) else datetime.fromisoformat(str(hb).replace("Z", "+00:00"))
+                if hb_dt.tzinfo is None:
+                    hb_dt = hb_dt.replace(tzinfo=timezone.utc)
+                n["is_stale"] = (now - hb_dt).total_seconds() > stale_window_sec
+            except Exception:
+                n["is_stale"] = True
         return JSONResponse(content=jsonable_encoder({"status": "success", "nodes": nodes}))
     except Exception as e:
         return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
@@ -599,6 +647,57 @@ async def get_ha_status():
             },
         }
         return JSONResponse(content=jsonable_encoder(payload))
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
+
+
+@app.get("/api/ha/config")
+async def get_ha_config():
+    try:
+        preferred = state_manager.db_manager.get_system_config(
+            "preferred_master_node_id",
+            str(getattr(state_manager, "preferred_master_node_id", "") or ""),
+        )
+        preempt_raw = state_manager.db_manager.get_system_config(
+            "ha_preemption_enabled",
+            "1" if bool(getattr(state_manager, "ha_preemption_enabled", False)) else "0",
+        )
+        preempt_online = state_manager.db_manager.get_system_config(
+            "ha_preempt_online_sec",
+            str(getattr(state_manager, "ha_preempt_online_sec", 30)),
+        )
+        return JSONResponse(
+            content={
+                "status": "success",
+                "preferred_master_node_id": str(preferred or ""),
+                "preemption_enabled": str(preempt_raw).strip() in ("1", "true", "True", "yes", "on"),
+                "preempt_online_sec": int(preempt_online) if str(preempt_online).isdigit() else 30,
+            }
+        )
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
+
+
+@app.post("/api/ha/config")
+async def set_ha_config(req: HAConfigRequest, request: Request):
+    if not _is_admin_request(request):
+        state_manager.log(f"[API] forbidden /api/ha/config from {request.client.host if request.client else 'unknown'}")
+        return JSONResponse(status_code=403, content={"status": "error", "message": "Forbidden"})
+    try:
+        preferred = (req.preferred_master_node_id or "").strip()
+        state_manager.db_manager.set_system_config("preferred_master_node_id", preferred)
+        state_manager.db_manager.set_system_config("ha_preemption_enabled", "1" if req.preemption_enabled else "0")
+        state_manager.db_manager.set_system_config("ha_preempt_online_sec", str(int(req.preempt_online_sec)))
+        state_manager.preferred_master_node_id = preferred
+        state_manager.ha_preemption_enabled = bool(req.preemption_enabled)
+        state_manager.ha_preempt_online_sec = int(req.preempt_online_sec)
+        state_manager.log(
+            "[HA] config updated "
+            f"preempt={'on' if req.preemption_enabled else 'off'} "
+            f"preferred={preferred[-8:] if preferred else '-'} "
+            f"online_sec={int(req.preempt_online_sec)}"
+        )
+        return JSONResponse(content={"status": "success", "message": "HA config updated"})
     except Exception as e:
         return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
 

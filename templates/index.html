@@ -634,6 +634,7 @@
                             <h3 class="text-sm font-bold text-black uppercase tracking-widest">接続中ノード一覧</h3>
                             <p class="text-xs text-gray-500 mt-1">ノード単位の制御とテレメトリ</p>
                             <p id="nodes-ha-hint" class="text-[11px] text-gray-500 mt-1">HA status: --</p>
+                            <p id="nodes-self-id-line" class="text-[11px] text-gray-500 font-mono mt-1">self(engine/dashboard): -- / --</p>
                         </div>
                         <div class="flex flex-wrap items-center gap-2">
                             <button onclick="controlAllNodes('start', 'worker')"
@@ -654,6 +655,10 @@
                                 </svg>
                                 更新
                             </button>
+                            <button onclick="cleanupStaleNodes()"
+                                class="text-xs border border-gray-300 text-black hover:bg-gray-100 transition-colors px-3 py-1.5 rounded-lg font-semibold">
+                                stale整理
+                            </button>
                             <div class="help-tooltip">
                                 <button type="button" class="help-dot" aria-label="ノード一括操作の説明">?</button>
                                 <div class="help-body">
@@ -662,6 +667,24 @@
                                 </div>
                             </div>
                         </div>
+                    </div>
+                    <div class="mb-4 grid grid-cols-1 md:grid-cols-4 gap-2">
+                        <label class="text-xs text-gray-500 uppercase tracking-wider md:col-span-1 flex items-center">
+                            Preferred Master
+                        </label>
+                        <select id="ha-preferred-select" class="md:col-span-2 border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white"></select>
+                        <button onclick="saveHaConfig()"
+                            class="md:col-span-1 text-xs bg-black hover:bg-gray-800 text-white px-3 py-2 rounded-lg font-semibold">
+                            HA設定保存
+                        </button>
+                        <label class="md:col-span-2 inline-flex items-center gap-2 text-xs text-gray-600">
+                            <input id="ha-preempt-enabled" type="checkbox" class="accent-black" checked>
+                            preemption有効
+                        </label>
+                        <label class="md:col-span-2 inline-flex items-center gap-2 text-xs text-gray-600">
+                            <input id="nodes-show-dashboard-rows" type="checkbox" class="accent-black" onchange="fetchNodes()">
+                            dashboard行も表示
+                        </label>
                     </div>
 
                     <div class="overflow-x-auto">
@@ -1441,6 +1464,7 @@
                 const summary = document.getElementById('ha-summary-line');
                 const leaderLine = document.getElementById('ha-leader-line');
                 const nodesHint = document.getElementById('nodes-ha-hint');
+                const selfIdLine = document.getElementById('nodes-self-id-line');
                 const leaderSuffix = data.leader_node_id ? `...${data.leader_node_id.slice(-8)}` : '--';
                 const preferredSuffix = data.preferred_master_node_id ? `...${String(data.preferred_master_node_id).slice(-8)}` : '--';
                 const running = Number(data.master_counts?.running || 0);
@@ -1459,8 +1483,72 @@
                         ? `HA status: active=${running}, standby=${standby}, leader=${leaderSuffix}, preempt=${data.preemption_enabled ? 'on' : 'off'}, preferred=${preferredSuffix}`
                         : 'HA status: disabled';
                 }
+                if (selfIdLine) {
+                    const eng = data.engine_node_id ? `...${String(data.engine_node_id).slice(-8)}` : '--';
+                    const dash = data.dashboard_node_id ? `...${String(data.dashboard_node_id).slice(-8)}` : '--';
+                    selfIdLine.textContent = `self(engine/dashboard): ${eng} / ${dash}`;
+                }
+                const preemptToggle = document.getElementById('ha-preempt-enabled');
+                if (preemptToggle) preemptToggle.checked = !!data.preemption_enabled;
             } catch (e) {
                 console.error("Failed to fetch HA status:", e);
+            }
+        }
+
+        async function fetchHaConfig() {
+            try {
+                const response = await fetch('/api/ha/config');
+                const data = await response.json();
+                if (data.status !== 'success') return;
+                const preemptToggle = document.getElementById('ha-preempt-enabled');
+                if (preemptToggle) preemptToggle.checked = !!data.preemption_enabled;
+            } catch (e) {
+                console.error("Failed to fetch HA config:", e);
+            }
+        }
+
+        async function saveHaConfig() {
+            try {
+                const select = document.getElementById('ha-preferred-select');
+                const preemptToggle = document.getElementById('ha-preempt-enabled');
+                const payload = {
+                    preferred_master_node_id: (select?.value || '').trim(),
+                    preemption_enabled: !!preemptToggle?.checked,
+                    preempt_online_sec: 30
+                };
+                const response = await fetch('/api/ha/config', {
+                    method: 'POST',
+                    headers: adminHeaders(),
+                    body: JSON.stringify(payload),
+                });
+                const data = await response.json();
+                if (!response.ok || data.status === 'error') {
+                    alert(`HA設定保存に失敗: ${data.message || response.status}`);
+                    return;
+                }
+                await fetchHaStatus();
+                await fetchNodes();
+            } catch (e) {
+                console.error("Failed to save HA config:", e);
+            }
+        }
+
+        async function cleanupStaleNodes() {
+            try {
+                const response = await fetch('/api/nodes/cleanup-stale', {
+                    method: 'POST',
+                    headers: adminHeaders(),
+                    body: JSON.stringify({ older_than_sec: 600, role: 'all' }),
+                });
+                const data = await response.json();
+                if (!response.ok || data.status === 'error') {
+                    alert(`stale整理に失敗: ${data.message || response.status}`);
+                    return;
+                }
+                await fetchNodes();
+                await fetchHaStatus();
+            } catch (e) {
+                console.error("Failed to cleanup stale nodes:", e);
             }
         }
 
@@ -1615,6 +1703,9 @@
                 if (data.status === 'success') {
                     const tbody = document.getElementById('nodes-table-body');
                     tbody.innerHTML = ''; // Clear existing
+                    const showDashRows = !!document.getElementById('nodes-show-dashboard-rows')?.checked;
+                    const preferredSelect = document.getElementById('ha-preferred-select');
+                    const masterCandidates = [];
 
                     if (data.nodes.length === 0) {
                         tbody.innerHTML = '<tr><td colspan="7" class="py-6 text-center empty-hint">No nodes connected. 親機/子機を起動してください。</td></tr>';
@@ -1630,6 +1721,12 @@
                     let onlineWorkerSlots = 0;
 
                     data.nodes.forEach(node => {
+                        if (String(node.role || '').toLowerCase() === 'master' && String(node.ui_node_kind || '') !== 'dashboard-self') {
+                            masterCandidates.push(String(node.node_id || ''));
+                        }
+                        if (!showDashRows && String(node.ui_node_kind || '') === 'dashboard-self') {
+                            return;
+                        }
                         const tr = document.createElement('tr');
                         const role = String(node.role || '').toLowerCase();
 
@@ -1653,10 +1750,13 @@
                         const roleBadge = role === 'master'
                             ? `<span class="bg-gray-100 text-gray-800 font-semibold px-2 py-0.5 rounded text-[11px] leading-tight uppercase align-middle">Master</span>`
                             : `<span class="bg-white text-slate-600 font-medium px-2 py-0.5 rounded text-[11px] leading-tight uppercase align-middle">Worker</span>`;
+                        let nodeKindBadge = '';
+                        if (String(node.ui_node_kind || '') === 'engine-self') nodeKindBadge = '<span class="ml-1 text-[10px] px-1.5 py-0.5 rounded bg-black text-white">engine</span>';
+                        if (String(node.ui_node_kind || '') === 'dashboard-self') nodeKindBadge = '<span class="ml-1 text-[10px] px-1.5 py-0.5 rounded bg-gray-200 text-gray-700">dashboard</span>';
 
                         // UI Row Create
                         tr.innerHTML = `
-                            <td data-label="Node ID" class="py-3 pr-4 font-mono text-gray-700 text-xs">...${node.node_id.substring(node.node_id.length - 8)}</td>
+                            <td data-label="Node ID" class="py-3 pr-4 font-mono text-gray-700 text-xs">...${node.node_id.substring(node.node_id.length - 8)}${nodeKindBadge}</td>
                             <td data-label="Role" class="py-3 px-4">${roleBadge}</td>
                             <td data-label="Status" class="py-3 px-4">
                                 <span class="px-2 py-1 rounded-md text-xs font-bold uppercase tracking-wider border ${statusColor}">
@@ -1688,6 +1788,21 @@
                     const activeWorkersSpan = document.getElementById('active-workers');
                     if (activeWorkersSpan) {
                         activeWorkersSpan.textContent = String(onlineWorkerSlots);
+                    }
+                    if (preferredSelect) {
+                        const current = (haStatus?.preferred_master_node_id || '').trim();
+                        preferredSelect.innerHTML = '';
+                        if (masterCandidates.length === 0) {
+                            preferredSelect.innerHTML = '<option value="">(masterなし)</option>';
+                        } else {
+                            masterCandidates.forEach((id) => {
+                                const op = document.createElement('option');
+                                op.value = id;
+                                op.textContent = `${id.slice(0, 8)}...${id.slice(-8)}`;
+                                if (current && id === current) op.selected = true;
+                                preferredSelect.appendChild(op);
+                            });
+                        }
                     }
                 }
             } catch (error) {
@@ -2088,6 +2203,7 @@
         setInterval(fetchStatus, 2000);
         setInterval(fetchNodes, 5000); // Node table needs less frequent updates
         setInterval(fetchHaStatus, 5000);
+        setInterval(fetchHaConfig, 10000);
         setInterval(fetchEvaluations, 15000);
         setInterval(fetchEvalStatus, 5000);
         setInterval(fetchModels, 15000);
@@ -2110,6 +2226,7 @@
         fetchStatus();
         fetchNodes();
         fetchHaStatus();
+        fetchHaConfig();
         fetchSystemMetrics();
         fetchTrainingMetrics();
         fetchEvaluations();
