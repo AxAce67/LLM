@@ -1,6 +1,7 @@
 import os
 import threading
 import subprocess
+import time
 from typing import Optional, Tuple
 from datetime import datetime, timezone
 from fastapi import FastAPI, Request
@@ -11,6 +12,7 @@ from pydantic import BaseModel, Field
 import uvicorn
 import traceback
 import torch
+import psutil
 
 import main_controller
 from runtime.auto_tuner import detect_runtime_profile
@@ -85,6 +87,7 @@ _gguf_export_lock = threading.Lock()
 _gguf_export_running = False
 _gguf_export_last_output = ""
 _gguf_export_last_error = ""
+_last_dashboard_heartbeat_at = 0.0
 
 def _read_node_id_file(path: str) -> str:
     try:
@@ -94,6 +97,35 @@ def _read_node_id_file(path: str) -> str:
     except Exception:
         pass
     return ""
+
+
+def _touch_dashboard_heartbeat(force: bool = False):
+    """
+    dashboardコンテナ自身もnode一覧に出せるように簡易heartbeatを記録する。
+    """
+    global _last_dashboard_heartbeat_at
+    interval = max(5, int(os.environ.get("DASHBOARD_HEARTBEAT_SEC", "10")))
+    now_ts = time.time()
+    if (not force) and (now_ts - _last_dashboard_heartbeat_at) < interval:
+        return
+    try:
+        cpu_usage = psutil.cpu_percent()
+        ram_usage = psutil.virtual_memory().percent
+    except Exception:
+        cpu_usage = 0.0
+        ram_usage = 0.0
+    try:
+        state_manager.db_manager.upsert_node_heartbeat(
+            node_id=state_manager.node_id,
+            role=state_manager.role,
+            status=state_manager._node_runtime_status(),
+            cpu_usage=float(cpu_usage),
+            ram_usage=float(ram_usage),
+            active_workers=int(state_manager.state.get("stats", {}).get("active_workers", 0)),
+        )
+        _last_dashboard_heartbeat_at = now_ts
+    except Exception:
+        pass
 
 
 def _is_admin_request(request: Request) -> bool:
@@ -256,9 +288,12 @@ async def cleanup_stale_nodes(req: CleanupNodesRequest, request: Request):
     if role not in ("all", "master", "worker"):
         return JSONResponse(status_code=400, content={"status": "error", "message": "Invalid role"})
     try:
-        changed = state_manager.db_manager.pause_stale_nodes(older_than_sec=int(req.older_than_sec), role=role)
-        state_manager.log(f"[NodeCleanup] paused stale nodes={changed} role={role} older_than_sec={req.older_than_sec}")
-        return JSONResponse(content={"status": "success", "changed": changed})
+        paused = state_manager.db_manager.pause_stale_nodes(older_than_sec=int(req.older_than_sec), role=role)
+        deleted = state_manager.db_manager.delete_stale_nodes(older_than_sec=int(req.older_than_sec), role=role)
+        state_manager.log(
+            f"[NodeCleanup] paused={paused} deleted={deleted} role={role} older_than_sec={req.older_than_sec}"
+        )
+        return JSONResponse(content={"status": "success", "paused": paused, "deleted": deleted})
     except Exception as e:
         return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
 
@@ -558,6 +593,7 @@ async def get_nodes():
     ダッシュボード用: 全ノードの情報を取得する
     """
     try:
+        _touch_dashboard_heartbeat()
         nodes = state_manager.db_manager.get_all_nodes()
         dashboard_node_id = state_manager.node_id
         engine_node_id = _read_node_id_file(ENGINE_NODE_ID_FILE)
@@ -593,6 +629,7 @@ async def get_ha_status():
     HAクラスタの可視化用ステータスを返す。
     """
     try:
+        _touch_dashboard_heartbeat()
         state_manager.load()
         nodes = state_manager.db_manager.get_all_nodes()
         masters = [n for n in nodes if str(n.get("role", "")).lower() == "master"]
@@ -731,6 +768,7 @@ async def get_status():
     """
     現在のシステム状態をJSONで返す
     """
+    _touch_dashboard_heartbeat()
     state_manager.load()
     return state_manager.state
 

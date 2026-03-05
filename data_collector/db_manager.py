@@ -726,6 +726,38 @@ class DBManager:
             print(f"[DB Error] Failed to pause stale nodes: {e}")
             return 0
 
+    def delete_stale_nodes(self, older_than_sec: int = 600, role: str = "all") -> int:
+        """
+        staleノード行を削除する（履歴ノイズ対策）。
+        """
+        try:
+            older_than_sec = int(max(60, older_than_sec))
+            with self._connect() as conn:
+                with conn.cursor() as cur:
+                    if role == "all":
+                        cur.execute(
+                            """
+                            DELETE FROM system_nodes
+                            WHERE last_heartbeat < (NOW() - (%s || ' seconds')::interval)
+                            """,
+                            (older_than_sec,),
+                        )
+                    else:
+                        cur.execute(
+                            """
+                            DELETE FROM system_nodes
+                            WHERE role = %s
+                              AND last_heartbeat < (NOW() - (%s || ' seconds')::interval)
+                            """,
+                            (role, older_than_sec),
+                        )
+                    changed = cur.rowcount or 0
+                conn.commit()
+            return int(changed)
+        except Exception as e:
+            print(f"[DB Error] Failed to delete stale nodes: {e}")
+            return 0
+
     def set_system_config(self, key: str, value: str):
         try:
             with self._connect() as conn:

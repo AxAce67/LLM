@@ -1545,10 +1545,12 @@
                     alert(`stale整理に失敗: ${data.message || response.status}`);
                     return;
                 }
+                alert(`stale整理完了: deleted=${Number(data.deleted || 0)}, paused=${Number(data.paused || 0)}`);
                 await fetchNodes();
                 await fetchHaStatus();
             } catch (e) {
                 console.error("Failed to cleanup stale nodes:", e);
+                alert("stale整理リクエストに失敗しました。");
             }
         }
 
