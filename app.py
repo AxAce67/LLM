@@ -2,6 +2,7 @@ import os
 import threading
 import subprocess
 from typing import Optional, Tuple
+from datetime import datetime, timezone
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
@@ -32,6 +33,7 @@ ADMIN_API_TOKEN_REQUIRED = os.environ.get(
     "ADMIN_API_TOKEN_REQUIRED",
     "1" if SYSTEM_ROLE == "master" else "0",
 ) == "1"
+ENGINE_NODE_ID_FILE = os.environ.get("ENGINE_NODE_ID_FILE", "/app/checkpoints/node_id_engine.txt")
 
 # メインコントローラーの状態管理オブジェクト（ダッシュボード閲覧・操作専用モード）
 state_manager = main_controller.SystemState(is_dashboard=True)
@@ -74,6 +76,15 @@ _gguf_export_lock = threading.Lock()
 _gguf_export_running = False
 _gguf_export_last_output = ""
 _gguf_export_last_error = ""
+
+def _read_node_id_file(path: str) -> str:
+    try:
+        if path and os.path.exists(path):
+            with open(path, "r", encoding="utf-8") as f:
+                return (f.read() or "").strip()
+    except Exception:
+        pass
+    return ""
 
 
 def _is_admin_request(request: Request) -> bool:
@@ -178,6 +189,8 @@ async def runtime_config():
         "ha_lock_key": int(state_manager.ha_lock_key),
         "ha_preemption_enabled": bool(getattr(state_manager, "ha_preemption_enabled", False)),
         "preferred_master_node_id": str(getattr(state_manager, "preferred_master_node_id", "") or ""),
+        "dashboard_node_id": state_manager.node_id,
+        "engine_node_id_hint": _read_node_id_file(ENGINE_NODE_ID_FILE),
         "admin_token_required": bool(ADMIN_API_TOKEN_REQUIRED),
         "use_production_model": os.environ.get("USE_PRODUCTION_MODEL", "1") == "1",
         "production_checkpoint_exists": os.path.exists(production_ckpt),
@@ -535,11 +548,29 @@ async def get_ha_status():
         state_manager.load()
         nodes = state_manager.db_manager.get_all_nodes()
         masters = [n for n in nodes if str(n.get("role", "")).lower() == "master"]
-        leader = next((n for n in masters if str(n.get("status", "")).lower() == "running"), None)
-        this_node = next((n for n in nodes if n.get("node_id") == state_manager.node_id), None)
-        standby_count = sum(1 for n in masters if str(n.get("status", "")).lower() == "standby")
-        running_count = sum(1 for n in masters if str(n.get("status", "")).lower() == "running")
-        paused_count = sum(1 for n in masters if str(n.get("status", "")).lower() == "paused")
+        online_window_sec = max(30, int(os.environ.get("HA_ONLINE_WINDOW_SEC", "120")))
+        now = datetime.now(timezone.utc)
+        online_masters = []
+        for n in masters:
+            hb = n.get("last_heartbeat")
+            try:
+                if isinstance(hb, str):
+                    hb_dt = datetime.fromisoformat(hb.replace("Z", "+00:00"))
+                    if (now - hb_dt).total_seconds() <= online_window_sec:
+                        online_masters.append(n)
+            except Exception:
+                continue
+        leader = next((n for n in online_masters if str(n.get("status", "")).lower() == "running"), None)
+        dashboard_node_id = state_manager.node_id
+        engine_node_id = _read_node_id_file(ENGINE_NODE_ID_FILE)
+        this_node = None
+        if engine_node_id:
+            this_node = next((n for n in nodes if n.get("node_id") == engine_node_id), None)
+        if this_node is None:
+            this_node = next((n for n in nodes if n.get("node_id") == dashboard_node_id), None)
+        standby_count = sum(1 for n in online_masters if str(n.get("status", "")).lower() == "standby")
+        running_count = sum(1 for n in online_masters if str(n.get("status", "")).lower() == "running")
+        paused_count = sum(1 for n in online_masters if str(n.get("status", "")).lower() == "paused")
 
         payload = {
             "status": "success",
@@ -547,12 +578,14 @@ async def get_ha_status():
             "lock_key": int(state_manager.ha_lock_key),
             "preemption_enabled": bool(getattr(state_manager, "ha_preemption_enabled", False)),
             "preferred_master_node_id": str(getattr(state_manager, "preferred_master_node_id", "") or ""),
-            "this_node_id": state_manager.node_id,
+            "this_node_id": engine_node_id or dashboard_node_id,
+            "dashboard_node_id": dashboard_node_id,
+            "engine_node_id": engine_node_id,
             "this_role": state_manager.role,
             "this_status": str(this_node.get("status", "unknown")) if this_node else "unknown",
             "leader_node_id": leader.get("node_id") if leader else None,
             "master_counts": {
-                "total": len(masters),
+                "total": len(online_masters),
                 "running": running_count,
                 "standby": standby_count,
                 "paused": paused_count,
