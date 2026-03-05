@@ -1740,11 +1740,6 @@
                     const masterCandidates = [];
                     const nodes = Array.isArray(data.nodes) ? [...data.nodes] : [];
 
-                    if (nodes.length === 0) {
-                        tbody.innerHTML = '<tr><td colspan="7" class="py-6 text-center empty-hint">No nodes connected. 親機/子機を起動してください。</td></tr>';
-                        return;
-                    }
-
                     nodes.sort((a, b) => {
                         const rank = (n) => {
                             const k = String(n.ui_node_kind || '');
@@ -1759,6 +1754,7 @@
 
                     // 時間計算用（オフライン検知）
                     const nowTS = new Date().getTime();
+                    const visibleNodes = [];
                     let onlineCount = 0;
                     let runningCount = 0;
                     let offlineCount = 0;
@@ -1772,12 +1768,19 @@
                         if (!showDashRows && String(node.ui_node_kind || '') === 'dashboard-self') {
                             return;
                         }
+                        visibleNodes.push(node);
                         const tr = document.createElement('tr');
                         const role = String(node.role || '').toLowerCase();
 
                         // Offline判定 (最終報告から120秒以上経過)
                         let lastSeenDate = new Date(node.last_heartbeat);
-                        let isOffline = (nowTS - lastSeenDate.getTime()) > 120000;
+                        let isOffline = false;
+                        if (typeof node.is_stale === 'boolean') {
+                            isOffline = node.is_stale;
+                        } else {
+                            const hbTs = lastSeenDate.getTime();
+                            isOffline = Number.isFinite(hbTs) ? ((nowTS - hbTs) > 120000) : true;
+                        }
                         let displayStatus = isOffline ? 'offline' : node.status;
                         if (isOffline) offlineCount += 1; else onlineCount += 1;
                         if (displayStatus === 'running') runningCount += 1;
@@ -1822,8 +1825,11 @@
                         `;
                         tbody.appendChild(tr);
                     });
+                    if (visibleNodes.length === 0) {
+                        tbody.innerHTML = '<tr><td colspan="7" class="py-6 text-center empty-hint">表示対象ノードがありません。右上の「管理(dashboard)行も表示」をONにしてください。</td></tr>';
+                    }
 
-                    const totalNodes = data.nodes.length;
+                    const totalNodes = visibleNodes.length;
                     document.getElementById('nodes-online').textContent = String(onlineCount);
                     document.getElementById('nodes-running').textContent = String(runningCount);
                     document.getElementById('nodes-offline').textContent = String(offlineCount);
