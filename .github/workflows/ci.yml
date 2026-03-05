@@ -46,7 +46,8 @@ jobs:
         run: |
           set -euo pipefail
           docker compose version
-          docker compose -f docker-compose.yml config >/tmp/compose.config.out
+          cp .env.example .env
+          docker compose --env-file .env -f docker-compose.yml config >/tmp/compose.config.out
           test -s /tmp/compose.config.out
           echo "docker-compose.yml is valid"
 
