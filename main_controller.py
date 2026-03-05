@@ -45,6 +45,7 @@ class SystemState:
         self._heartbeat_thread = None
         self._heartbeat_stop = threading.Event()
         self._last_runtime_metric_at = 0.0
+        self._last_target_check_at = 0.0
         self.metric_sample_sec = max(5, int(os.environ.get("METRIC_SAMPLE_SEC", "5")))
         if not self.is_dashboard:
             self._start_heartbeat_thread()
@@ -325,7 +326,35 @@ class SystemState:
 
     def set_running(self, running: bool):
         self.state["is_running"] = running
+        if not running:
+            self.state["current_phase"] = "Idle"
         self.save()
+
+    def should_stop_now(self, read_remote: bool = True) -> bool:
+        """
+        停止要求を判定する。
+        - ローカル状態 is_running=False
+        - DBのtarget_status=stop（読み取りは最大1秒間隔）
+        """
+        if not bool(self.state.get("is_running", False)):
+            return True
+        if self.is_dashboard or not read_remote:
+            return False
+
+        now = time.time()
+        if (now - self._last_target_check_at) < 1.0:
+            return False
+        self._last_target_check_at = now
+        try:
+            target = self.db_manager.get_my_target_status(self.node_id)
+            if target == "stop":
+                self.set_running(False)
+                self.db_manager.set_node_target_status(self.node_id, "unspecified")
+                self.log(f"[Network] Received remote command: STOP for node {self.node_id[-4:]}")
+                return True
+        except Exception:
+            return False
+        return False
 
 
 def _stable_hash(value: str) -> int:
@@ -397,19 +426,7 @@ def _run_training_with_retry(state: SystemState, max_steps: int):
         if (now - last_check_ts) < 1.0:
             return not bool(state.state.get("is_running", False))
         last_check_ts = now
-        if not bool(state.state.get("is_running", False)):
-            return True
-        try:
-            target = state.db_manager.get_my_target_status(state.node_id)
-            if target == "stop":
-                state.set_running(False)
-                state.db_manager.set_node_target_status(state.node_id, "unspecified")
-                state.log(f"[Network] Received remote command: STOP for node {state.node_id[-4:]}")
-                return True
-        except Exception:
-            # 停止判定失敗時は継続（次回再判定）
-            return False
-        return False
+        return state.should_stop_now(read_remote=True)
 
     retries = max(0, int(os.environ.get("TRAIN_RETRY_MAX", "2")))
     latest_ckpt, backup_ckpt = _checkpoint_paths()
@@ -453,8 +470,8 @@ def run_pipeline(state: SystemState):
     
     while True:
         state.load() # 外部からの操作（停止命令など）を読み込む
-        
-        if not state.state["is_running"]:
+
+        if state.should_stop_now(read_remote=True):
             state.log("Pipeline paused. Waiting...")
             time.sleep(5)
             continue
@@ -464,6 +481,8 @@ def run_pipeline(state: SystemState):
             # フェーズ0: Wikipedia ダンプの一括ダウンロード（初回起動時のみ）
             # ---------------------------------------------------------
             if not wiki_downloaded:
+                if state.should_stop_now(read_remote=True):
+                    continue
                 state.update_phase("Downloading Wikipedia")
                 state.log("[Phase 0] Starting Wikipedia dump download (first-time only)...")
                 try:
@@ -476,6 +495,8 @@ def run_pipeline(state: SystemState):
             # フェーズ1: データ収集 (Web Crawl)
             # ---------------------------------------------------------
             state.update_phase("Data Collection")
+            if state.should_stop_now(read_remote=True):
+                continue
             
             # --- 動的リソース監視（オートスケール） ---
             # CPUのアイドル割合（100 - 使用率）と空きメモリから適正な並列数を算出
@@ -585,6 +606,7 @@ def run_pipeline(state: SystemState):
                         assigned_seeds,
                         max_workers=target_workers,
                         max_pages=max_pages_for_this_node,
+                        should_stop_cb=lambda: state.should_stop_now(read_remote=True),
                     )
                 except Exception as e:
                     state.log(f"Crawler error: {e}")
@@ -595,6 +617,8 @@ def run_pipeline(state: SystemState):
 
             # RSSソースの追加収集（Wikipedia以外）
             if os.environ.get("ENABLE_RSS_COLLECTOR", "1") == "1":
+                if state.should_stop_now(read_remote=True):
+                    continue
                 try:
                     rss_result = rss_collector.collect_from_rss(
                         max_items_per_feed=int(os.environ.get("RSS_ITEMS_PER_FEED", "5"))
@@ -614,6 +638,8 @@ def run_pipeline(state: SystemState):
                     state.log(f"RSS collector error: {e}")
 
             if os.environ.get("ENABLE_NEWS_COLLECTOR", "1") == "1":
+                if state.should_stop_now(read_remote=True):
+                    continue
                 try:
                     news_result = news_collector.collect_news(
                         max_items_per_feed=int(os.environ.get("NEWS_ITEMS_PER_FEED", "5")),
@@ -635,6 +661,8 @@ def run_pipeline(state: SystemState):
                     state.log(f"News collector error: {e}")
 
             if os.environ.get("ENABLE_ARXIV_COLLECTOR", "1") == "1":
+                if state.should_stop_now(read_remote=True):
+                    continue
                 try:
                     arxiv_result = arxiv_collector.collect_arxiv(
                         max_results=int(os.environ.get("ARXIV_MAX_RESULTS", "30"))
@@ -652,6 +680,8 @@ def run_pipeline(state: SystemState):
                     state.log(f"arXiv collector error: {e}")
 
             if os.environ.get("ENABLE_DOCS_COLLECTOR", "1") == "1":
+                if state.should_stop_now(read_remote=True):
+                    continue
                 try:
                     docs_result = docs_collector.collect_docs()
                     if isinstance(docs_result, dict):
@@ -691,7 +721,8 @@ def run_pipeline(state: SystemState):
             # ---------------------------------------------------------
             # フェーズ2: 前処理・トークナイズ (Master Only)
             # ---------------------------------------------------------
-            if not state.state["is_running"]: continue
+            if state.should_stop_now(read_remote=True):
+                continue
             state.update_phase("Preprocessing")
             state.log("Preprocessing and tokenizing text data...")
             skip_training_this_cycle = False
@@ -701,6 +732,7 @@ def run_pipeline(state: SystemState):
                 prep_result = prepare_dataset.prepare_dataset(
                     vocab_size=int(os.environ.get("TRAIN_VOCAB_SIZE", "8000")),
                     progress_cb=state.log,
+                    should_stop_cb=lambda: state.should_stop_now(read_remote=True),
                 )
                 if isinstance(prep_result, dict):
                     state.log(
@@ -721,7 +753,8 @@ def run_pipeline(state: SystemState):
             # ---------------------------------------------------------
             # フェーズ3: モデル学習
             # ---------------------------------------------------------
-            if not state.state["is_running"]: continue
+            if state.should_stop_now(read_remote=True):
+                continue
             if skip_training_this_cycle:
                 state.log("[Training] Skipped: dataset has no trainable tokens in this cycle.")
                 state.log("One pipeline cycle completed. Sleeping before next cycle.")

@@ -95,8 +95,10 @@ def _is_same_domain(base_domain: str, candidate_url: str) -> bool:
         return False
 
 
-def crawl_url(url, db_manager):
+def crawl_url(url, db_manager, should_stop_cb=None):
     """単一のURLをクロールしてPostgreSQLに保存し、ページ内のリンクを返す"""
+    if callable(should_stop_cb) and should_stop_cb():
+        return []
     if db_manager.is_url_crawled(url):
         print(f"[Skip] Already crawled: {url}")
         return []
@@ -115,7 +117,11 @@ def crawl_url(url, db_manager):
 
     print(f"[Crawl] Fetching: {url}")
     try:
+        if callable(should_stop_cb) and should_stop_cb():
+            return []
         _respect_domain_rate_limit(domain)
+        if callable(should_stop_cb) and should_stop_cb():
+            return []
         # User-Agentを設定してブロックを回避しやすくする
         headers = {
             "User-Agent": "Mozilla/5.0 (compatible; DIY-LLM-Crawler/1.0)",
@@ -172,7 +178,7 @@ def crawl_url(url, db_manager):
             
     return list(set(new_links)) # 重複リンクを除去して返す
 
-def start_crawler(seed_urls, max_workers=5, max_pages=50):
+def start_crawler(seed_urls, max_workers=5, max_pages=50, should_stop_cb=None):
     """
     マルチスレッドで並行してクローラーを動かすメイン関数
     max_workers: 同時に動かすクローラーの数（並列アクセス数）
@@ -187,17 +193,26 @@ def start_crawler(seed_urls, max_workers=5, max_pages=50):
     # スレッドプールで並列化（I/Oバウンドな通信処理を高速化）
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
         while urls_to_crawl and crawled_count < max_pages:
+            if callable(should_stop_cb) and should_stop_cb():
+                print("[Crawl] stop requested. breaking crawl loop.")
+                break
             # キューからワーカー数分だけURLを取り出す
             batch = list(urls_to_crawl)[:max_workers]
             for u in batch:
                 urls_to_crawl.remove(u)
                 
             # 並列実行のタスクを登録
-            futures = {executor.submit(crawl_url, url, db): url for url in batch}
+            futures = {
+                executor.submit(crawl_url, url, db, should_stop_cb): url
+                for url in batch
+            }
             
             # 完了したタスクから順次処理
             for future in as_completed(futures):
                 try:
+                    if callable(should_stop_cb) and should_stop_cb():
+                        print("[Crawl] stop requested during batch. skip remaining results.")
+                        break
                     crawled_count += 1
                     links = future.result()
                     

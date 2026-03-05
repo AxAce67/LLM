@@ -40,7 +40,7 @@ def _quality_weight(score: float) -> float:
     return max(0.0, floor + (boost * s))
 
 
-def prepare_dataset(vocab_size=32000, val_ratio=0.05, progress_cb=None):
+def prepare_dataset(vocab_size=32000, val_ratio=0.05, progress_cb=None, should_stop_cb=None):
     """
     収集されたテキストをトークナイズし、巨大なIDの配列に変換してバイナリファイル(train.bin, val.bin)に保存する。
     これにより、PyTorch学習時のロード速度とメモリ効率が劇的に向上する（numpy memmapを使用予定のため）。
@@ -52,6 +52,12 @@ def prepare_dataset(vocab_size=32000, val_ratio=0.05, progress_cb=None):
                 progress_cb(message)
             except Exception:
                 pass
+
+    def _should_stop() -> bool:
+        try:
+            return bool(callable(should_stop_cb) and should_stop_cb())
+        except Exception:
+            return False
 
     _progress("Starting dataset preparation (tokenization & binary encoding)...")
     
@@ -181,6 +187,9 @@ def prepare_dataset(vocab_size=32000, val_ratio=0.05, progress_cb=None):
         except Exception:
             db_total_est = 0
         for row in db_manager.stream_crawled_documents(batch_size=1000):
+            if _should_stop():
+                _progress("[Preprocess] stop requested. aborting DB scan.")
+                break
             scanned_candidates += 1
             write_document_tokens(
                 row.get("content", ""),
@@ -214,7 +223,13 @@ def prepare_dataset(vocab_size=32000, val_ratio=0.05, progress_cb=None):
         except Exception:
             wiki_total_est = 0
         for root, dirs, files in os.walk(WIKI_DIR):
+            if _should_stop():
+                _progress("[Preprocess] stop requested. aborting Wikipedia scan.")
+                break
             for file in files:
+                if _should_stop():
+                    _progress("[Preprocess] stop requested. aborting Wikipedia scan.")
+                    break
                 if file.endswith(".txt"):
                     file_path = os.path.join(root, file)
                     try:
@@ -247,6 +262,9 @@ def prepare_dataset(vocab_size=32000, val_ratio=0.05, progress_cb=None):
                         _progress(f"Error reading file {file}: {e}")
 
     flush_buffers(force=True)
+    if _should_stop():
+        _progress("[Preprocess] interrupted by stop request.")
+        return False
     total_tokens = train_count + val_count
     _progress(
         f"Processed {total_docs:,} docs (expanded={expanded_docs:,}, blocked={blocked_docs:,}, filtered={filtered_docs:,}, duplicates={duplicate_docs:,}, "
