@@ -1199,6 +1199,18 @@
             if (el) el.textContent = String(value);
         }
 
+        function updateRoleBadge(roleValue) {
+            const roleBadge = document.getElementById('current-role-badge');
+            if (!roleBadge) return;
+            const role = String(roleValue || 'worker').toLowerCase();
+            roleBadge.textContent = `Role: ${role.toUpperCase()}`;
+            if (role === 'master') {
+                roleBadge.className = "text-xs bg-gray-100 text-gray-800 px-3 py-2 rounded-full border border-gray-200 font-semibold uppercase tracking-wider";
+            } else {
+                roleBadge.className = "text-xs bg-white text-slate-700 px-3 py-2 rounded-full border border-gray-200 font-semibold uppercase tracking-wider";
+            }
+        }
+
         // ---------- Tab Management ----------
         function switchTab(tabId) {
             document.getElementById('view-dashboard').classList.add('hidden');
@@ -1453,13 +1465,7 @@
                 } else {
                     adminBtn.classList.add('hidden');
                 }
-                const roleBadge = document.getElementById('current-role-badge');
-                roleBadge.textContent = `Role: ${String(data.system_role || 'worker').toUpperCase()}`;
-                if ((data.system_role || 'worker') === 'master') {
-                    roleBadge.className = "text-xs bg-gray-100 text-gray-800 px-3 py-2 rounded-full border border-gray-200 font-semibold uppercase tracking-wider";
-                } else {
-                    roleBadge.className = "text-xs bg-white text-slate-700 px-3 py-2 rounded-full border border-gray-200 font-semibold uppercase tracking-wider";
-                }
+                updateRoleBadge(data.system_role || 'worker');
                 const haBadge = document.getElementById('ha-mode-badge');
                 if (haBadge) {
                     haBadge.classList.remove('hidden');
@@ -1596,6 +1602,7 @@
                 const data = await response.json();
 
                 isRunning = data.is_running;
+                updateRoleBadge(data.role || runtimeConfig?.system_role || 'worker');
                 const statusDot = document.getElementById('status-dot');
                 const statusText = document.getElementById('status-text');
                 const masterToggleText = document.getElementById('master-toggle-text');
