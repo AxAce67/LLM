@@ -14,6 +14,10 @@ from runtime.auto_tuner import detect_runtime_profile
 _THREADS_TUNED = False
 
 
+def _is_attention_bias_key(key: str) -> bool:
+    return key.endswith(".attn.bias")
+
+
 def _configure_torch_threads(cpu_threads: int):
     """
     Thread設定はプロセス初期化時に1回だけ行う。
@@ -176,7 +180,17 @@ def train_step(max_steps=50, log_fn=None, metric_cb=None, should_stop_cb=None):
             # チェックポイントのモデル設定を復元（アーキテクチャが変わった場合はスキップ）
             saved_config = checkpoint.get('config')
             if saved_config and saved_config.n_embd == config.n_embd and saved_config.n_layer == config.n_layer:
-                model.load_state_dict(checkpoint['model_state_dict'])
+                incompatible = model.load_state_dict(checkpoint['model_state_dict'], strict=False)
+                missing = list(incompatible.missing_keys or [])
+                unexpected = list(incompatible.unexpected_keys or [])
+                bad_missing = [k for k in missing if not _is_attention_bias_key(k)]
+                bad_unexpected = [k for k in unexpected if not _is_attention_bias_key(k)]
+                if bad_missing or bad_unexpected:
+                    raise RuntimeError(
+                        "Checkpoint/model mismatch. "
+                        f"missing(non-attn.bias)={bad_missing[:8]} "
+                        f"unexpected(non-attn.bias)={bad_unexpected[:8]}"
+                    )
                 optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
                 start_step = checkpoint['step']
                 best_val_loss = checkpoint.get("best_val_loss", float("inf"))

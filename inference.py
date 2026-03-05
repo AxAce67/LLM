@@ -7,6 +7,35 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from model.transformer import GPT, GPTConfig
 import sentencepiece as spm
 
+
+def _is_attention_bias_key(key: str) -> bool:
+    return key.endswith(".attn.bias")
+
+
+def _load_state_dict_compat(model, state_dict):
+    """
+    Flash/non-Flash など実行環境差による attn.bias の missing/unexpected を許容しつつ、
+    それ以外の不整合は明示的にエラーにする。
+    """
+    incompatible = model.load_state_dict(state_dict, strict=False)
+    missing = list(incompatible.missing_keys or [])
+    unexpected = list(incompatible.unexpected_keys or [])
+
+    bad_missing = [k for k in missing if not _is_attention_bias_key(k)]
+    bad_unexpected = [k for k in unexpected if not _is_attention_bias_key(k)]
+    if bad_missing or bad_unexpected:
+        raise RuntimeError(
+            "Checkpoint/model mismatch. "
+            f"missing(non-attn.bias)={bad_missing[:8]} "
+            f"unexpected(non-attn.bias)={bad_unexpected[:8]}"
+        )
+
+    if missing or unexpected:
+        print(
+            "[CheckpointCompat] Loaded with attention-bias compatibility "
+            f"(missing={len(missing)}, unexpected={len(unexpected)})."
+        )
+
 def load_tokenizer():
     """
     データ前処理で作成したSentencePieceモデルを読み込む
@@ -56,7 +85,7 @@ def load_model(device='cpu'):
             state_dict[k[len(unwanted_prefix):]] = state_dict.pop(k)
             
     # 空のモデルに学習済みの重みを注ぎ込む
-    model.load_state_dict(state_dict)
+    _load_state_dict_compat(model, state_dict)
 
     # CPU配布向け: 動的量子化 (Linear層)
     enable_quant = os.environ.get("ENABLE_CPU_QUANTIZATION", "0") == "1"
