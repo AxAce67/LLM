@@ -15,13 +15,29 @@ env/
 .vscode/
 .idea/
 .DS_Store
+.pytest_cache/
 
 # Data / Model checkpoints (Large files or DB)
 crawled_data/
 model_checkpoint.pth
-system_status.json
 *.log
-dataset/
-models/
-checkpoints/
 Modelfile
+core_llm/.pytest_cache/
+core_llm/data/manifests/*
+!core_llm/data/manifests/.gitkeep
+core_llm/data/raw/*
+!core_llm/data/raw/.gitkeep
+core_llm/data/prepared/*
+!core_llm/data/prepared/.gitkeep
+core_llm/data/tokenizer/*
+!core_llm/data/tokenizer/.gitkeep
+core_llm/data/checkpoints/*
+!core_llm/data/checkpoints/.gitkeep
+core_llm/data/eval/*
+!core_llm/data/eval/.gitkeep
+legacy/.pytest_cache/
+legacy/system_status.json
+legacy/dataset/
+legacy/models/
+legacy/checkpoints/
+legacy/.env

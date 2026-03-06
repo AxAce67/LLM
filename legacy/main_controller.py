@@ -1,3 +1,9 @@
+"""Legacy operational pipeline controller.
+
+This module belongs to the old crawler/dashboard system.
+New base-model research work should go to `core_llm/`.
+"""
+
 import time
 import json
 import os

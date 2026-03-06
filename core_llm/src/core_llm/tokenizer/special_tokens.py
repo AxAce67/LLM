@@ -1,0 +1,6 @@
+DEFAULT_SPECIAL_TOKENS = {
+    "pad_id": 0,
+    "unk_id": 1,
+    "bos_id": 2,
+    "eos_id": 3,
+}

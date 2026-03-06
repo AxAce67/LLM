@@ -1,0 +1,8 @@
+vocab_size: 16000
+character_coverage: 0.9995
+model_type: bpe
+special_tokens:
+  pad_id: 0
+  unk_id: 1
+  bos_id: 2
+  eos_id: 3

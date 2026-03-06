@@ -1,7 +1,15 @@
+"""Legacy operational entrypoint.
+
+This file belongs to the old crawler/dashboard system.
+New LLM research and training work should go to `core_llm/`.
+"""
+
 import os
 import threading
 import subprocess
 import time
+import sys
+from pathlib import Path
 from typing import Optional, Tuple
 from datetime import datetime, timezone
 from fastapi import FastAPI, Request
@@ -14,11 +22,15 @@ import traceback
 import torch
 import psutil
 
+BASE_DIR = Path(__file__).resolve().parent
+if str(BASE_DIR) not in sys.path:
+    sys.path.insert(0, str(BASE_DIR))
+
 import main_controller
 from runtime.auto_tuner import detect_runtime_profile
 
 app = FastAPI(title="LLM Builder Dashboard")
-templates = Jinja2Templates(directory="templates")
+templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 _auto_profile = detect_runtime_profile() if os.environ.get("AUTO_TUNE", "1") == "1" else None
 MAX_GENERATE_TOKENS = int(os.environ.get("MAX_GENERATE_TOKENS", str(_auto_profile["max_generate_tokens"] if _auto_profile else 256)))
 DB_UI_URL = os.environ.get("DB_UI_URL", f"http://localhost:{os.environ.get('ADMINER_PORT', '8080')}")
@@ -35,7 +47,7 @@ ADMIN_API_TOKEN_REQUIRED = os.environ.get(
     "ADMIN_API_TOKEN_REQUIRED",
     "1" if SYSTEM_ROLE == "master" else "0",
 ) == "1"
-ENGINE_NODE_ID_FILE = os.environ.get("ENGINE_NODE_ID_FILE", "/app/checkpoints/node_id_engine.txt")
+ENGINE_NODE_ID_FILE = os.environ.get("ENGINE_NODE_ID_FILE", str(BASE_DIR / "checkpoints" / "node_id_engine.txt"))
 
 # メインコントローラーの状態管理オブジェクト（ダッシュボード閲覧・操作専用モード）
 state_manager = main_controller.SystemState(is_dashboard=True)

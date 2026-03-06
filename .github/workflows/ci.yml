@@ -53,16 +53,23 @@ jobs:
           python -m pip install --upgrade pip
           pip install \
             pytest==8.3.3 \
+            sentencepiece==0.2.0 \
+            torch==2.2.2 \
             requests==2.32.3 \
             beautifulsoup4==4.12.3 \
             psycopg2-binary==2.9.9 \
             python-dotenv==1.0.1 \
             psutil==6.0.0
 
-      - name: Run pytest
+      - name: Run legacy tests
         run: |
           set -euo pipefail
-          PYTHONPATH=. pytest -q
+          PYTHONPATH=legacy pytest -q legacy/tests
+
+      - name: Run core_llm tests
+        run: |
+          set -euo pipefail
+          PYTHONPATH=core_llm/src pytest -q core_llm/tests
 
   compose-validate:
     name: Docker Compose Validate
@@ -75,10 +82,10 @@ jobs:
         run: |
           set -euo pipefail
           docker compose version
-          cp .env.example .env
-          docker compose --env-file .env -f docker-compose.yml config >/tmp/compose.config.out
+          cp legacy/.env.example legacy/.env
+          docker compose --env-file legacy/.env -f legacy/docker-compose.yml config >/tmp/compose.config.out
           test -s /tmp/compose.config.out
-          echo "docker-compose.yml is valid"
+          echo "legacy/docker-compose.yml is valid"
 
   repo-guards:
     name: Repo Guards
@@ -107,6 +114,6 @@ jobs:
       - name: Verify env template exists
         run: |
           set -euo pipefail
-          test -f .env.example
-          grep -q "SYSTEM_ROLE" .env.example
-          echo ".env.example sanity check passed"
+          test -f legacy/.env.example
+          grep -q "SYSTEM_ROLE" legacy/.env.example
+          echo "legacy/.env.example sanity check passed"

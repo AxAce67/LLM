@@ -1,0 +1,98 @@
+# core_llm
+
+`core_llm` is a fully decoupled research core for building a small Japanese-first base model from scratch.
+
+## What it is
+
+- Tokenizer training from manifest files
+- Dataset preparation into binary token files
+- Decoder-only Transformer pretraining
+- Local checkpointing and resume
+- Validation perplexity evaluation
+- CLI-only generation
+
+## What it is not
+
+- No dependency on the legacy crawler, dashboard, DB, or HA control code
+- No large-scale web crawling in the initial scope
+- No RAG, API server, or chat tuning in the initial scope
+
+## Layout
+
+- `configs/`: default tokenizer/model/train configs
+- `data/`: local manifests, tokenizer artifacts, prepared binaries, checkpoints, eval outputs
+- `scripts/`: thin wrappers that call the package modules
+- `src/core_llm/`: implementation
+- `tests/`: unit and small integration tests
+
+## Quickstart
+
+```bash
+cd core_llm
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements-core.txt
+pip install -e .
+```
+
+Prepare a manifest from raw `.txt` files:
+
+```bash
+python -m core_llm.scripts.prepare_manifest \
+  --input-dir data/raw \
+  --output data/manifests/train_manifest.jsonl \
+  --source local_text \
+  --license permissive-user-provided
+```
+
+Train the tokenizer:
+
+```bash
+python -m core_llm.scripts.train_tokenizer \
+  --config configs/tokenizer_ja_base.yaml \
+  --manifest data/manifests/train_manifest.jsonl
+```
+
+Prepare the dataset:
+
+```bash
+python -m core_llm.scripts.prepare_dataset \
+  --config configs/model_tiny_ja.yaml \
+  --manifest data/manifests/train_manifest.jsonl
+```
+
+Train:
+
+```bash
+python -m core_llm.scripts.train \
+  --config configs/model_tiny_ja.yaml \
+  --train-config configs/train_local_cpu.yaml
+```
+
+Evaluate:
+
+```bash
+python -m core_llm.scripts.eval_perplexity \
+  --checkpoint data/checkpoints/latest.pt
+```
+
+Generate:
+
+```bash
+python -m core_llm.scripts.generate \
+  --checkpoint data/checkpoints/latest.pt \
+  --prompt "人工知能とは"
+```
+
+## Data policy
+
+The initial implementation is intentionally strict:
+
+- `lang` must be `ja`
+- `license` must be non-empty
+- short, duplicate, or URL-heavy samples are filtered out
+- the initial intended sources are permissive and curated
+
+## Legacy relation
+
+This directory is separate from the legacy operational system in the repo. The old crawler/dashboard/DB stack remains unchanged and is not imported by `core_llm`.
