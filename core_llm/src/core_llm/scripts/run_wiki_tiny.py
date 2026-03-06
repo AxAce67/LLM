@@ -3,6 +3,12 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
+from core_llm.notify.discord import (
+    build_failure_message,
+    build_run_message,
+    resolve_discord_settings,
+    send_discord_message,
+)
 from core_llm.pipeline.wiki_tiny import run_wiki_tiny_pipeline
 
 
@@ -23,26 +29,45 @@ def main() -> None:
     ap.add_argument("--skip-train", action="store_true")
     ap.add_argument("--skip-eval", action="store_true")
     ap.add_argument("--refresh-dump", action="store_true")
+    ap.add_argument("--discord-webhook-url")
+    ap.add_argument("--discord-mention")
     args = ap.parse_args()
 
-    summary = run_wiki_tiny_pipeline(
-        work_dir=Path(args.work_dir),
-        lang=args.lang,
-        raw_dir=Path(args.raw_dir),
-        dump_path=Path(args.dump_path) if args.dump_path else None,
-        max_docs=args.max_docs,
-        min_chars=args.min_chars,
-        tokenizer_config=Path(args.tokenizer_config),
-        model_config=Path(args.model_config),
-        train_config=Path(args.train_config),
-        skip_manifest=args.skip_manifest,
-        skip_tokenizer=args.skip_tokenizer,
-        skip_dataset=args.skip_dataset,
-        skip_train=args.skip_train,
-        skip_eval=args.skip_eval,
-        refresh_dump=args.refresh_dump,
-    )
-    print(summary)
+    webhook_url, mention = resolve_discord_settings(args.discord_webhook_url, args.discord_mention)
+
+    try:
+        summary = run_wiki_tiny_pipeline(
+            work_dir=Path(args.work_dir),
+            lang=args.lang,
+            raw_dir=Path(args.raw_dir),
+            dump_path=Path(args.dump_path) if args.dump_path else None,
+            max_docs=args.max_docs,
+            min_chars=args.min_chars,
+            tokenizer_config=Path(args.tokenizer_config),
+            model_config=Path(args.model_config),
+            train_config=Path(args.train_config),
+            skip_manifest=args.skip_manifest,
+            skip_tokenizer=args.skip_tokenizer,
+            skip_dataset=args.skip_dataset,
+            skip_train=args.skip_train,
+            skip_eval=args.skip_eval,
+            refresh_dump=args.refresh_dump,
+        )
+        if webhook_url:
+            send_discord_message(webhook_url, build_run_message(summary, mention=mention, success=True))
+        print(summary)
+    except Exception as exc:
+        if webhook_url:
+            send_discord_message(
+                webhook_url,
+                build_failure_message(
+                    work_dir=args.work_dir,
+                    run_type="wiki_tiny_sample",
+                    error=str(exc),
+                    mention=mention,
+                ),
+            )
+        raise SystemExit(str(exc)) from exc
 
 
 if __name__ == "__main__":

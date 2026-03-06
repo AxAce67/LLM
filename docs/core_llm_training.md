@@ -23,6 +23,11 @@ python -m core_llm.scripts.run_wiki_tiny \
   --work-dir data/runs/wiki_tiny_sample
 ```
 
+## Optional Discord notification
+
+If `DISCORD_WEBHOOK_URL` is set, `run_wiki_tiny` and `run_pretrain_mix` send a completion message.
+Set `DISCORD_MENTION` as well if you want a fixed mention in the message body.
+
 ## Mixed-source sample run
 
 ```bash
