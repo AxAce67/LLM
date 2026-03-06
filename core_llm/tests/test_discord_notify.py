@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from core_llm.notify.discord import (
+    build_command_failure_message,
+    build_command_success_message,
     build_failure_message,
     build_run_message,
     resolve_discord_settings,
@@ -51,3 +53,28 @@ def test_build_failure_message_includes_error():
     assert "Training failed" in message
     assert "pretrain_mix_sample" in message
     assert "boom" in message
+
+
+def test_build_command_success_message_includes_payload_fields():
+    message = build_command_success_message(
+        command_name="train",
+        payload={"step": 100, "best_val_perplexity": 12.34},
+        mention="@here",
+    )
+    assert "@here" in message
+    assert "Command completed" in message
+    assert "command: train" in message
+    assert "step: 100" in message
+    assert "best_val_perplexity: 12.34" in message
+
+
+def test_build_command_failure_message_includes_error():
+    message = build_command_failure_message(
+        command_name="prepare_dataset",
+        error="Tokenizer vocab size does not match",
+        mention="@here",
+    )
+    assert "@here" in message
+    assert "Command failed" in message
+    assert "command: prepare_dataset" in message
+    assert "error: Tokenizer vocab size does not match" in message
