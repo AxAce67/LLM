@@ -26,6 +26,10 @@ python -m core_llm.scripts.run_wiki_tiny \
 ## Mixed-source sample run
 
 ```bash
+python -m core_llm.scripts.fetch_government_corpus \
+  --seed-file data/seed_urls/government_ja.txt \
+  --output-dir data/raw/curated/government_ja
+
 python -m core_llm.scripts.prepare_curated_manifests \
   --raw-root data/raw/curated \
   --manifest-dir data/manifests

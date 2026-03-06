@@ -61,6 +61,14 @@ Expected directories:
 - `data/raw/curated/tech_docs_ja/`
 - `data/raw/curated/government_ja/`
 
+Fetch `government_ja` texts from seed URLs:
+
+```bash
+python -m core_llm.scripts.fetch_government_corpus \
+  --seed-file data/seed_urls/government_ja.txt \
+  --output-dir data/raw/curated/government_ja
+```
+
 Prepare a manifest directly from Japanese Wikipedia:
 
 ```bash

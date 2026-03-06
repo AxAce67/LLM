@@ -32,6 +32,7 @@ Each line is a JSON object.
 - a `*.report.json` file is written alongside the manifest by default
 - `prepare_curated_manifests` builds all known curated source manifests under one raw root
 - current curated presets are `local_notes_ja`, `tech_docs_ja`, and `government_ja`
+- `fetch_government_corpus` can populate `data/raw/curated/government_ja/` from an allowlisted seed URL file
 
 ## Dataset artifacts
 
