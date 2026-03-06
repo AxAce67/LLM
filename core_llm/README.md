@@ -140,14 +140,16 @@ All generated artifacts are stored under the given `work-dir`.
 Send a Discord notification when a run finishes:
 
 ```bash
-export DISCORD_WEBHOOK_URL="https://discord.com/api/webhooks/..."
-export DISCORD_MENTION="<@123456789012345678>"
+cat > .env.local <<'EOF'
+DISCORD_WEBHOOK_URL="https://discord.com/api/webhooks/..."
+DISCORD_MENTION="<@123456789012345678>"
+EOF
 
 python -m core_llm.scripts.run_wiki_tiny \
   --work-dir data/runs/wiki_tiny_sample
 ```
 
-The same environment variables also work with `run_pretrain_mix`.
+`run_wiki_tiny` and `run_pretrain_mix` load `core_llm/.env.local` automatically if it exists.
 
 Run a mixed-source tiny sample training:
 

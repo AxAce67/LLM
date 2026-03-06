@@ -41,3 +41,4 @@ legacy/dataset/
 legacy/models/
 legacy/checkpoints/
 legacy/.env
+core_llm/.env.local

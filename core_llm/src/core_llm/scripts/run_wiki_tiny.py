@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
+from core_llm.env import load_env_file
 from core_llm.notify.discord import (
     build_failure_message,
     build_run_message,
@@ -13,6 +14,7 @@ from core_llm.pipeline.wiki_tiny import run_wiki_tiny_pipeline
 
 
 def main() -> None:
+    load_env_file(".env.local")
     ap = argparse.ArgumentParser()
     ap.add_argument("--work-dir", required=True)
     ap.add_argument("--lang", default="ja")
