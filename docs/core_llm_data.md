@@ -49,3 +49,10 @@ Each line is a JSON object.
 
 - output manifest alongside `*.report.json`
 - includes kept and filtered counters
+
+## Multi-source manifest workflow
+
+- create one manifest per source first
+- merge them with `python -m core_llm.scripts.merge_manifests`
+- merged report includes `source_counts` and `license_counts`
+- duplicate text across sources is removed before dataset preparation

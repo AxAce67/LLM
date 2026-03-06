@@ -105,6 +105,24 @@ python -m core_llm.scripts.run_wiki_tiny \
 This is a sample run, not a full Wikipedia training run.
 All generated artifacts are stored under the given `work-dir`.
 
+Merge multiple curated manifest sources:
+
+```bash
+python -m core_llm.scripts.merge_manifests \
+  --input data/manifests/wikipedia_ja.jsonl \
+  --input data/manifests/tech_docs_ja.jsonl \
+  --output data/manifests/pretrain_mix_ja.jsonl
+```
+
+Index or compare runs:
+
+```bash
+python -m core_llm.scripts.index_runs --runs-dir data/runs
+python -m core_llm.scripts.compare_runs \
+  --run data/runs/wiki_tiny_sample \
+  --run data/runs/wiki_tiny_sample_2
+```
+
 ## Data policy
 
 The initial implementation is intentionally strict:
@@ -114,6 +132,7 @@ The initial implementation is intentionally strict:
 - short, duplicate, or URL-heavy samples are filtered out
 - the initial intended sources are permissive and curated
 - Japanese Wikipedia dump can be ingested directly into a manifest
+- multiple manifest sources can be merged into one pretraining mix
 
 ## Legacy relation
 

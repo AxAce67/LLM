@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import json
+from datetime import datetime, timezone
 from pathlib import Path
 
-from core_llm.config import load_model_config
+from core_llm.config import dump_dataclass_jsonable, load_model_config, load_tokenizer_config, load_train_config
 from core_llm.eval.perplexity import evaluate_checkpoint_perplexity
 from core_llm.scripts.prepare_dataset import main as prepare_dataset_main
 from core_llm.scripts.prepare_wikipedia_manifest import main as prepare_wikipedia_manifest_main
@@ -162,15 +163,26 @@ def run_wiki_tiny_pipeline(
         steps.append("eval")
 
     summary = {
+        "run_type": "wiki_tiny_sample",
+        "created_at": datetime.now(timezone.utc).isoformat(),
         "work_dir": str(work_dir),
         "manifest_path": str(paths["manifest"]),
+        "manifest_report_path": str(paths["manifest_report"]),
         "tokenizer_path": str(tokenizer_model_path) if tokenizer_model_path.exists() else None,
         "prepared_dir": str(paths["prepared_dir"]) if paths["prepared_dir"].exists() else None,
+        "prepared_metadata_path": str(paths["prepared_dir"] / "metadata.json"),
         "checkpoint_dir": str(paths["checkpoint_dir"]) if paths["checkpoint_dir"].exists() else None,
+        "metrics_path": str(paths["checkpoint_dir"] / "train_metrics.jsonl"),
         "eval_path": str(paths["eval_path"]) if paths["eval_path"].exists() else None,
         "kept_docs": int(manifest_report.get("kept_docs", 0)),
         "train_tokens": int(metadata.get("train_tokens", 0)),
         "best_val_perplexity": None if eval_result is None else eval_result.get("val_perplexity"),
+        "tokenizer_config_path": str(tokenizer_config),
+        "model_config_path": str(model_config),
+        "train_config_path": str(train_config),
+        "tokenizer_config": dump_dataclass_jsonable(load_tokenizer_config(tokenizer_config)),
+        "model_config": dump_dataclass_jsonable(load_model_config(model_config)),
+        "train_config": dump_dataclass_jsonable(load_train_config(train_config)),
         "steps": steps,
     }
     paths["summary_path"].write_text(json.dumps(summary, ensure_ascii=False, indent=2), encoding="utf-8")

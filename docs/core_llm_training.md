@@ -32,6 +32,21 @@ python -m core_llm.scripts.run_wiki_tiny \
 - `eval/`
 - `run_summary.json`
 
+## Multi-source workflow
+
+1. prepare source manifests independently
+2. merge them into one curated training manifest
+3. train tokenizer on the merged manifest
+4. prepare dataset
+5. train and compare runs
+
+```bash
+python -m core_llm.scripts.merge_manifests \
+  --input data/manifests/wikipedia_ja.jsonl \
+  --input data/manifests/local_notes_ja.jsonl \
+  --output data/manifests/pretrain_mix_ja.jsonl
+```
+
 ## Note
 
 The sample configs are intentionally smaller than the default longer-run configs.
@@ -61,3 +76,9 @@ Use them to validate the workflow before scaling up.
 - too-small dataset is an error
 - missing tokenizer is an error
 - val perplexity is the primary metric
+
+## Run management
+
+- `run_summary.json` stores config snapshots and key metrics for one run
+- `python -m core_llm.scripts.index_runs --runs-dir data/runs` builds a comparable run list
+- `python -m core_llm.scripts.compare_runs --run <run-dir> --run <run-dir>` compares selected runs

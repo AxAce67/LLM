@@ -26,3 +26,4 @@
 - smoke generation is qualitative only
 - the initial target is correctness of the pipeline, not strong general-purpose quality
 - inspect `run_summary.json` first after a sample run
+- compare multiple `run_summary.json` files when you change data mixes or configs
