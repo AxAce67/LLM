@@ -6,6 +6,7 @@ from pathlib import Path
 
 from core_llm.config import dump_dataclass_jsonable, load_model_config, load_tokenizer_config, load_train_config
 from core_llm.eval.perplexity import evaluate_checkpoint_perplexity
+from core_llm.pipeline.summary_utils import resolve_best_val_perplexity
 from core_llm.scripts.prepare_dataset import main as prepare_dataset_main
 from core_llm.scripts.prepare_wikipedia_manifest import main as prepare_wikipedia_manifest_main
 from core_llm.scripts.train import main as train_main
@@ -162,6 +163,10 @@ def run_wiki_tiny_pipeline(
         paths["eval_path"].write_text(json.dumps(eval_result, ensure_ascii=False, indent=2), encoding="utf-8")
         steps.append("eval")
 
+    best_val_perplexity = resolve_best_val_perplexity(
+        paths["checkpoint_dir"],
+        fallback=None if eval_result is None else eval_result.get("val_perplexity"),
+    )
     summary = {
         "run_type": "wiki_tiny_sample",
         "created_at": datetime.now(timezone.utc).isoformat(),
@@ -176,7 +181,8 @@ def run_wiki_tiny_pipeline(
         "eval_path": str(paths["eval_path"]) if paths["eval_path"].exists() else None,
         "kept_docs": int(manifest_report.get("kept_docs", 0)),
         "train_tokens": int(metadata.get("train_tokens", 0)),
-        "best_val_perplexity": None if eval_result is None else eval_result.get("val_perplexity"),
+        "best_val_perplexity": best_val_perplexity,
+        "latest_eval_perplexity": None if eval_result is None else eval_result.get("val_perplexity"),
         "tokenizer_config_path": str(tokenizer_config),
         "model_config_path": str(model_config),
         "train_config_path": str(train_config),
