@@ -16,6 +16,27 @@
 3. `prepare_dataset`
 4. `train`
 
+## Sample run command
+
+```bash
+python -m core_llm.scripts.run_wiki_tiny \
+  --work-dir data/runs/wiki_tiny_sample
+```
+
+## Sample artifact layout
+
+- `manifests/`
+- `tokenizer/`
+- `prepared/`
+- `checkpoints/`
+- `eval/`
+- `run_summary.json`
+
+## Note
+
+The sample configs are intentionally smaller than the default longer-run configs.
+Use them to validate the workflow before scaling up.
+
 ## Checkpoints
 
 - `core_llm/data/checkpoints/latest.pt`

@@ -95,6 +95,16 @@ python -m core_llm.scripts.generate \
   --prompt "人工知能とは"
 ```
 
+Run a tiny Wikipedia sample training:
+
+```bash
+python -m core_llm.scripts.run_wiki_tiny \
+  --work-dir data/runs/wiki_tiny_sample
+```
+
+This is a sample run, not a full Wikipedia training run.
+All generated artifacts are stored under the given `work-dir`.
+
 ## Data policy
 
 The initial implementation is intentionally strict:
