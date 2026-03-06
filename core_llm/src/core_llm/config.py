@@ -18,6 +18,7 @@ class TokenizerConfig:
     vocab_size: int = 16000
     character_coverage: float = 0.9995
     model_type: str = "bpe"
+    num_threads: int = 0
     special_tokens: dict[str, int] = field(default_factory=lambda: dict(DEFAULT_SPECIAL_TOKENS))
 
 
@@ -46,6 +47,8 @@ class TrainConfig:
     seed: int = 42
     device: str = "auto"
     amp: bool = False
+    cpu_threads: int = 0
+    interop_threads: int = 0
     min_lr_ratio: float = 0.1
     grad_clip: float = 1.0
     early_stopping_patience: int = 8

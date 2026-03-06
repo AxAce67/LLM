@@ -11,6 +11,12 @@ from core_llm.config import TokenizerConfig, dump_dataclass_jsonable
 from core_llm.data.manifest_schema import iter_manifest
 
 
+def resolve_tokenizer_threads(config: TokenizerConfig) -> int:
+    if config.num_threads > 0:
+        return config.num_threads
+    return max(1, os.cpu_count() or 1)
+
+
 def train_tokenizer(
     manifest_path: str | Path,
     output_dir: str | Path,
@@ -35,7 +41,7 @@ def train_tokenizer(
             unk_id=config.special_tokens["unk_id"],
             bos_id=config.special_tokens["bos_id"],
             eos_id=config.special_tokens["eos_id"],
-            num_threads=1,
+            num_threads=resolve_tokenizer_threads(config),
             hard_vocab_limit=False,
         )
         meta_path = output_dir / "tokenizer_meta.json"

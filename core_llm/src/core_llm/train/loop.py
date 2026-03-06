@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 import torch
@@ -22,6 +23,21 @@ def resolve_device(device: str) -> str:
     if torch.backends.mps.is_available():
         return "mps"
     return "cpu"
+
+
+def configure_torch_threads(train_config: TrainConfig) -> None:
+    cpu_threads = train_config.cpu_threads if train_config.cpu_threads > 0 else max(1, os.cpu_count() or 1)
+    interop_threads = (
+        train_config.interop_threads
+        if train_config.interop_threads > 0
+        else max(1, min(4, cpu_threads))
+    )
+    torch.set_num_threads(cpu_threads)
+    try:
+        torch.set_num_interop_threads(interop_threads)
+    except RuntimeError:
+        # PyTorch only allows setting interop threads before any parallel work starts.
+        pass
 
 
 @torch.no_grad()
@@ -51,6 +67,7 @@ def train_model(
         raise ValueError("Model vocab_size must be positive")
     if train_config.seq_len != model_config.block_size:
         raise ValueError("Train seq_len must match model block_size")
+    configure_torch_threads(train_config)
     device = resolve_device(train_config.device)
     train_path = Path(data_dir) / "train.bin"
     val_path = Path(data_dir) / "val.bin"
