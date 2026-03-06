@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -16,6 +17,28 @@ ALLOWED_GOVERNMENT_DOMAINS = (
     "digital.go.jp",
     "e-gov.go.jp",
     "data.go.jp",
+)
+
+NOISE_LINE_PATTERNS = (
+    re.compile(r"^最終更新日:?$"),
+    re.compile(r"^\d{4}年\d{1,2}月\d{1,2}日$"),
+    re.compile(r"^公表日[:：]\s*\d{4}年\d{1,2}月\d{1,2}日$"),
+    re.compile(r"^資料\d+([:-].*)?$"),
+    re.compile(r"^議事次第$"),
+    re.compile(r"^関連政策$"),
+    re.compile(r"^問合せ先$"),
+    re.compile(r"^電話[:：].*$"),
+    re.compile(r"^メール[:：].*$"),
+    re.compile(r"^_atmark_$"),
+)
+
+NOISE_SUBSTRINGS = (
+    "（PDF／",
+    "（PDF/",
+    "PDF／",
+    "PDF/",
+    "KB）",
+    "KB)",
 )
 
 
@@ -43,6 +66,28 @@ def extract_text_from_html(html: str) -> str:
     text = root.get_text("\n", strip=True)
     text = normalize_text(text)
     return text
+
+
+def clean_government_text(text: str) -> str:
+    cleaned_lines: list[str] = []
+    skip_next_date = False
+    for raw_line in normalize_text(text).splitlines():
+        line = raw_line.strip()
+        if not line:
+            continue
+        if skip_next_date and re.match(r"^\d{4}年\d{1,2}月\d{1,2}日$", line):
+            skip_next_date = False
+            continue
+        skip_next_date = False
+        if line == "最終更新日:":
+            skip_next_date = True
+            continue
+        if any(pattern.match(line) for pattern in NOISE_LINE_PATTERNS):
+            continue
+        if any(token in line for token in NOISE_SUBSTRINGS):
+            continue
+        cleaned_lines.append(line)
+    return normalize_text("\n".join(cleaned_lines))
 
 
 def fetch_government_corpus(
@@ -91,7 +136,7 @@ def fetch_government_corpus(
             report["fetch_errors"] += 1
             continue
         report["fetched_pages"] += 1
-        text = extract_text_from_html(response.text)
+        text = clean_government_text(extract_text_from_html(response.text))
         if not is_usable_text(text, min_chars=min_chars):
             report["filtered_short"] += 1
             continue
