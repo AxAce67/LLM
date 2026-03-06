@@ -9,6 +9,13 @@
 5. Evaluate perplexity
 6. Generate smoke outputs
 
+## Recommended first workflow
+
+1. `prepare_wikipedia_manifest`
+2. `train_tokenizer`
+3. `prepare_dataset`
+4. `train`
+
 ## Checkpoints
 
 - `core_llm/data/checkpoints/latest.pt`

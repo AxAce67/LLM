@@ -45,6 +45,17 @@ python -m core_llm.scripts.prepare_manifest \
   --license permissive-user-provided
 ```
 
+Prepare a manifest directly from Japanese Wikipedia:
+
+```bash
+python -m core_llm.scripts.prepare_wikipedia_manifest \
+  --lang ja \
+  --output data/manifests/wikipedia_ja.jsonl
+```
+
+This downloads and caches `jawiki-latest-pages-articles.xml.bz2` under `data/raw/wikipedia/`.
+The dump is large, so make sure you have enough disk space before running it.
+
 Train the tokenizer:
 
 ```bash
@@ -92,6 +103,7 @@ The initial implementation is intentionally strict:
 - `license` must be non-empty
 - short, duplicate, or URL-heavy samples are filtered out
 - the initial intended sources are permissive and curated
+- Japanese Wikipedia dump can be ingested directly into a manifest
 
 ## Legacy relation
 

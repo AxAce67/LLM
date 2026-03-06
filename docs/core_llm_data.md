@@ -34,3 +34,18 @@ Each line is a JSON object.
 - `core_llm/data/tokenizer/tokenizer.model`
 - `core_llm/data/tokenizer/tokenizer.vocab`
 - `core_llm/data/tokenizer/tokenizer_meta.json`
+
+## Wikipedia raw cache
+
+- `core_llm/data/raw/wikipedia/jawiki-latest-pages-articles.xml.bz2`
+
+## Wikipedia manifest semantics
+
+- `source`: `wikipedia_ja`
+- `license`: `cc-by-sa-4.0`
+- `id`: `jawiki:<page_id>`
+
+## Wikipedia report file
+
+- output manifest alongside `*.report.json`
+- includes kept and filtered counters
