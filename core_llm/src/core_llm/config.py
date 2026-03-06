@@ -46,7 +46,7 @@ class TrainConfig:
     save_every: int = 250
     seed: int = 42
     device: str = "auto"
-    amp: bool = False
+    amp: bool | str = False
     cpu_threads: int = 0
     interop_threads: int = 0
     min_lr_ratio: float = 0.1

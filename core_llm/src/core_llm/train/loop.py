@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+from dataclasses import replace
 from pathlib import Path
 
 import torch
@@ -40,6 +41,41 @@ def configure_torch_threads(train_config: TrainConfig) -> None:
         pass
 
 
+def resolve_amp(train_config: TrainConfig, device: str) -> bool:
+    if isinstance(train_config.amp, str):
+        if train_config.amp.lower() == "auto":
+            return device == "cuda"
+        if train_config.amp.lower() in {"true", "false"}:
+            return train_config.amp.lower() == "true"
+    return bool(train_config.amp) and device == "cuda"
+
+
+def _floor_power_of_two(value: int) -> int:
+    if value <= 1:
+        return 1
+    return 1 << (value.bit_length() - 1)
+
+
+def resolve_batch_size(train_config: TrainConfig, model_config: ModelConfig, device: str) -> int:
+    if train_config.batch_size > 0:
+        return train_config.batch_size
+    if device != "cuda":
+        return 1
+    total_gib = torch.cuda.get_device_properties(0).total_memory / (1024**3)
+    if total_gib <= 2.5:
+        memory_batch = 2
+    elif total_gib <= 4.5:
+        memory_batch = 4
+    elif total_gib <= 8.5:
+        memory_batch = 8
+    else:
+        memory_batch = 16
+    baseline_complexity = 8 * 512 * 256
+    model_complexity = model_config.n_layer * model_config.n_embd * model_config.block_size
+    scale = max(1.0, model_complexity / baseline_complexity)
+    return max(1, _floor_power_of_two(int(memory_batch / scale)))
+
+
 @torch.no_grad()
 def evaluate_loss(model: GPT, dataset: BinaryTokenDataset | None, device: str, eval_batches: int = 10) -> float | None:
     if dataset is None or len(dataset) == 0:
@@ -67,14 +103,20 @@ def train_model(
         raise ValueError("Model vocab_size must be positive")
     if train_config.seq_len != model_config.block_size:
         raise ValueError("Train seq_len must match model block_size")
-    configure_torch_threads(train_config)
     device = resolve_device(train_config.device)
+    effective_batch_size = resolve_batch_size(train_config, model_config, device)
+    effective_train_config = replace(train_config, batch_size=effective_batch_size)
+    configure_torch_threads(effective_train_config)
     train_path = Path(data_dir) / "train.bin"
     val_path = Path(data_dir) / "val.bin"
-    train_ds = BinaryTokenDataset(train_path, train_config.batch_size, train_config.seq_len)
-    if len(train_ds.data) < (train_config.batch_size * train_config.seq_len + 1):
+    train_ds = BinaryTokenDataset(train_path, effective_train_config.batch_size, effective_train_config.seq_len)
+    if len(train_ds.data) < (effective_train_config.batch_size * effective_train_config.seq_len + 1):
         raise ValueError("Prepared training dataset does not contain enough tokens")
-    val_ds = BinaryTokenDataset(val_path, train_config.batch_size, train_config.seq_len) if val_path.exists() else None
+    val_ds = (
+        BinaryTokenDataset(val_path, effective_train_config.batch_size, effective_train_config.seq_len)
+        if val_path.exists()
+        else None
+    )
 
     checkpoint_dir = Path(checkpoint_dir)
     metrics_path = checkpoint_dir / "train_metrics.jsonl"
@@ -82,8 +124,8 @@ def train_model(
     best_path = checkpoint_dir / "best.pt"
 
     model = GPT(model_config).to(device)
-    optimizer = create_optimizer(model, train_config)
-    use_amp = device == "cuda" and train_config.amp
+    optimizer = create_optimizer(model, effective_train_config)
+    use_amp = resolve_amp(effective_train_config, device)
     scaler = torch.amp.GradScaler("cuda", enabled=use_amp)
 
     start_step = 0
@@ -101,30 +143,30 @@ def train_model(
     for step in range(start_step, train_config.total_steps):
         optimizer.zero_grad(set_to_none=True)
         accum_loss = 0.0
-        for _ in range(train_config.grad_accum_steps):
+        for _ in range(effective_train_config.grad_accum_steps):
             x, y = train_ds.next_batch(device)
             with torch.amp.autocast("cuda", enabled=use_amp):
                 _, loss = model(x, y)
-                loss = loss / train_config.grad_accum_steps
+                loss = loss / effective_train_config.grad_accum_steps
             if use_amp:
                 scaler.scale(loss).backward()
             else:
                 loss.backward()
             accum_loss += float(loss.item())
         for group in optimizer.param_groups:
-            group["lr"] = lr_for_step(step, train_config)
+            group["lr"] = lr_for_step(step, effective_train_config)
         if use_amp:
             scaler.unscale_(optimizer)
-            torch.nn.utils.clip_grad_norm_(model.parameters(), train_config.grad_clip)
+            torch.nn.utils.clip_grad_norm_(model.parameters(), effective_train_config.grad_clip)
             scaler.step(optimizer)
             scaler.update()
         else:
-            torch.nn.utils.clip_grad_norm_(model.parameters(), train_config.grad_clip)
+            torch.nn.utils.clip_grad_norm_(model.parameters(), effective_train_config.grad_clip)
             optimizer.step()
         latest_train_loss = accum_loss
 
-        should_eval = ((step + 1) % train_config.eval_every == 0) or (step + 1 == train_config.total_steps)
-        should_save = ((step + 1) % train_config.save_every == 0) or should_eval
+        should_eval = ((step + 1) % effective_train_config.eval_every == 0) or (step + 1 == effective_train_config.total_steps)
+        should_save = ((step + 1) % effective_train_config.save_every == 0) or should_eval
         val_loss = None
         val_ppl = None
         if should_eval:
@@ -140,14 +182,14 @@ def train_model(
                         model=model,
                         optimizer=optimizer,
                         model_config=model_config,
-                        train_config=train_config,
+                        train_config=effective_train_config,
                         latest_train_loss=latest_train_loss,
                         best_val_perplexity=best_val_perplexity,
                     ),
                 )
             else:
                 stale_evals += 1
-                if stale_evals >= train_config.early_stopping_patience:
+                if stale_evals >= effective_train_config.early_stopping_patience:
                     should_save = True
         if should_save:
             save_checkpoint(
@@ -157,7 +199,7 @@ def train_model(
                     model=model,
                     optimizer=optimizer,
                     model_config=model_config,
-                    train_config=train_config,
+                    train_config=effective_train_config,
                     latest_train_loss=latest_train_loss,
                     best_val_perplexity=best_val_perplexity,
                 ),
@@ -171,11 +213,13 @@ def train_model(
             val_perplexity=val_ppl,
             lr=optimizer.param_groups[0]["lr"],
         )
-        if stale_evals >= train_config.early_stopping_patience:
+        if stale_evals >= effective_train_config.early_stopping_patience:
             break
     return {
         "step": step + 1,
         "latest_train_loss": latest_train_loss,
         "best_val_perplexity": best_val_perplexity,
         "device": device,
+        "batch_size": effective_train_config.batch_size,
+        "amp": use_amp,
     }
