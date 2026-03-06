@@ -105,6 +105,17 @@ python -m core_llm.scripts.run_wiki_tiny \
 This is a sample run, not a full Wikipedia training run.
 All generated artifacts are stored under the given `work-dir`.
 
+Run a mixed-source tiny sample training:
+
+```bash
+python -m core_llm.scripts.run_pretrain_mix \
+  --work-dir data/runs/pretrain_mix_sample \
+  --manifest data/manifests/wikipedia_ja.jsonl \
+  --manifest data/manifests/local_notes_ja.jsonl
+```
+
+This keeps the same artifact layout as `run_wiki_tiny`, but trains on a merged curated manifest.
+
 Merge multiple curated manifest sources:
 
 ```bash

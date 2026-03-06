@@ -56,3 +56,4 @@ Each line is a JSON object.
 - merge them with `python -m core_llm.scripts.merge_manifests`
 - merged report includes `source_counts` and `license_counts`
 - duplicate text across sources is removed before dataset preparation
+- `python -m core_llm.scripts.run_pretrain_mix` runs merge, tokenizer, dataset, train, and eval in one flow

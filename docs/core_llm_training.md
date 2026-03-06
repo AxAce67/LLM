@@ -23,6 +23,15 @@ python -m core_llm.scripts.run_wiki_tiny \
   --work-dir data/runs/wiki_tiny_sample
 ```
 
+## Mixed-source sample run
+
+```bash
+python -m core_llm.scripts.run_pretrain_mix \
+  --work-dir data/runs/pretrain_mix_sample \
+  --manifest data/manifests/wikipedia_ja.jsonl \
+  --manifest data/manifests/local_notes_ja.jsonl
+```
+
 ## Sample artifact layout
 
 - `manifests/`
@@ -31,6 +40,8 @@ python -m core_llm.scripts.run_wiki_tiny \
 - `checkpoints/`
 - `eval/`
 - `run_summary.json`
+
+The same layout is used for `run_pretrain_mix`, except the manifest is `pretrain_mix_ja.jsonl`.
 
 ## Multi-source workflow
 
