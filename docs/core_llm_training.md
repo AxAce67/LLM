@@ -26,6 +26,10 @@ python -m core_llm.scripts.run_wiki_tiny \
 ## Mixed-source sample run
 
 ```bash
+python -m core_llm.scripts.discover_government_seed_urls \
+  --output data/seed_urls/government_ja.txt \
+  --limit 150
+
 python -m core_llm.scripts.fetch_government_corpus \
   --seed-file data/seed_urls/government_ja.txt \
   --output-dir data/raw/curated/government_ja

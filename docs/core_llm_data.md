@@ -33,6 +33,7 @@ Each line is a JSON object.
 - `prepare_curated_manifests` builds all known curated source manifests under one raw root
 - current curated presets are `local_notes_ja`, `tech_docs_ja`, and `government_ja`
 - `fetch_government_corpus` can populate `data/raw/curated/government_ja/` from an allowlisted seed URL file
+- `discover_government_seed_urls` can rebuild `data/seed_urls/government_ja.txt` from the Digital Agency sitemap
 
 ## Dataset artifacts
 

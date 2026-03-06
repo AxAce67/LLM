@@ -69,6 +69,14 @@ python -m core_llm.scripts.fetch_government_corpus \
   --output-dir data/raw/curated/government_ja
 ```
 
+Refresh the seed URL file automatically from the Digital Agency sitemap:
+
+```bash
+python -m core_llm.scripts.discover_government_seed_urls \
+  --output data/seed_urls/government_ja.txt \
+  --limit 150
+```
+
 Prepare a manifest directly from Japanese Wikipedia:
 
 ```bash
