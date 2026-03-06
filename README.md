@@ -37,6 +37,10 @@ PYTHONPATH=src python -m core_llm.scripts.train \
 - [`core_llm`](\/Users/Akihiro/llm/build-llm-from-scratch/core_llm): 新研究系。今後の本体
 - [`docs/migration_to_core_llm.md`](\/Users/Akihiro/llm/build-llm-from-scratch/docs/migration_to_core_llm.md): 移行方針
 - [`docs/legacy_system.md`](\/Users/Akihiro/llm/build-llm-from-scratch/docs/legacy_system.md): 旧系統の扱い
+- [`docs/core_llm_architecture.md`](\/Users/Akihiro/llm/build-llm-from-scratch/docs/core_llm_architecture.md): 新研究系の構成
+- [`docs/core_llm_data.md`](\/Users/Akihiro/llm/build-llm-from-scratch/docs/core_llm_data.md): データ仕様
+- [`docs/core_llm_training.md`](\/Users/Akihiro/llm/build-llm-from-scratch/docs/core_llm_training.md): 学習フロー
+- [`docs/core_llm_evaluation.md`](\/Users/Akihiro/llm/build-llm-from-scratch/docs/core_llm_evaluation.md): 評価方針
 - [`legacy`](\/Users/Akihiro/llm/build-llm-from-scratch/legacy): 旧運用系の退避先
 
 ルート直下には原則として次だけを置く方針です。
