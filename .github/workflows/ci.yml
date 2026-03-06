@@ -35,8 +35,8 @@ jobs:
           fi
           python -m py_compile "${files[@]}"
 
-  unit-tests:
-    name: Unit Tests
+  core-tests:
+    name: Core Tests
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -55,24 +55,15 @@ jobs:
             pytest==8.3.3 \
             sentencepiece==0.2.0 \
             torch==2.2.2 \
-            requests==2.32.3 \
-            beautifulsoup4==4.12.3 \
-            psycopg2-binary==2.9.9 \
-            python-dotenv==1.0.1 \
-            psutil==6.0.0
-
-      - name: Run legacy tests
-        run: |
-          set -euo pipefail
-          PYTHONPATH=legacy pytest -q legacy/tests
+            requests==2.32.3
 
       - name: Run core_llm tests
         run: |
           set -euo pipefail
-          PYTHONPATH=core_llm/src pytest -q core_llm/tests
+          pytest -q
 
   compose-validate:
-    name: Docker Compose Validate
+    name: Legacy Compose Validate
     runs-on: ubuntu-latest
     steps:
       - name: Checkout

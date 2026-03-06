@@ -72,9 +72,11 @@ PYTHONPATH=src python -m core_llm.scripts.train \
 新研究系の現在の確認コマンド:
 
 ```bash
-./venv/bin/python -m pytest core_llm/tests -q
+./venv/bin/python -m pytest -q
 python3 -m compileall core_llm/src/core_llm
 ```
+
+root の標準 `pytest` は `core_llm/tests` のみを対象にします。`legacy/` は明示的に指定した場合だけ扱います。
 
 ## Next migration steps
 

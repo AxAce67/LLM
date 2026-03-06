@@ -37,6 +37,8 @@
 - 原則として新機能を追加しない
 - セキュリティ修正や退避のための修正だけ許可する
 - 新しい学習・評価・推論の開発は `core_llm/` に集約する
+- root の標準 `pytest` 対象には含めない
+- テストが必要な場合だけ個別に `PYTHONPATH=legacy pytest legacy/tests` のように明示実行する
 
 ## Legacy docs
 
