@@ -30,6 +30,8 @@ Each line is a JSON object.
 - use `--id-prefix` to keep source-specific ids stable
 - use `--split-hint train|val|auto` when preparing fixed validation sets
 - a `*.report.json` file is written alongside the manifest by default
+- `prepare_curated_manifests` builds all known curated source manifests under one raw root
+- current curated presets are `local_notes_ja` and `tech_docs_ja`
 
 ## Dataset artifacts
 

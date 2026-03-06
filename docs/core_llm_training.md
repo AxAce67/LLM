@@ -26,6 +26,10 @@ python -m core_llm.scripts.run_wiki_tiny \
 ## Mixed-source sample run
 
 ```bash
+python -m core_llm.scripts.prepare_curated_manifests \
+  --raw-root data/raw/curated \
+  --manifest-dir data/manifests
+
 python -m core_llm.scripts.run_pretrain_mix \
   --work-dir data/runs/pretrain_mix_sample \
   --manifest data/manifests/wikipedia_ja.jsonl \

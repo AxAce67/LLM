@@ -47,6 +47,19 @@ python -m core_llm.scripts.prepare_manifest \
 
 `prepare_manifest` also supports `.md`, source-specific id prefixes, fixed split hints, and a companion report JSON.
 
+Prepare all curated local sources in one step:
+
+```bash
+python -m core_llm.scripts.prepare_curated_manifests \
+  --raw-root data/raw/curated \
+  --manifest-dir data/manifests
+```
+
+Expected directories:
+
+- `data/raw/curated/local_notes_ja/`
+- `data/raw/curated/tech_docs_ja/`
+
 Prepare a manifest directly from Japanese Wikipedia:
 
 ```bash
