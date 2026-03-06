@@ -14,4 +14,10 @@ CURATED_SOURCE_PRESETS = {
         "id_prefix": "tech:",
         "extensions": ["txt", "md"],
     },
+    "government_ja": {
+        "relative_dir": "government_ja",
+        "license": "cc-by-4.0",
+        "id_prefix": "gov:",
+        "extensions": ["txt", "md"],
+    },
 }

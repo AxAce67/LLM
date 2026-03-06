@@ -33,7 +33,7 @@ python -m core_llm.scripts.prepare_curated_manifests \
 python -m core_llm.scripts.run_pretrain_mix \
   --work-dir data/runs/pretrain_mix_sample \
   --manifest data/manifests/wikipedia_ja.jsonl \
-  --manifest data/manifests/local_notes_ja.jsonl
+  --manifest data/manifests/government_ja.jsonl
 ```
 
 ## Sample artifact layout

@@ -31,7 +31,7 @@ Each line is a JSON object.
 - use `--split-hint train|val|auto` when preparing fixed validation sets
 - a `*.report.json` file is written alongside the manifest by default
 - `prepare_curated_manifests` builds all known curated source manifests under one raw root
-- current curated presets are `local_notes_ja` and `tech_docs_ja`
+- current curated presets are `local_notes_ja`, `tech_docs_ja`, and `government_ja`
 
 ## Dataset artifacts
 
