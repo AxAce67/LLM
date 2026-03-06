@@ -45,6 +45,8 @@ python -m core_llm.scripts.prepare_manifest \
   --license permissive-user-provided
 ```
 
+`prepare_manifest` also supports `.md`, source-specific id prefixes, fixed split hints, and a companion report JSON.
+
 Prepare a manifest directly from Japanese Wikipedia:
 
 ```bash

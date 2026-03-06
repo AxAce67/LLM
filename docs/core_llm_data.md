@@ -23,6 +23,14 @@ Each line is a JSON object.
 - duplicate text is filtered
 - URL-heavy text is filtered
 
+## Local source manifest preparation
+
+- `prepare_manifest` scans `.txt` and `.md` by default
+- use `--include-ext` to restrict file types
+- use `--id-prefix` to keep source-specific ids stable
+- use `--split-hint train|val|auto` when preparing fixed validation sets
+- a `*.report.json` file is written alongside the manifest by default
+
 ## Dataset artifacts
 
 - `core_llm/data/prepared/train.bin`
