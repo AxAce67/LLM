@@ -15,7 +15,7 @@ def resolve_discord_settings(
 
 
 def build_run_message(summary: dict[str, Any], *, mention: str | None = None, success: bool = True) -> str:
-    prefix = "Training completed" if success else "Training failed"
+    prefix = "✅ Training completed" if success else "❌ Training failed"
     lines = []
     if mention:
         lines.append(mention)
@@ -45,7 +45,7 @@ def build_run_started_message(
         lines.append(mention)
     lines.extend(
         [
-            "Training started",
+            "▶ Training started",
             f"run: {work_dir}",
             f"type: {run_type}",
         ]
@@ -68,7 +68,7 @@ def build_failure_message(
         lines.append(mention)
     lines.extend(
         [
-            "Training failed",
+            "❌ Training failed",
             f"run: {work_dir}",
             f"type: {run_type}",
             f"error: {error}",
@@ -88,7 +88,7 @@ def build_command_success_message(
         lines.append(mention)
     lines.extend(
         [
-            "Command completed",
+            "✅ Command completed",
             f"command: {command_name}",
         ]
     )
@@ -108,7 +108,7 @@ def build_command_started_message(
         lines.append(mention)
     lines.extend(
         [
-            "Command started",
+            "▶ Command started",
             f"command: {command_name}",
         ]
     )
@@ -128,7 +128,7 @@ def build_command_failure_message(
         lines.append(mention)
     lines.extend(
         [
-            "Command failed",
+            "❌ Command failed",
             f"command: {command_name}",
             f"error: {error}",
         ]

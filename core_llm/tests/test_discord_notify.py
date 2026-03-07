@@ -38,7 +38,7 @@ def test_build_run_message_includes_key_fields():
     }
     message = build_run_message(summary, mention="@here")
     assert "@here" in message
-    assert "Training completed" in message
+    assert "✅ Training completed" in message
     assert "data/runs/example" in message
     assert "12.34" in message
     assert "train, eval" in message
@@ -52,7 +52,7 @@ def test_build_run_started_message_includes_key_fields():
         payload={"model_config": "configs/model.yaml", "max_docs": 5000},
     )
     assert "@here" in message
-    assert "Training started" in message
+    assert "▶ Training started" in message
     assert "run: data/runs/example" in message
     assert "type: wiki_tiny_sample" in message
     assert "model_config: configs/model.yaml" in message
@@ -67,7 +67,7 @@ def test_build_failure_message_includes_error():
         mention="@here",
     )
     assert "@here" in message
-    assert "Training failed" in message
+    assert "❌ Training failed" in message
     assert "pretrain_mix_sample" in message
     assert "boom" in message
 
@@ -79,7 +79,7 @@ def test_build_command_success_message_includes_payload_fields():
         mention="@here",
     )
     assert "@here" in message
-    assert "Command completed" in message
+    assert "✅ Command completed" in message
     assert "command: train" in message
     assert "step: 100" in message
     assert "best_val_perplexity: 12.34" in message
@@ -92,7 +92,7 @@ def test_build_command_started_message_includes_payload_fields():
         mention="@here",
     )
     assert "@here" in message
-    assert "Command started" in message
+    assert "▶ Command started" in message
     assert "command: prepare_dataset" in message
     assert "manifest: data/manifests/train.jsonl" in message
     assert "output_dir: data/prepared" in message
@@ -105,6 +105,6 @@ def test_build_command_failure_message_includes_error():
         mention="@here",
     )
     assert "@here" in message
-    assert "Command failed" in message
+    assert "❌ Command failed" in message
     assert "command: prepare_dataset" in message
     assert "error: Tokenizer vocab size does not match" in message
