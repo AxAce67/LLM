@@ -7,6 +7,7 @@ from core_llm.config import load_model_config, load_train_config
 from core_llm.env import load_env_file
 from core_llm.notify.discord import (
     build_command_failure_message,
+    build_command_started_message,
     build_command_success_message,
     resolve_discord_settings,
     send_discord_message,
@@ -28,6 +29,20 @@ def main() -> None:
     webhook_url, mention = resolve_discord_settings(args.discord_webhook_url, args.discord_mention)
 
     try:
+        if webhook_url:
+            send_discord_message(
+                webhook_url,
+                build_command_started_message(
+                    command_name="train",
+                    payload={
+                        "config": args.config,
+                        "train_config": args.train_config,
+                        "data_dir": args.data_dir,
+                        "checkpoint_dir": args.checkpoint_dir,
+                    },
+                    mention=mention,
+                ),
+            )
         model_config = load_model_config(args.config)
         train_config = load_train_config(args.train_config)
         set_seed(train_config.seed)

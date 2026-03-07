@@ -12,6 +12,7 @@ from core_llm.data.split import assign_split
 from core_llm.env import load_env_file
 from core_llm.notify.discord import (
     build_command_failure_message,
+    build_command_started_message,
     build_command_success_message,
     resolve_discord_settings,
     send_discord_message,
@@ -33,6 +34,19 @@ def main() -> None:
     webhook_url, mention = resolve_discord_settings(args.discord_webhook_url, args.discord_mention)
 
     try:
+        if webhook_url:
+            send_discord_message(
+                webhook_url,
+                build_command_started_message(
+                    command_name="prepare_dataset",
+                    payload={
+                        "manifest": args.manifest,
+                        "tokenizer": args.tokenizer,
+                        "output_dir": args.output_dir,
+                    },
+                    mention=mention,
+                ),
+            )
         model_config = load_model_config(args.config)
         tokenizer = load_tokenizer(args.tokenizer)
         if tokenizer.get_piece_size() != model_config.vocab_size:

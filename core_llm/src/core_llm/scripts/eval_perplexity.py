@@ -8,6 +8,7 @@ from core_llm.env import load_env_file
 from core_llm.eval.perplexity import evaluate_checkpoint_perplexity
 from core_llm.notify.discord import (
     build_command_failure_message,
+    build_command_started_message,
     build_command_success_message,
     resolve_discord_settings,
     send_discord_message,
@@ -28,6 +29,19 @@ def main() -> None:
     webhook_url, mention = resolve_discord_settings(args.discord_webhook_url, args.discord_mention)
 
     try:
+        if webhook_url:
+            send_discord_message(
+                webhook_url,
+                build_command_started_message(
+                    command_name="eval_perplexity",
+                    payload={
+                        "checkpoint": args.checkpoint,
+                        "data_dir": args.data_dir,
+                        "output": args.output,
+                    },
+                    mention=mention,
+                ),
+            )
         result = evaluate_checkpoint_perplexity(args.checkpoint, args.data_dir, args.batch_size, args.device)
         out_path = Path(args.output)
         out_path.parent.mkdir(parents=True, exist_ok=True)

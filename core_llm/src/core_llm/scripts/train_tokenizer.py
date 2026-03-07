@@ -7,6 +7,7 @@ from core_llm.config import load_tokenizer_config
 from core_llm.env import load_env_file
 from core_llm.notify.discord import (
     build_command_failure_message,
+    build_command_started_message,
     build_command_success_message,
     resolve_discord_settings,
     send_discord_message,
@@ -26,6 +27,18 @@ def main() -> None:
     webhook_url, mention = resolve_discord_settings(args.discord_webhook_url, args.discord_mention)
 
     try:
+        if webhook_url:
+            send_discord_message(
+                webhook_url,
+                build_command_started_message(
+                    command_name="train_tokenizer",
+                    payload={
+                        "manifest": args.manifest,
+                        "output_dir": args.output_dir,
+                    },
+                    mention=mention,
+                ),
+            )
         config = load_tokenizer_config(args.config)
         model_path = train_tokenizer(args.manifest, Path(args.output_dir), config)
         if webhook_url:

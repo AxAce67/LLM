@@ -7,6 +7,7 @@ from core_llm.env import load_env_file
 from core_llm.notify.discord import (
     build_failure_message,
     build_run_message,
+    build_run_started_message,
     resolve_discord_settings,
     send_discord_message,
 )
@@ -38,6 +39,20 @@ def main() -> None:
     webhook_url, mention = resolve_discord_settings(args.discord_webhook_url, args.discord_mention)
 
     try:
+        if webhook_url:
+            send_discord_message(
+                webhook_url,
+                build_run_started_message(
+                    work_dir=args.work_dir,
+                    run_type="wiki_tiny_sample",
+                    mention=mention,
+                    payload={
+                        "model_config": args.model_config,
+                        "train_config": args.train_config,
+                        "max_docs": args.max_docs,
+                    },
+                ),
+            )
         summary = run_wiki_tiny_pipeline(
             work_dir=Path(args.work_dir),
             lang=args.lang,

@@ -33,6 +33,29 @@ def build_run_message(summary: dict[str, Any], *, mention: str | None = None, su
     return "\n".join(lines)
 
 
+def build_run_started_message(
+    *,
+    work_dir: str,
+    run_type: str,
+    mention: str | None = None,
+    payload: dict[str, Any] | None = None,
+) -> str:
+    lines = []
+    if mention:
+        lines.append(mention)
+    lines.extend(
+        [
+            "Training started",
+            f"run: {work_dir}",
+            f"type: {run_type}",
+        ]
+    )
+    if payload:
+        for key, value in payload.items():
+            lines.append(f"{key}: {value}")
+    return "\n".join(lines)
+
+
 def build_failure_message(
     *,
     work_dir: str,
@@ -66,6 +89,26 @@ def build_command_success_message(
     lines.extend(
         [
             "Command completed",
+            f"command: {command_name}",
+        ]
+    )
+    for key, value in payload.items():
+        lines.append(f"{key}: {value}")
+    return "\n".join(lines)
+
+
+def build_command_started_message(
+    *,
+    command_name: str,
+    payload: dict[str, Any],
+    mention: str | None = None,
+) -> str:
+    lines = []
+    if mention:
+        lines.append(mention)
+    lines.extend(
+        [
+            "Command started",
             f"command: {command_name}",
         ]
     )

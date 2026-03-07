@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 from core_llm.notify.discord import (
+    build_command_started_message,
     build_command_failure_message,
     build_command_success_message,
     build_failure_message,
     build_run_message,
+    build_run_started_message,
     resolve_discord_settings,
 )
 
@@ -42,6 +44,21 @@ def test_build_run_message_includes_key_fields():
     assert "train, eval" in message
 
 
+def test_build_run_started_message_includes_key_fields():
+    message = build_run_started_message(
+        work_dir="data/runs/example",
+        run_type="wiki_tiny_sample",
+        mention="@here",
+        payload={"model_config": "configs/model.yaml", "max_docs": 5000},
+    )
+    assert "@here" in message
+    assert "Training started" in message
+    assert "run: data/runs/example" in message
+    assert "type: wiki_tiny_sample" in message
+    assert "model_config: configs/model.yaml" in message
+    assert "max_docs: 5000" in message
+
+
 def test_build_failure_message_includes_error():
     message = build_failure_message(
         work_dir="data/runs/example",
@@ -66,6 +83,19 @@ def test_build_command_success_message_includes_payload_fields():
     assert "command: train" in message
     assert "step: 100" in message
     assert "best_val_perplexity: 12.34" in message
+
+
+def test_build_command_started_message_includes_payload_fields():
+    message = build_command_started_message(
+        command_name="prepare_dataset",
+        payload={"manifest": "data/manifests/train.jsonl", "output_dir": "data/prepared"},
+        mention="@here",
+    )
+    assert "@here" in message
+    assert "Command started" in message
+    assert "command: prepare_dataset" in message
+    assert "manifest: data/manifests/train.jsonl" in message
+    assert "output_dir: data/prepared" in message
 
 
 def test_build_command_failure_message_includes_error():

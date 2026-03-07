@@ -7,6 +7,7 @@ from core_llm.data.wiki_dump import build_wikipedia_manifest
 from core_llm.env import load_env_file
 from core_llm.notify.discord import (
     build_command_failure_message,
+    build_command_started_message,
     build_command_success_message,
     resolve_discord_settings,
     send_discord_message,
@@ -31,6 +32,19 @@ def main() -> None:
     webhook_url, mention = resolve_discord_settings(args.discord_webhook_url, args.discord_mention)
 
     try:
+        if webhook_url:
+            send_discord_message(
+                webhook_url,
+                build_command_started_message(
+                    command_name="prepare_wikipedia_manifest",
+                    payload={
+                        "output": args.output,
+                        "lang": args.lang,
+                        "max_docs": args.max_docs if args.max_docs is not None else "all",
+                    },
+                    mention=mention,
+                ),
+            )
         report = build_wikipedia_manifest(
             lang=args.lang,
             output_path=Path(args.output),
