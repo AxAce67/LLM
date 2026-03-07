@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import sys
+from datetime import datetime
 from typing import Any
 
 import requests
@@ -97,6 +98,26 @@ def build_command_success_message(
     return "\n".join(lines)
 
 
+def build_command_progress_message(
+    *,
+    command_name: str,
+    payload: dict[str, Any],
+    mention: str | None = None,
+) -> str:
+    lines = []
+    if mention:
+        lines.append(mention)
+    lines.extend(
+        [
+            "⏳ Command progress",
+            f"command: {command_name}",
+        ]
+    )
+    for key, value in payload.items():
+        lines.append(f"{key}: {value}")
+    return "\n".join(lines)
+
+
 def build_command_started_message(
     *,
     command_name: str,
@@ -144,3 +165,22 @@ def send_discord_message(webhook_url: str, content: str, timeout: int = 10) -> b
     except requests.RequestException as exc:
         print(f"[discord] failed to send notification: {exc}", file=sys.stderr)
         return False
+
+
+def format_duration(seconds: float | int | None) -> str:
+    if seconds is None:
+        return "-"
+    total = max(0, int(round(float(seconds))))
+    hours, remainder = divmod(total, 3600)
+    minutes, secs = divmod(remainder, 60)
+    if hours:
+        return f"{hours}h {minutes}m {secs}s"
+    if minutes:
+        return f"{minutes}m {secs}s"
+    return f"{secs}s"
+
+
+def format_timestamp(seconds: float | int | None) -> str:
+    if seconds is None:
+        return "-"
+    return datetime.fromtimestamp(float(seconds)).astimezone().strftime("%Y-%m-%d %H:%M:%S %Z")

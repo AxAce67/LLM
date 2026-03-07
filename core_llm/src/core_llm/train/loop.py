@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import os
+import time
 from dataclasses import replace
 from pathlib import Path
+from typing import Any, Callable
 
 import torch
 
@@ -98,6 +100,7 @@ def train_model(
     checkpoint_dir: str | Path,
     model_config: ModelConfig,
     train_config: TrainConfig,
+    progress_callback: Callable[[dict[str, Any]], None] | None = None,
 ) -> dict:
     if model_config.vocab_size <= 0:
         raise ValueError("Model vocab_size must be positive")
@@ -140,6 +143,8 @@ def train_model(
     model.train()
     stale_evals = 0
     latest_train_loss = 0.0
+    started_at = time.time()
+    progress_notified = False
     for step in range(start_step, train_config.total_steps):
         optimizer.zero_grad(set_to_none=True)
         accum_loss = 0.0
@@ -213,6 +218,35 @@ def train_model(
             val_perplexity=val_ppl,
             lr=optimizer.param_groups[0]["lr"],
         )
+        elapsed_seconds = time.time() - started_at
+        if progress_callback:
+            should_notify_progress = False
+            if not progress_notified and elapsed_seconds >= 180:
+                should_notify_progress = True
+                progress_notified = True
+            elif should_eval and progress_notified:
+                should_notify_progress = True
+            if should_notify_progress:
+                steps_completed = max(1, step + 1 - start_step)
+                seconds_per_step = elapsed_seconds / steps_completed
+                remaining_steps = max(0, train_config.total_steps - (step + 1))
+                estimated_finish = time.time() + seconds_per_step * remaining_steps
+                progress_callback(
+                    {
+                        "step": step + 1,
+                        "total_steps": train_config.total_steps,
+                        "elapsed_seconds": elapsed_seconds,
+                        "seconds_per_step": seconds_per_step,
+                        "estimated_finish": estimated_finish,
+                        "latest_train_loss": latest_train_loss,
+                        "best_val_perplexity": best_val_perplexity,
+                        "val_loss": val_loss,
+                        "val_perplexity": val_ppl,
+                        "device": device,
+                        "batch_size": effective_train_config.batch_size,
+                        "amp": use_amp,
+                    }
+                )
         if stale_evals >= effective_train_config.early_stopping_patience:
             break
     return {
@@ -222,4 +256,5 @@ def train_model(
         "device": device,
         "batch_size": effective_train_config.batch_size,
         "amp": use_amp,
+        "duration_seconds": time.time() - started_at,
     }

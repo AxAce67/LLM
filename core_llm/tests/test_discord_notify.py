@@ -2,11 +2,14 @@ from __future__ import annotations
 
 from core_llm.notify.discord import (
     build_command_started_message,
+    build_command_progress_message,
     build_command_failure_message,
     build_command_success_message,
     build_failure_message,
     build_run_message,
     build_run_started_message,
+    format_duration,
+    format_timestamp,
     resolve_discord_settings,
 )
 
@@ -98,6 +101,19 @@ def test_build_command_started_message_includes_payload_fields():
     assert "output_dir: data/prepared" in message
 
 
+def test_build_command_progress_message_includes_payload_fields():
+    message = build_command_progress_message(
+        command_name="train",
+        payload={"step": "500/20000", "elapsed": "3m 0s", "estimated_finish": "2026-03-07 23:59:59 JST"},
+        mention="@here",
+    )
+    assert "@here" in message
+    assert "⏳ Command progress" in message
+    assert "command: train" in message
+    assert "step: 500/20000" in message
+    assert "elapsed: 3m 0s" in message
+
+
 def test_build_command_failure_message_includes_error():
     message = build_command_failure_message(
         command_name="prepare_dataset",
@@ -108,3 +124,14 @@ def test_build_command_failure_message_includes_error():
     assert "❌ Command failed" in message
     assert "command: prepare_dataset" in message
     assert "error: Tokenizer vocab size does not match" in message
+
+
+def test_format_duration_formats_values():
+    assert format_duration(45) == "45s"
+    assert format_duration(125) == "2m 5s"
+    assert format_duration(3661) == "1h 1m 1s"
+
+
+def test_format_timestamp_returns_string():
+    formatted = format_timestamp(0)
+    assert "1970-01-01" in formatted
