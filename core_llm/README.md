@@ -96,6 +96,14 @@ python -m core_llm.scripts.train_tokenizer \
   --manifest data/manifests/train_manifest.jsonl
 ```
 
+For large manifests such as `wikipedia_ja_200k.jsonl`, prefer the sampled tokenizer config to avoid exhausting memory during SentencePiece training:
+
+```bash
+python -m core_llm.scripts.train_tokenizer \
+  --config configs/tokenizer_ja_large_sample_safe.yaml \
+  --manifest data/manifests/wikipedia_ja_200k.jsonl
+```
+
 Prepare the dataset:
 
 ```bash

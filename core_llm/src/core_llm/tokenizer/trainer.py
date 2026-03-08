@@ -37,6 +37,8 @@ def train_tokenizer(
             vocab_size=config.vocab_size,
             model_type=config.model_type,
             character_coverage=config.character_coverage,
+            input_sentence_size=config.input_sentence_size,
+            shuffle_input_sentence=config.shuffle_input_sentence,
             pad_id=config.special_tokens["pad_id"],
             unk_id=config.special_tokens["unk_id"],
             bos_id=config.special_tokens["bos_id"],

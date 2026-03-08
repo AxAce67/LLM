@@ -19,6 +19,8 @@ class TokenizerConfig:
     character_coverage: float = 0.9995
     model_type: str = "bpe"
     num_threads: int = 0
+    input_sentence_size: int = 0
+    shuffle_input_sentence: bool = True
     special_tokens: dict[str, int] = field(default_factory=lambda: dict(DEFAULT_SPECIAL_TOKENS))
 
 

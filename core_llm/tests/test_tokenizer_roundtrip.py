@@ -21,3 +21,9 @@ def test_tokenizer_threads_default_to_cpu_count():
 
 def test_tokenizer_threads_respect_explicit_value():
     assert resolve_tokenizer_threads(TokenizerConfig(num_threads=8)) == 8
+
+
+def test_tokenizer_config_supports_sampling_controls():
+    config = TokenizerConfig(input_sentence_size=500000, shuffle_input_sentence=True)
+    assert config.input_sentence_size == 500000
+    assert config.shuffle_input_sentence is True
