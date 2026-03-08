@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 import os
+import shutil
+import socket
+import subprocess
 import sys
 from datetime import datetime
 from typing import Any
@@ -184,3 +187,62 @@ def format_timestamp(seconds: float | int | None) -> str:
     if seconds is None:
         return "-"
     return datetime.fromtimestamp(float(seconds)).astimezone().strftime("%Y-%m-%d %H:%M:%S %Z")
+
+
+def _linux_memory_status() -> tuple[str, str]:
+    meminfo_path = "/proc/meminfo"
+    if not os.path.exists(meminfo_path):
+        return "-", "-"
+    values: dict[str, int] = {}
+    with open(meminfo_path, "r", encoding="utf-8") as f:
+        for line in f:
+            if ":" not in line:
+                continue
+            key, value = line.split(":", 1)
+            parts = value.strip().split()
+            if not parts:
+                continue
+            try:
+                values[key] = int(parts[0])
+            except ValueError:
+                continue
+    total_kib = values.get("MemTotal")
+    available_kib = values.get("MemAvailable")
+    if not total_kib or available_kib is None:
+        return "-", "-"
+    used_kib = max(0, total_kib - available_kib)
+    gib = 1024 * 1024
+    return f"{used_kib / gib:.1f}GiB", f"{total_kib / gib:.1f}GiB"
+
+
+def collect_machine_status() -> dict[str, str]:
+    status: dict[str, str] = {
+        "host": socket.gethostname(),
+        "cpu_threads": str(max(1, os.cpu_count() or 1)),
+    }
+    ram_used, ram_total = _linux_memory_status()
+    if ram_used != "-" and ram_total != "-":
+        status["ram"] = f"{ram_used} / {ram_total}"
+    total, used, free = shutil.disk_usage(".")
+    gib = 1024**3
+    status["disk_free"] = f"{free / gib:.1f}GiB"
+    try:
+        output = subprocess.check_output(
+            [
+                "nvidia-smi",
+                "--query-gpu=name,utilization.gpu,memory.used,memory.total,temperature.gpu",
+                "--format=csv,noheader,nounits",
+            ],
+            stderr=subprocess.DEVNULL,
+            text=True,
+            timeout=5,
+        ).strip()
+        if output:
+            name, gpu_util, mem_used, mem_total, temp = [part.strip() for part in output.split(",", 4)]
+            status["gpu"] = name
+            status["gpu_util"] = f"{gpu_util}%"
+            status["vram"] = f"{mem_used}MiB / {mem_total}MiB"
+            status["gpu_temp"] = f"{temp}C"
+    except (subprocess.SubprocessError, FileNotFoundError, ValueError):
+        pass
+    return status
