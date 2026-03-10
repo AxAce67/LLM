@@ -154,6 +154,16 @@ python -m core_llm.scripts.train_sft \
   --work-dir data/runs/sft_small_sample
 ```
 
+Run a fixed prompt set against a base or SFT checkpoint:
+
+```bash
+python -m core_llm.scripts.evaluate_prompt_set \
+  --checkpoint data/runs/sft_small_sample/checkpoints/best.pt \
+  --tokenizer data/runs/wiki_small_100k_30k_bs4/tokenizer/tokenizer.model \
+  --questions data/raw/sft/eval_questions_ja.jsonl \
+  --output data/eval/sft_small_sample_eval.jsonl
+```
+
 Run a tiny Wikipedia sample training:
 
 ```bash
