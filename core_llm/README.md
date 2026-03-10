@@ -135,6 +135,25 @@ python -m core_llm.scripts.generate \
   --prompt "人工知能とは"
 ```
 
+Prepare an SFT manifest from a QA JSONL:
+
+```bash
+python -m core_llm.scripts.prepare_sft_manifest \
+  --input data/raw/sft/qa_seed.jsonl \
+  --output data/manifests/sft_ja.jsonl
+```
+
+Train SFT from a pretrained base checkpoint:
+
+```bash
+python -m core_llm.scripts.train_sft \
+  --base-checkpoint data/runs/wiki_small_100k_30k_bs4/checkpoints/best.pt \
+  --tokenizer data/runs/wiki_small_100k_30k_bs4/tokenizer/tokenizer.model \
+  --manifest data/manifests/sft_ja.jsonl \
+  --train-config configs/train_sft_small_sample.yaml \
+  --work-dir data/runs/sft_small_sample
+```
+
 Run a tiny Wikipedia sample training:
 
 ```bash
