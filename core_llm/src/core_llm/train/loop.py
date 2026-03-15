@@ -174,9 +174,9 @@ def train_model(
         should_save = ((step + 1) % effective_train_config.save_every == 0) or should_eval
         val_loss = None
         val_ppl = None
-        if should_eval:
-            val_loss = evaluate_loss(model, val_ds, device)
-            val_ppl = perplexity_from_loss(val_loss)
+            if should_eval:
+                val_loss = evaluate_loss(model, val_ds, device)
+                val_ppl = perplexity_from_loss(val_loss)
             if val_ppl is not None and val_ppl < best_val_perplexity:
                 best_val_perplexity = val_ppl
                 stale_evals = 0
@@ -209,15 +209,25 @@ def train_model(
                     best_val_perplexity=best_val_perplexity,
                 ),
             )
-        log_event(
-            metrics_path,
-            "train_step",
-            step=step + 1,
-            train_loss=latest_train_loss,
-            val_loss=val_loss,
-            val_perplexity=val_ppl,
-            lr=optimizer.param_groups[0]["lr"],
-        )
+            log_event(
+                metrics_path,
+                "train_step",
+                step=step + 1,
+                train_loss=latest_train_loss,
+                val_loss=val_loss,
+                val_perplexity=val_ppl,
+                lr=optimizer.param_groups[0]["lr"],
+            )
+        if stale_evals >= effective_train_config.early_stopping_patience:
+            log_event(
+                metrics_path,
+                "early_stop",
+                step=step + 1,
+                reason="stale_evals",
+                stale_evals=stale_evals,
+                best_val_perplexity=best_val_perplexity,
+            )
+            break
         elapsed_seconds = time.time() - started_at
         if progress_callback:
             should_notify_progress = False

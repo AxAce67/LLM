@@ -28,12 +28,15 @@ def main() -> None:
     ap.add_argument("--train-config", required=True)
     ap.add_argument("--data-dir", default="data/prepared")
     ap.add_argument("--checkpoint-dir", default="data/checkpoints")
+    ap.add_argument("--fresh", action="store_true", help="fail if latest.pt already exists")
     ap.add_argument("--discord-webhook-url")
     ap.add_argument("--discord-mention")
     args = ap.parse_args()
     webhook_url, mention = resolve_discord_settings(args.discord_webhook_url, args.discord_mention)
 
     try:
+        if args.fresh and (Path(args.checkpoint_dir) / "latest.pt").exists():
+            raise SystemExit(f"Refusing to resume: latest.pt exists in {args.checkpoint_dir}")
         if webhook_url:
             started_payload = {
                 "config": args.config,

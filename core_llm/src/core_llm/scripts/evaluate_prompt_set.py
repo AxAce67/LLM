@@ -36,7 +36,7 @@ def main() -> None:
             row = json.loads(line)
             instruction = str(row.get("instruction", "")).strip()
             input_text = str(row.get("input", "")).strip()
-            prompt = format_sft_prompt(instruction, input_text) + "### Response\n"
+            prompt = format_sft_prompt(instruction, input_text)
             response = generate_text(
                 model,
                 tokenizer,

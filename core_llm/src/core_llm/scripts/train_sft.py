@@ -59,6 +59,7 @@ def main() -> None:
     ap.add_argument("--manifest", required=True)
     ap.add_argument("--train-config", required=True)
     ap.add_argument("--work-dir", required=True)
+    ap.add_argument("--fresh", action="store_true", help="fail if latest.pt already exists")
     ap.add_argument("--discord-webhook-url")
     ap.add_argument("--discord-mention")
     args = ap.parse_args()
@@ -70,6 +71,8 @@ def main() -> None:
     metrics_path = checkpoint_dir / "train_metrics.jsonl"
     latest_path = checkpoint_dir / "latest.pt"
     best_path = checkpoint_dir / "best.pt"
+    if args.fresh and latest_path.exists():
+        raise SystemExit(f"Refusing to resume: latest.pt exists in {checkpoint_dir}")
 
     try:
         if webhook_url:

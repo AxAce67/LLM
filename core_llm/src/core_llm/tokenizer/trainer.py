@@ -22,6 +22,11 @@ def train_tokenizer(
     output_dir: str | Path,
     config: TokenizerConfig,
 ) -> Path:
+    if config.input_sentence_size == 0:
+        raise ValueError(
+            "input_sentence_size=0 loads all sentences and can OOM. "
+            "Use a capped value (e.g. 1000000) or configs/tokenizer_ja_large_sample_safe.yaml."
+        )
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
     model_prefix = output_dir / "tokenizer"
