@@ -1,35 +1,36 @@
-# `core_llm` Training Flow
+# `core_llm` 学習フロー
 
-日本語版: [core_llm_training.ja.md](core_llm_training.ja.md)
+English: [core_llm_training.md](core_llm_training.md)
 
-## Sequence
+## 手順
 
-1. Prepare manifest
-2. Train tokenizer
-3. Prepare dataset
-4. Train model
-5. Evaluate perplexity
-6. Generate smoke outputs
+1. manifest 準備
+2. tokenizer 学習
+3. dataset 準備
+4. 学習
+5. perplexity 評価
+6. 生成のスモーク確認
 
-## Recommended first workflow
+## 推奨の最初の流れ
 
 1. `prepare_wikipedia_manifest`
 2. `train_tokenizer`
 3. `prepare_dataset`
 4. `train`
 
-## Sample run command
+## サンプル実行
 
 ```bash
 python3 -m core_llm.scripts.run_wiki_tiny
 ```
 
-## Optional Discord notification
+## Discord 通知（任意）
 
-If `core_llm/.env.local` contains `DISCORD_WEBHOOK_URL`, `run_wiki_tiny` and `run_pretrain_mix` send a completion message.
-Set `DISCORD_MENTION` in the same file if you want a fixed mention in the message body.
+`core_llm/.env.local` に `DISCORD_WEBHOOK_URL` を入れると、
+`run_wiki_tiny` と `run_pretrain_mix` が完了通知を送ります。
+`DISCORD_MENTION` を入れるとメンションを固定できます。
 
-## Mixed-source sample run
+## 複数ソースのサンプル
 
 ```bash
 python3 -m core_llm.scripts.discover_government_seed_urls \
@@ -49,7 +50,7 @@ python3 -m core_llm.scripts.run_pretrain_mix \
   --manifest data/manifests/government_ja.jsonl
 ```
 
-## Sample artifact layout
+## 生成物のレイアウト
 
 - `manifests/`
 - `tokenizer/`
@@ -59,15 +60,15 @@ python3 -m core_llm.scripts.run_pretrain_mix \
 - `run_summary.json`
 - `run_log.jsonl`
 
-The same layout is used for `run_pretrain_mix`, except the manifest is `pretrain_mix_ja.jsonl`.
+`run_pretrain_mix` も同じ構成で、manifest だけ `pretrain_mix_ja.jsonl` になります。
 
-## Multi-source workflow
+## マルチソースの流れ
 
-1. prepare source manifests independently
-2. merge them into one curated training manifest
-3. train tokenizer on the merged manifest
-4. prepare dataset
-5. train and compare runs
+1. ソースごとに manifest を作る
+2. `merge_manifests` で統合
+3. 統合 manifest で tokenizer を学習
+4. dataset 準備
+5. 学習と比較
 
 ```bash
 python3 -m core_llm.scripts.merge_manifests \
@@ -76,18 +77,17 @@ python3 -m core_llm.scripts.merge_manifests \
   --output data/manifests/pretrain_mix_ja.jsonl
 ```
 
-## Note
+## 注意
 
-The sample configs are intentionally smaller than the default longer-run configs.
-Use them to validate the workflow before scaling up.
+サンプル configs は小さく設定しています。まずは動作確認用途で使用し、スケールは後から。
 
-## Checkpoints
+## チェックポイント
 
 - `<work-dir>/checkpoints/latest.pt`
 - `<work-dir>/checkpoints/best.pt`
 - `<work-dir>/checkpoints/train_metrics.jsonl`
 
-## Checkpoint contents
+## チェックポイント内容
 
 - step
 - model_config
@@ -99,19 +99,19 @@ Use them to validate the workflow before scaling up.
 - latest_train_loss
 - rng_state
 
-## Validation
+## 検証
 
-- vocab mismatch is an error
-- too-small dataset is an error
-- missing tokenizer is an error
-- val perplexity is the primary metric
+- vocab 不一致はエラー
+- dataset が小さすぎる場合はエラー
+- tokenizer 不在はエラー
+- primary metric は val perplexity
 
-## Run management
+## Run 管理
 
-- `run_summary.json` stores config snapshots and key metrics for one run
-- `python3 -m core_llm.scripts.index_runs` builds a comparable run list
-- `python3 -m core_llm.scripts.compare_runs --run <run-dir> --run <run-dir>` compares selected runs
-- `python3 -m core_llm.scripts.show_run_log --limit 50` shows recent run logs
+- `run_summary.json` に configs と主要指標を保存
+- `python3 -m core_llm.scripts.index_runs` で一覧
+- `python3 -m core_llm.scripts.compare_runs --run <run-dir> --run <run-dir>` で比較
+- `python3 -m core_llm.scripts.show_run_log --limit 50` で直近ログ確認
 
 ## SFT
 

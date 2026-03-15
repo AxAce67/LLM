@@ -1,5 +1,7 @@
 # `core_llm` Data Format
 
+日本語版: [core_llm_data.ja.md](core_llm_data.ja.md)
+
 ## Manifest schema
 
 Each line is a JSON object.

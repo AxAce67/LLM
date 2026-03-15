@@ -58,7 +58,7 @@ python3 -m compileall core_llm/src/core_llm
 
 ## 関連ドキュメント
 
-- [`docs/core_llm_architecture.md`](docs/core_llm_architecture.md)
-- [`docs/core_llm_data.md`](docs/core_llm_data.md)
-- [`docs/core_llm_training.md`](docs/core_llm_training.md)
-- [`docs/core_llm_evaluation.md`](docs/core_llm_evaluation.md)
+- [`docs/core_llm_architecture.ja.md`](docs/core_llm_architecture.ja.md)
+- [`docs/core_llm_data.ja.md`](docs/core_llm_data.ja.md)
+- [`docs/core_llm_training.ja.md`](docs/core_llm_training.ja.md)
+- [`docs/core_llm_evaluation.ja.md`](docs/core_llm_evaluation.ja.md)

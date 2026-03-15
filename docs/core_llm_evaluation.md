@@ -1,5 +1,7 @@
 # `core_llm` Evaluation Policy
 
+日本語版: [core_llm_evaluation.ja.md](core_llm_evaluation.ja.md)
+
 ## Primary metric
 
 - validation perplexity

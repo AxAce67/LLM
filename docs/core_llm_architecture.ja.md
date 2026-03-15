@@ -1,23 +1,23 @@
-# `core_llm` Architecture
+# `core_llm` 構成
 
-日本語版: [core_llm_architecture.ja.md](core_llm_architecture.ja.md)
+English: [core_llm_architecture.md](core_llm_architecture.md)
 
-## Goal
+## 目的
 
-`core_llm` is a minimal research stack for training a small base model from scratch.
+`core_llm` は、小型 base model を自前で構築するための最小構成の研究スタックです。
 
-In scope:
+対象:
 
 - tokenizer 学習
 - manifest ベースの前処理
 - binary dataset 作成
-- decoder-only transformer pretraining
+- decoder-only transformer の pretraining
 - checkpoint / resume
 - perplexity 評価
 - CLI 推論
 - run summary / run log
 
-Out of scope:
+対象外:
 
 - dashboard
 - crawler
@@ -26,13 +26,13 @@ Out of scope:
 - RAG
 - API server
 
-## Top-level flow
+## 全体フロー
 
 ```text
 raw text -> manifest -> tokenizer -> tokenized binaries -> train -> checkpoints -> eval / generate
 ```
 
-## Directories
+## ディレクトリ
 
 - `core_llm/configs/`: tokenizer / model / train config
 - `core_llm/data/`: local artifacts
@@ -40,13 +40,13 @@ raw text -> manifest -> tokenizer -> tokenized binaries -> train -> checkpoints 
 - `core_llm/tests/`: unit + small integration tests
 - `core_llm/data/runs/`: run summaries + logs
 
-## Runtime model
+## ランタイム方針
 
 - single-machine first
 - CPU / CUDA / MPS support
 - CUDA only for AMP
 - no distributed training in initial scope
 
-## Separation from legacy
+## 旧系統との分離
 
-`core_llm` does not import anything from `legacy/`.
+`core_llm` は `legacy/` を参照しません。
