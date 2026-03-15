@@ -12,7 +12,12 @@ from core_llm.config import ModelConfig, TrainConfig, dump_dataclass_jsonable, l
 from core_llm.env import load_env_file
 from core_llm.logging_utils import log_event
 from core_llm.model.transformer import GPT
-from core_llm.pipeline.run_utils import build_default_work_dir, log_run_event
+from core_llm.pipeline.run_utils import (
+    apply_run_label_dir,
+    build_default_work_dir,
+    log_run_event,
+    rewrite_summary_paths,
+)
 from core_llm.pipeline.summary_utils import build_run_label, read_training_status
 from core_llm.notify.discord import (
     build_command_failure_message,
@@ -335,6 +340,30 @@ def main() -> None:
             "resumed_from_step": resumed_from_step,
         }
         summary_path.write_text(json.dumps(summary, ensure_ascii=False, indent=2), encoding="utf-8")
+        final_dir = apply_run_label_dir(work_dir, summary.get("run_label", ""))
+        if final_dir != work_dir:
+            summary = rewrite_summary_paths(summary, work_dir, final_dir)
+            summary["work_dir"] = str(final_dir)
+            summary_path = final_dir / "run_summary.json"
+            summary_path.write_text(json.dumps(summary, ensure_ascii=False, indent=2), encoding="utf-8")
+            log_run_event(
+                global_log,
+                {
+                    "event": "run_rename",
+                    "command": "train_sft",
+                    "work_dir": str(work_dir),
+                    "new_work_dir": str(final_dir),
+                },
+            )
+            log_run_event(
+                final_dir / "run_log.jsonl",
+                {
+                    "event": "run_rename",
+                    "work_dir": str(work_dir),
+                    "new_work_dir": str(final_dir),
+                },
+            )
+            work_dir = final_dir
         if webhook_url:
             success_payload = {
                 "work_dir": str(work_dir),

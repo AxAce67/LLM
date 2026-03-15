@@ -108,11 +108,20 @@ def _score_response(
     prompt_leak = bool(re.search(r"###\s*(Instruction|Response)", stripped))
     coverage = _instruction_coverage(instruction, stripped)
     structure_ok = _structure_ok(category, stripped, input_text)
+    min_coverage = 0.2
+    if category == "definition":
+        min_coverage = 0.3
+    elif category == "comparison":
+        min_coverage = 0.25
+    elif category == "procedure":
+        min_coverage = 0.25
     qa_ok = (
-        coverage >= 0.2
+        coverage >= min_coverage
         and structure_ok
         and not prompt_leak
         and total_chars >= 15
+        and _repeat_ngram_ratio(stripped, 3) <= 0.35
+        and ratios["symbol_ratio"] <= 0.4
     )
     return {
         "response_len": total_chars,
@@ -165,11 +174,13 @@ def main() -> None:
     prompt_leak = 0
     qa_ok = 0
 
+    category_stats: dict[str, dict[str, int]] = {}
     with open(questions_path, "r", encoding="utf-8") as src, open(output_path, "w", encoding="utf-8") as dst:
         for line in src:
             if not line.strip():
                 continue
             row = json.loads(line)
+            category = str(row.get("category", "")).strip()
             instruction = str(row.get("instruction", "")).strip()
             input_text = str(row.get("input", "")).strip()
             prompt = format_sft_prompt(instruction, input_text)
@@ -184,10 +195,10 @@ def main() -> None:
                 repetition_penalty=args.repetition_penalty,
                 device=device,
             )
-            scores = _score_response(instruction, input_text, str(row.get("category", "")), response)
+            scores = _score_response(instruction, input_text, category, response)
             payload = {
                 "id": row.get("id"),
-                "category": row.get("category", ""),
+                "category": category,
                 "instruction": instruction,
                 "input": input_text,
                 "response": response.strip(),
@@ -210,6 +221,10 @@ def main() -> None:
                 prompt_leak += 1
             if score["qa_ok"]:
                 qa_ok += 1
+            stats = category_stats.setdefault(category or "unknown", {"total": 0, "qa_ok": 0})
+            stats["total"] += 1
+            if score["qa_ok"]:
+                stats["qa_ok"] += 1
             dst.write(json.dumps(payload, ensure_ascii=False) + "\n")
 
     summary = {
@@ -244,6 +259,14 @@ def main() -> None:
             "avg_latin_ratio": round(sum_latin_ratio / total, 4) if total else 0.0,
             "avg_digit_ratio": round(sum_digit_ratio / total, 4) if total else 0.0,
             "avg_instruction_coverage": round(sum_instruction_coverage / total, 4) if total else 0.0,
+        },
+        "category_stats": {
+            category: {
+                "total": stats["total"],
+                "qa_ok": stats["qa_ok"],
+                "qa_ok_rate": round(stats["qa_ok"] / stats["total"], 4) if stats["total"] else 0.0,
+            }
+            for category, stats in sorted(category_stats.items())
         },
     }
     summary_path = output_path.with_suffix(".summary.json")

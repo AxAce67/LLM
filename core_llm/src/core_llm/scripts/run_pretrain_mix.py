@@ -12,7 +12,7 @@ from core_llm.notify.discord import (
     resolve_discord_settings,
     send_discord_message,
 )
-from core_llm.pipeline.run_utils import build_default_work_dir, log_run_event
+from core_llm.pipeline.run_utils import apply_run_label_dir, build_default_work_dir, log_run_event, rewrite_summary_paths
 from core_llm.pipeline.pretrain_mix import run_pretrain_mix_pipeline
 
 
@@ -94,13 +94,38 @@ def main() -> None:
         )
         if webhook_url:
             send_discord_message(webhook_url, build_run_message(summary, mention=mention, success=True))
+        final_dir = apply_run_label_dir(work_dir, summary.get("run_label", ""))
+        if final_dir != work_dir:
+            summary = rewrite_summary_paths(summary, work_dir, final_dir)
+            summary["work_dir"] = str(final_dir)
+            (final_dir / "run_summary.json").write_text(
+                json.dumps(summary, ensure_ascii=False, indent=2), encoding="utf-8"
+            )
+            log_run_event(
+                global_log,
+                {
+                    "event": "run_rename",
+                    "command": "run_pretrain_mix",
+                    "work_dir": str(work_dir),
+                    "new_work_dir": str(final_dir),
+                },
+            )
+            log_run_event(
+                final_dir / "run_log.jsonl",
+                {
+                    "event": "run_rename",
+                    "work_dir": str(work_dir),
+                    "new_work_dir": str(final_dir),
+                },
+            )
+            run_log = final_dir / "run_log.jsonl"
         log_run_event(
             global_log,
             {
                 "event": "run_success",
                 "command": "run_pretrain_mix",
-                "work_dir": str(work_dir),
-                "summary_path": str(work_dir / "run_summary.json"),
+                "work_dir": str(final_dir),
+                "summary_path": str(final_dir / "run_summary.json"),
             },
         )
         log_run_event(

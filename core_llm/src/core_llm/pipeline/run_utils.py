@@ -31,3 +31,30 @@ def log_run_event(log_path: str | Path, payload: dict) -> None:
     record = {"ts": datetime.now(timezone.utc).isoformat(), **payload}
     with path.open("a", encoding="utf-8") as f:
         f.write(json.dumps(record, ensure_ascii=False) + "\n")
+
+
+def apply_run_label_dir(work_dir: Path, run_label: str) -> Path:
+    if not run_label:
+        return work_dir
+    if work_dir.name == run_label:
+        return work_dir
+    target = work_dir.parent / run_label
+    if target.exists():
+        for idx in range(1, 1000):
+            candidate = work_dir.parent / f"{run_label}__dup{idx}"
+            if not candidate.exists():
+                target = candidate
+                break
+        else:
+            raise FileExistsError(f"Cannot rename run dir; too many collisions for {run_label}")
+    work_dir.rename(target)
+    return target
+
+
+def rewrite_summary_paths(summary: dict, old_dir: Path, new_dir: Path) -> dict:
+    old = str(old_dir)
+    new = str(new_dir)
+    for key, value in list(summary.items()):
+        if isinstance(value, str) and value.startswith(old):
+            summary[key] = new + value[len(old) :]
+    return summary
