@@ -156,5 +156,12 @@ def test_train_sft_smoke(tmp_path: Path):
         train_sft_main()
     finally:
         sys.argv = old_argv
-    assert (work_dir / "checkpoints" / "latest.pt").exists()
+    summary_path = work_dir / "run_summary.json"
+    if not summary_path.exists():
+        candidates = list(tmp_path.rglob("run_summary.json"))
+        summary_path = next((p for p in candidates if json.loads(p.read_text()).get("run_type") == "sft"), None)
+        assert summary_path is not None
+    summary = json.loads(summary_path.read_text(encoding="utf-8"))
+    final_dir = Path(summary["work_dir"])
+    assert (final_dir / "checkpoints" / "latest.pt").exists()
     assert (work_dir / "checkpoints" / "train_metrics.jsonl").exists()
