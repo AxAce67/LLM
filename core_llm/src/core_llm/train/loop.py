@@ -174,9 +174,9 @@ def train_model(
         should_save = ((step + 1) % effective_train_config.save_every == 0) or should_eval
         val_loss = None
         val_ppl = None
-            if should_eval:
-                val_loss = evaluate_loss(model, val_ds, device)
-                val_ppl = perplexity_from_loss(val_loss)
+        if should_eval:
+            val_loss = evaluate_loss(model, val_ds, device)
+            val_ppl = perplexity_from_loss(val_loss)
             if val_ppl is not None and val_ppl < best_val_perplexity:
                 best_val_perplexity = val_ppl
                 stale_evals = 0
