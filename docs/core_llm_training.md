@@ -19,8 +19,7 @@
 ## Sample run command
 
 ```bash
-python -m core_llm.scripts.run_wiki_tiny \
-  --work-dir data/runs/wiki_tiny_sample
+python3 -m core_llm.scripts.run_wiki_tiny
 ```
 
 ## Optional Discord notification
@@ -31,20 +30,19 @@ Set `DISCORD_MENTION` in the same file if you want a fixed mention in the messag
 ## Mixed-source sample run
 
 ```bash
-python -m core_llm.scripts.discover_government_seed_urls \
+python3 -m core_llm.scripts.discover_government_seed_urls \
   --output data/seed_urls/government_ja.txt \
   --limit 150
 
-python -m core_llm.scripts.fetch_government_corpus \
+python3 -m core_llm.scripts.fetch_government_corpus \
   --seed-file data/seed_urls/government_ja.txt \
   --output-dir data/raw/curated/government_ja
 
-python -m core_llm.scripts.prepare_curated_manifests \
+python3 -m core_llm.scripts.prepare_curated_manifests \
   --raw-root data/raw/curated \
   --manifest-dir data/manifests
 
-python -m core_llm.scripts.run_pretrain_mix \
-  --work-dir data/runs/pretrain_mix_sample \
+python3 -m core_llm.scripts.run_pretrain_mix \
   --manifest data/manifests/wikipedia_ja.jsonl \
   --manifest data/manifests/government_ja.jsonl
 ```
@@ -57,6 +55,7 @@ python -m core_llm.scripts.run_pretrain_mix \
 - `checkpoints/`
 - `eval/`
 - `run_summary.json`
+- `run_log.jsonl`
 
 The same layout is used for `run_pretrain_mix`, except the manifest is `pretrain_mix_ja.jsonl`.
 
@@ -69,7 +68,7 @@ The same layout is used for `run_pretrain_mix`, except the manifest is `pretrain
 5. train and compare runs
 
 ```bash
-python -m core_llm.scripts.merge_manifests \
+python3 -m core_llm.scripts.merge_manifests \
   --input data/manifests/wikipedia_ja.jsonl \
   --input data/manifests/local_notes_ja.jsonl \
   --output data/manifests/pretrain_mix_ja.jsonl
@@ -82,9 +81,9 @@ Use them to validate the workflow before scaling up.
 
 ## Checkpoints
 
-- `core_llm/data/checkpoints/latest.pt`
-- `core_llm/data/checkpoints/best.pt`
-- `core_llm/data/checkpoints/train_metrics.jsonl`
+- `<work-dir>/checkpoints/latest.pt`
+- `<work-dir>/checkpoints/best.pt`
+- `<work-dir>/checkpoints/train_metrics.jsonl`
 
 ## Checkpoint contents
 
@@ -108,5 +107,20 @@ Use them to validate the workflow before scaling up.
 ## Run management
 
 - `run_summary.json` stores config snapshots and key metrics for one run
-- `python -m core_llm.scripts.index_runs --runs-dir data/runs` builds a comparable run list
-- `python -m core_llm.scripts.compare_runs --run <run-dir> --run <run-dir>` compares selected runs
+- `python3 -m core_llm.scripts.index_runs` builds a comparable run list
+- `python3 -m core_llm.scripts.compare_runs --run <run-dir> --run <run-dir>` compares selected runs
+- `python3 -m core_llm.scripts.show_run_log --limit 50` shows recent run logs
+
+## SFT
+
+```bash
+python3 -m core_llm.scripts.prepare_sft_manifest \
+  --input data/raw/sft/qa_seed.jsonl \
+  --output data/manifests/sft_ja.jsonl
+
+python3 -m core_llm.scripts.train_sft \
+  --base-checkpoint <work-dir>/checkpoints/best.pt \
+  --tokenizer <work-dir>/tokenizer/tokenizer.model \
+  --manifest data/manifests/sft_ja.jsonl \
+  --train-config configs/train_sft_small_sample.yaml
+```

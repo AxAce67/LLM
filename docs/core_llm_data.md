@@ -47,6 +47,11 @@ Each line is a JSON object.
 - `core_llm/data/tokenizer/tokenizer.vocab`
 - `core_llm/data/tokenizer/tokenizer_meta.json`
 
+## Tokenizer safety
+
+- `input_sentence_size=0` is disallowed to avoid OOM
+- use a capped value (e.g. `1000000`) or the default configs
+
 ## Wikipedia raw cache
 
 - `core_llm/data/raw/wikipedia/jawiki-latest-pages-articles.xml.bz2`

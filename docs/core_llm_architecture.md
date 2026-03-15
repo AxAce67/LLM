@@ -13,6 +13,7 @@
 - checkpoint / resume
 - perplexity 評価
 - CLI 推論
+- run summary / run log
 
 対象外:
 
@@ -35,6 +36,7 @@ raw text -> manifest -> tokenizer -> tokenized binaries -> train -> checkpoints 
 - `core_llm/data/`: local artifacts
 - `core_llm/src/core_llm/`: implementation
 - `core_llm/tests/`: unit + small integration tests
+- `core_llm/data/runs/`: run summaries + logs
 
 ## Runtime model
 
