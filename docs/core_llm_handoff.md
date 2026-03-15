@@ -27,19 +27,21 @@ bottleneck. The priority is to strengthen base pretraining, then re-run SFT.
 
 ## Current best checkpoint (base)
 
-- Base run: `data/runs/wiki_small_100k_30k_bs4`
-- Resume improved base (46.5k steps) evaluation:
-  - `val_perplexity` improved from `80.06` to `65.05` (re-evaluated)
+- Base run: `data/runs/wiki_small_200k_30k`
+- Evaluation:
+  - `val_perplexity`: `64.60`
+- Previous best for reference:
+  - `data/runs/wiki_small_100k_30k_bs4` -> `val_perplexity: 65.05`
 - Use:
-  - Checkpoint: `data/runs/wiki_small_100k_30k_bs4/checkpoints/best.pt`
-  - Tokenizer: `data/runs/wiki_small_100k_30k_bs4/tokenizer/tokenizer.model`
+  - Checkpoint: `data/runs/wiki_small_200k_30k/checkpoints/best.pt`
+  - Tokenizer: `data/runs/wiki_small_200k_30k/tokenizer/tokenizer.model`
 
 Re-evaluate base:
 
 ```bash
 PYTHONPATH=src python3 -m core_llm.scripts.eval_perplexity \
-  --checkpoint data/runs/wiki_small_100k_30k_bs4/checkpoints/best.pt \
-  --data-dir data/runs/wiki_small_100k_30k_bs4/prepared
+  --checkpoint data/runs/wiki_small_200k_30k/checkpoints/best.pt \
+  --data-dir data/runs/wiki_small_200k_30k/prepared
 ```
 
 ## Current best SFT result
@@ -70,21 +72,21 @@ PYTHONPATH=src python3 -m core_llm.scripts.prepare_sft_manifest \
   --output data/manifests/sft_ja.jsonl
 
 PYTHONPATH=src python3 -m core_llm.scripts.train_sft \
-  --base-checkpoint data/runs/wiki_small_100k_30k_bs4/checkpoints/best.pt \
-  --tokenizer data/runs/wiki_small_100k_30k_bs4/tokenizer/tokenizer.model \
+  --base-checkpoint data/runs/wiki_small_200k_30k/checkpoints/best.pt \
+  --tokenizer data/runs/wiki_small_200k_30k/tokenizer/tokenizer.model \
   --manifest data/manifests/sft_ja.jsonl \
   --train-config configs/train_sft_small_sample.yaml \
-  --work-dir data/runs/sft_small_100k_300_tight_after_46k_fresh
+  --work-dir data/runs/sft_small_200k_300_after_base64p6_fresh
 ```
 
 Check:
 
 ```bash
-tail -n 20 data/runs/sft_small_100k_300_tight_after_46k_fresh/checkpoints/train_metrics.jsonl
+tail -n 20 data/runs/sft_small_200k_300_after_base64p6_fresh/checkpoints/train_metrics.jsonl
 
 PYTHONPATH=src python3 -m core_llm.scripts.generate \
-  --checkpoint data/runs/sft_small_100k_300_tight_after_46k_fresh/checkpoints/best.pt \
-  --tokenizer data/runs/wiki_small_100k_30k_bs4/tokenizer/tokenizer.model \
+  --checkpoint data/runs/sft_small_200k_300_after_base64p6_fresh/checkpoints/best.pt \
+  --tokenizer data/runs/wiki_small_200k_30k/tokenizer/tokenizer.model \
   --prompt "### Instruction\n人工知能とは何ですか？\n\n### Response\n" \
   --max-new-tokens 120
 ```
@@ -93,30 +95,36 @@ Fixed prompt evaluation:
 
 ```bash
 PYTHONPATH=src python3 -m core_llm.scripts.evaluate_prompt_set \
-  --checkpoint data/runs/sft_small_100k_300_tight_after_46k_fresh/checkpoints/best.pt \
-  --tokenizer data/runs/wiki_small_100k_30k_bs4/tokenizer/tokenizer.model \
+  --checkpoint data/runs/sft_small_200k_300_after_base64p6_fresh/checkpoints/best.pt \
+  --tokenizer data/runs/wiki_small_200k_30k/tokenizer/tokenizer.model \
   --questions data/raw/sft/eval_questions_ja.jsonl \
-  --output data/eval/sft_eval_100k_300_tight_after_46k_fresh.jsonl
+  --output data/eval/sft_eval_200k_300_after_base64p6_fresh.jsonl
 ```
 
-## Next recommended step (base expansion)
+## Next recommended step (SFT refresh)
 
-Resume `wiki_small_200k_30k` to 50k steps and re-evaluate. If
-`val_perplexity < 65.05`, adopt it as the new base.
+Adopt `wiki_small_200k_30k` as the base and run a fresh SFT comparison with the
+300-item tightened seed set. Compare it against the previous SFT best
+(`data/runs/sft_small_100k_300_tight_after_46k_fresh`, `val_perplexity: 26.69`)
+using fixed prompt evaluation.
 
 ```bash
-cp configs/train_small_sample_30k.yaml configs/train_small_sample_50k_200k_resume.yaml
-sed -i 's/total_steps: 30000/total_steps: 50000/' configs/train_small_sample_50k_200k_resume.yaml
+PYTHONPATH=src python3 -m core_llm.scripts.prepare_sft_manifest \
+  --input data/raw/sft/qa_seed.jsonl \
+  --output data/manifests/sft_ja.jsonl
 
-PYTHONPATH=src python3 -m core_llm.scripts.train \
-  --config configs/model_small_ja_sample.yaml \
-  --train-config configs/train_small_sample_50k_200k_resume.yaml \
-  --data-dir data/runs/wiki_small_200k_30k/prepared \
-  --checkpoint-dir data/runs/wiki_small_200k_30k/checkpoints
+PYTHONPATH=src python3 -m core_llm.scripts.train_sft \
+  --base-checkpoint data/runs/wiki_small_200k_30k/checkpoints/best.pt \
+  --tokenizer data/runs/wiki_small_200k_30k/tokenizer/tokenizer.model \
+  --manifest data/manifests/sft_ja.jsonl \
+  --train-config configs/train_sft_small_sample.yaml \
+  --work-dir data/runs/sft_small_200k_300_after_base64p6_fresh
 
-PYTHONPATH=src python3 -m core_llm.scripts.eval_perplexity \
-  --checkpoint data/runs/wiki_small_200k_30k/checkpoints/best.pt \
-  --data-dir data/runs/wiki_small_200k_30k/prepared
+PYTHONPATH=src python3 -m core_llm.scripts.evaluate_prompt_set \
+  --checkpoint data/runs/sft_small_200k_300_after_base64p6_fresh/checkpoints/best.pt \
+  --tokenizer data/runs/wiki_small_200k_30k/tokenizer/tokenizer.model \
+  --questions data/raw/sft/eval_questions_ja.jsonl \
+  --output data/eval/sft_eval_200k_300_after_base64p6_fresh.jsonl
 ```
 
 ## Known pitfalls
