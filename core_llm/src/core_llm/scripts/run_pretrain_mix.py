@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import sys
 from pathlib import Path
 
 from core_llm.env import load_env_file
@@ -11,13 +12,14 @@ from core_llm.notify.discord import (
     resolve_discord_settings,
     send_discord_message,
 )
+from core_llm.pipeline.run_utils import build_default_work_dir, log_run_event
 from core_llm.pipeline.pretrain_mix import run_pretrain_mix_pipeline
 
 
 def main() -> None:
     load_env_file(".env.local")
     ap = argparse.ArgumentParser()
-    ap.add_argument("--work-dir", required=True)
+    ap.add_argument("--work-dir")
     ap.add_argument("--manifest", dest="manifests", action="append", required=True)
     ap.add_argument("--min-chars", type=int, default=80)
     ap.add_argument("--tokenizer-config", default="configs/tokenizer_ja_tiny_sample.yaml")
@@ -31,15 +33,43 @@ def main() -> None:
     ap.add_argument("--discord-webhook-url")
     ap.add_argument("--discord-mention")
     args = ap.parse_args()
+    work_dir = Path(args.work_dir) if args.work_dir else build_default_work_dir(
+        "pretrain_mix_sample",
+        tags=[
+            Path(args.model_config).stem,
+            Path(args.train_config).stem,
+            f"mix{len(args.manifests)}",
+        ],
+    )
 
     webhook_url, mention = resolve_discord_settings(args.discord_webhook_url, args.discord_mention)
+    global_log = Path("data/runs/run_log.jsonl")
+    run_log = work_dir / "run_log.jsonl"
+    log_run_event(
+        global_log,
+        {
+            "event": "run_start",
+            "command": "run_pretrain_mix",
+            "work_dir": str(work_dir),
+            "argv": sys.argv,
+        },
+    )
+    log_run_event(
+        run_log,
+        {
+            "event": "run_start",
+            "command": "run_pretrain_mix",
+            "work_dir": str(work_dir),
+            "args": vars(args),
+        },
+    )
 
     try:
         if webhook_url:
             send_discord_message(
                 webhook_url,
                 build_run_started_message(
-                    work_dir=args.work_dir,
+                    work_dir=str(work_dir),
                     run_type="pretrain_mix_sample",
                     mention=mention,
                     payload={
@@ -50,7 +80,7 @@ def main() -> None:
                 ),
             )
         summary = run_pretrain_mix_pipeline(
-            work_dir=Path(args.work_dir),
+            work_dir=work_dir,
             manifest_inputs=[Path(path) for path in args.manifests],
             tokenizer_config=Path(args.tokenizer_config),
             model_config=Path(args.model_config),
@@ -64,13 +94,45 @@ def main() -> None:
         )
         if webhook_url:
             send_discord_message(webhook_url, build_run_message(summary, mention=mention, success=True))
+        log_run_event(
+            global_log,
+            {
+                "event": "run_success",
+                "command": "run_pretrain_mix",
+                "work_dir": str(work_dir),
+                "summary_path": str(work_dir / "run_summary.json"),
+            },
+        )
+        log_run_event(
+            run_log,
+            {
+                "event": "run_success",
+                "summary": summary,
+            },
+        )
         print(summary)
     except Exception as exc:
+        log_run_event(
+            global_log,
+            {
+                "event": "run_error",
+                "command": "run_pretrain_mix",
+                "work_dir": str(work_dir),
+                "error": str(exc),
+            },
+        )
+        log_run_event(
+            run_log,
+            {
+                "event": "run_error",
+                "error": str(exc),
+            },
+        )
         if webhook_url:
             send_discord_message(
                 webhook_url,
                 build_failure_message(
-                    work_dir=args.work_dir,
+                    work_dir=str(work_dir),
                     run_type="pretrain_mix_sample",
                     error=str(exc),
                     mention=mention,

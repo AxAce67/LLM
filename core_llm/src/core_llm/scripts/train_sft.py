@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 import time
 from pathlib import Path
 
@@ -11,6 +12,7 @@ from core_llm.config import ModelConfig, TrainConfig, dump_dataclass_jsonable, l
 from core_llm.env import load_env_file
 from core_llm.logging_utils import log_event
 from core_llm.model.transformer import GPT
+from core_llm.pipeline.run_utils import build_default_work_dir, log_run_event
 from core_llm.pipeline.summary_utils import build_run_label, read_training_status
 from core_llm.notify.discord import (
     build_command_failure_message,
@@ -60,14 +62,48 @@ def main() -> None:
     ap.add_argument("--tokenizer", required=True)
     ap.add_argument("--manifest", required=True)
     ap.add_argument("--train-config", required=True)
-    ap.add_argument("--work-dir", required=True)
+    ap.add_argument("--work-dir")
     ap.add_argument("--fresh", action="store_true", help="fail if latest.pt already exists")
     ap.add_argument("--discord-webhook-url")
     ap.add_argument("--discord-mention")
     args = ap.parse_args()
     webhook_url, mention = resolve_discord_settings(args.discord_webhook_url, args.discord_mention)
 
-    work_dir = Path(args.work_dir)
+    base_tag = None
+    base_path = Path(args.base_checkpoint)
+    if base_path.parent.parent.exists():
+        base_tag = base_path.parent.parent.name
+    else:
+        base_tag = base_path.stem
+    work_dir = Path(args.work_dir) if args.work_dir else build_default_work_dir(
+        "sft",
+        tags=[
+            base_tag,
+            Path(args.train_config).stem,
+            Path(args.manifest).stem,
+        ],
+    )
+    global_log = Path("data/runs/run_log.jsonl")
+    run_log = work_dir / "run_log.jsonl"
+    log_run_event(
+        global_log,
+        {
+            "event": "run_start",
+            "command": "train_sft",
+            "work_dir": str(work_dir),
+            "argv": sys.argv,
+        },
+    )
+    log_run_event(
+        run_log,
+        {
+            "event": "run_start",
+            "command": "train_sft",
+            "work_dir": str(work_dir),
+            "args": vars(args),
+        },
+    )
+
     checkpoint_dir = work_dir / "checkpoints"
     checkpoint_dir.mkdir(parents=True, exist_ok=True)
     metrics_path = checkpoint_dir / "train_metrics.jsonl"
@@ -83,7 +119,7 @@ def main() -> None:
                 "base_checkpoint": args.base_checkpoint,
                 "manifest": args.manifest,
                 "train_config": args.train_config,
-                "work_dir": args.work_dir,
+                "work_dir": str(work_dir),
             }
             started_payload.update(collect_machine_status())
             send_discord_message(
@@ -301,7 +337,7 @@ def main() -> None:
         summary_path.write_text(json.dumps(summary, ensure_ascii=False, indent=2), encoding="utf-8")
         if webhook_url:
             success_payload = {
-                "work_dir": args.work_dir,
+                "work_dir": str(work_dir),
                 "step": result.get("step", "-"),
                 "latest_train_loss": result.get("latest_train_loss", "-"),
                 "best_val_perplexity": result.get("best_val_perplexity", "-"),
@@ -316,8 +352,40 @@ def main() -> None:
                     mention=mention,
                 ),
             )
+        log_run_event(
+            global_log,
+            {
+                "event": "run_success",
+                "command": "train_sft",
+                "work_dir": str(work_dir),
+                "summary_path": str(summary_path),
+            },
+        )
+        log_run_event(
+            run_log,
+            {
+                "event": "run_success",
+                "summary": summary,
+            },
+        )
         print(result)
     except Exception as exc:
+        log_run_event(
+            global_log,
+            {
+                "event": "run_error",
+                "command": "train_sft",
+                "work_dir": str(work_dir),
+                "error": str(exc),
+            },
+        )
+        log_run_event(
+            run_log,
+            {
+                "event": "run_error",
+                "error": str(exc),
+            },
+        )
         if webhook_url:
             failure_message = build_command_failure_message(
                 command_name="train_sft",

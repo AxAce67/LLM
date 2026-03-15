@@ -11,6 +11,9 @@ from core_llm.inference.cli import generate_text
 from core_llm.inference.runtime import load_runtime
 
 
+CONTENT_CHAR_RE = re.compile(r"[A-Za-z0-9\u3040-\u30FF\u4E00-\u9FFF]")
+
+
 def _repeat_ngram_ratio(text: str, n: int) -> float:
     if n <= 0:
         return 0.0
@@ -49,7 +52,38 @@ def _char_ratios(text: str) -> dict[str, float]:
     }
 
 
-def _score_response(text: str) -> dict[str, float | int | bool]:
+def _instruction_coverage(instruction: str, response: str) -> float:
+    inst_chars = {ch for ch in instruction if CONTENT_CHAR_RE.match(ch)}
+    if not inst_chars:
+        return 0.0
+    resp_chars = {ch for ch in response if CONTENT_CHAR_RE.match(ch)}
+    overlap = len(inst_chars & resp_chars)
+    return round(overlap / len(inst_chars), 4)
+
+
+def _structure_ok(category: str, response: str, input_text: str) -> bool:
+    head = response[:80]
+    if category == "definition":
+        return "とは" in head or "である" in head or "です" in head
+    if category == "comparison":
+        return any(term in response for term in ("違い", "一方", "それぞれ", "対して", "比較"))
+    if category == "procedure":
+        if re.search(r"(^|\n)\s*(\d+\.|[-*]|・)", response):
+            return True
+        return any(term in response for term in ("手順", "ステップ", "次に", "まず"))
+    if category == "summary":
+        return len(response) <= max(20, int(len(input_text) * 1.2))
+    if category == "writing":
+        return len(response) >= 20
+    return True
+
+
+def _score_response(
+    instruction: str,
+    input_text: str,
+    category: str,
+    text: str,
+) -> dict[str, float | int | bool]:
     stripped = text.strip()
     if not stripped:
         return {
@@ -62,6 +96,9 @@ def _score_response(text: str) -> dict[str, float | int | bool]:
             "latin_ratio": 0.0,
             "digit_ratio": 0.0,
             "prompt_leak": False,
+            "instruction_coverage": 0.0,
+            "structure_ok": False,
+            "qa_ok": False,
             "empty": True,
         }
     total_chars = len(stripped)
@@ -69,6 +106,14 @@ def _score_response(text: str) -> dict[str, float | int | bool]:
     unique_ratio = unique_chars / total_chars if total_chars else 0.0
     ratios = _char_ratios(stripped)
     prompt_leak = bool(re.search(r"###\s*(Instruction|Response)", stripped))
+    coverage = _instruction_coverage(instruction, stripped)
+    structure_ok = _structure_ok(category, stripped, input_text)
+    qa_ok = (
+        coverage >= 0.2
+        and structure_ok
+        and not prompt_leak
+        and total_chars >= 15
+    )
     return {
         "response_len": total_chars,
         "unique_char_ratio": round(unique_ratio, 4),
@@ -79,6 +124,9 @@ def _score_response(text: str) -> dict[str, float | int | bool]:
         "latin_ratio": ratios["latin_ratio"],
         "digit_ratio": ratios["digit_ratio"],
         "prompt_leak": prompt_leak,
+        "instruction_coverage": coverage,
+        "structure_ok": structure_ok,
+        "qa_ok": qa_ok,
         "empty": False,
     }
 
@@ -113,7 +161,9 @@ def main() -> None:
     sum_symbol_ratio = 0.0
     sum_latin_ratio = 0.0
     sum_digit_ratio = 0.0
+    sum_instruction_coverage = 0.0
     prompt_leak = 0
+    qa_ok = 0
 
     with open(questions_path, "r", encoding="utf-8") as src, open(output_path, "w", encoding="utf-8") as dst:
         for line in src:
@@ -134,13 +184,14 @@ def main() -> None:
                 repetition_penalty=args.repetition_penalty,
                 device=device,
             )
+            scores = _score_response(instruction, input_text, str(row.get("category", "")), response)
             payload = {
                 "id": row.get("id"),
                 "category": row.get("category", ""),
                 "instruction": instruction,
                 "input": input_text,
                 "response": response.strip(),
-                "scores": _score_response(response),
+                "scores": scores,
             }
             total += 1
             score = payload["scores"]
@@ -154,8 +205,11 @@ def main() -> None:
             sum_symbol_ratio += float(score["symbol_ratio"])
             sum_latin_ratio += float(score["latin_ratio"])
             sum_digit_ratio += float(score["digit_ratio"])
+            sum_instruction_coverage += float(score["instruction_coverage"])
             if score["prompt_leak"]:
                 prompt_leak += 1
+            if score["qa_ok"]:
+                qa_ok += 1
             dst.write(json.dumps(payload, ensure_ascii=False) + "\n")
 
     summary = {
@@ -177,6 +231,8 @@ def main() -> None:
             "empty_rate": round(empty / total, 4) if total else 0.0,
             "prompt_leak": prompt_leak,
             "prompt_leak_rate": round(prompt_leak / total, 4) if total else 0.0,
+            "qa_ok": qa_ok,
+            "qa_ok_rate": round(qa_ok / total, 4) if total else 0.0,
         },
         "response_stats": {
             "avg_len": round(sum_len / total, 2) if total else 0.0,
@@ -187,6 +243,7 @@ def main() -> None:
             "avg_symbol_ratio": round(sum_symbol_ratio / total, 4) if total else 0.0,
             "avg_latin_ratio": round(sum_latin_ratio / total, 4) if total else 0.0,
             "avg_digit_ratio": round(sum_digit_ratio / total, 4) if total else 0.0,
+            "avg_instruction_coverage": round(sum_instruction_coverage / total, 4) if total else 0.0,
         },
     }
     summary_path = output_path.with_suffix(".summary.json")

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -17,6 +18,7 @@ from core_llm.notify.discord import (
     resolve_discord_settings,
     send_discord_message,
 )
+from core_llm.pipeline.run_utils import log_run_event
 from core_llm.seed import set_seed
 from core_llm.train.loop import train_model
 
@@ -33,6 +35,26 @@ def main() -> None:
     ap.add_argument("--discord-mention")
     args = ap.parse_args()
     webhook_url, mention = resolve_discord_settings(args.discord_webhook_url, args.discord_mention)
+    global_log = Path("data/runs/run_log.jsonl")
+    run_log = Path(args.checkpoint_dir) / "run_log.jsonl"
+    log_run_event(
+        global_log,
+        {
+            "event": "run_start",
+            "command": "train",
+            "work_dir": str(Path(args.checkpoint_dir).parent),
+            "argv": sys.argv,
+        },
+    )
+    log_run_event(
+        run_log,
+        {
+            "event": "run_start",
+            "command": "train",
+            "checkpoint_dir": args.checkpoint_dir,
+            "args": vars(args),
+        },
+    )
 
     try:
         if args.fresh and (Path(args.checkpoint_dir) / "latest.pt").exists():
@@ -104,8 +126,39 @@ def main() -> None:
                     mention=mention,
                 ),
             )
+        log_run_event(
+            global_log,
+            {
+                "event": "run_success",
+                "command": "train",
+                "checkpoint_dir": args.checkpoint_dir,
+            },
+        )
+        log_run_event(
+            run_log,
+            {
+                "event": "run_success",
+                "result": result,
+            },
+        )
         print(result)
     except Exception as exc:
+        log_run_event(
+            global_log,
+            {
+                "event": "run_error",
+                "command": "train",
+                "checkpoint_dir": args.checkpoint_dir,
+                "error": str(exc),
+            },
+        )
+        log_run_event(
+            run_log,
+            {
+                "event": "run_error",
+                "error": str(exc),
+            },
+        )
         if webhook_url:
             failure_message = build_command_failure_message(
                 command_name="train",
