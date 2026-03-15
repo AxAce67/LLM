@@ -11,7 +11,7 @@ from core_llm.config import ModelConfig, TrainConfig, dump_dataclass_jsonable, l
 from core_llm.env import load_env_file
 from core_llm.logging_utils import log_event
 from core_llm.model.transformer import GPT
-from core_llm.pipeline.summary_utils import read_training_status
+from core_llm.pipeline.summary_utils import build_run_label, read_training_status
 from core_llm.notify.discord import (
     build_command_failure_message,
     build_command_progress_message,
@@ -272,8 +272,17 @@ def main() -> None:
             "duration_seconds": time.time() - started_at,
         }
         training_status = read_training_status(metrics_path)
+        run_label = build_run_label(
+            work_dir,
+            last_step=training_status["last_step"],
+            total_steps=effective_train_config.total_steps,
+            early_stopped=bool(training_status["early_stopped"]),
+            resumed_from_step=resumed_from_step,
+        )
         summary = {
             "run_type": "sft",
+            "run_name": work_dir.name,
+            "run_label": run_label,
             "work_dir": str(work_dir),
             "checkpoint_dir": str(checkpoint_dir),
             "metrics_path": str(metrics_path),

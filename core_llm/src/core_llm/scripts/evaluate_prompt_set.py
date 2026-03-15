@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
+import unicodedata
 from pathlib import Path
 
 from core_llm.data.sft_dataset import format_sft_prompt
@@ -9,17 +11,74 @@ from core_llm.inference.cli import generate_text
 from core_llm.inference.runtime import load_runtime
 
 
+def _repeat_ngram_ratio(text: str, n: int) -> float:
+    if n <= 0:
+        return 0.0
+    total = len(text) - n + 1
+    if total <= 0:
+        return 0.0
+    counts: dict[str, int] = {}
+    for i in range(total):
+        ng = text[i : i + n]
+        counts[ng] = counts.get(ng, 0) + 1
+    repeats = sum(count - 1 for count in counts.values() if count > 1)
+    return round(repeats / total, 4)
+
+
+def _char_ratios(text: str) -> dict[str, float]:
+    total = len(text)
+    if total == 0:
+        return {"symbol_ratio": 0.0, "latin_ratio": 0.0, "digit_ratio": 0.0}
+    symbol = 0
+    latin = 0
+    digit = 0
+    for ch in text:
+        if ch.isdigit():
+            digit += 1
+            continue
+        name = unicodedata.name(ch, "")
+        if "LATIN" in name:
+            latin += 1
+        category = unicodedata.category(ch)
+        if category.startswith(("P", "S")):
+            symbol += 1
+    return {
+        "symbol_ratio": round(symbol / total, 4),
+        "latin_ratio": round(latin / total, 4),
+        "digit_ratio": round(digit / total, 4),
+    }
+
+
 def _score_response(text: str) -> dict[str, float | int | bool]:
     stripped = text.strip()
     if not stripped:
-        return {"response_len": 0, "unique_char_ratio": 0.0, "repeat_char_ratio": 1.0, "empty": True}
+        return {
+            "response_len": 0,
+            "unique_char_ratio": 0.0,
+            "repeat_char_ratio": 1.0,
+            "repeat_bigram_ratio": 0.0,
+            "repeat_trigram_ratio": 0.0,
+            "symbol_ratio": 0.0,
+            "latin_ratio": 0.0,
+            "digit_ratio": 0.0,
+            "prompt_leak": False,
+            "empty": True,
+        }
     total_chars = len(stripped)
     unique_chars = len(set(stripped))
     unique_ratio = unique_chars / total_chars if total_chars else 0.0
+    ratios = _char_ratios(stripped)
+    prompt_leak = bool(re.search(r"###\s*(Instruction|Response)", stripped))
     return {
         "response_len": total_chars,
         "unique_char_ratio": round(unique_ratio, 4),
         "repeat_char_ratio": round(1.0 - unique_ratio, 4),
+        "repeat_bigram_ratio": _repeat_ngram_ratio(stripped, 2),
+        "repeat_trigram_ratio": _repeat_ngram_ratio(stripped, 3),
+        "symbol_ratio": ratios["symbol_ratio"],
+        "latin_ratio": ratios["latin_ratio"],
+        "digit_ratio": ratios["digit_ratio"],
+        "prompt_leak": prompt_leak,
         "empty": False,
     }
 
@@ -49,6 +108,12 @@ def main() -> None:
     sum_len = 0
     sum_unique_ratio = 0.0
     sum_repeat_ratio = 0.0
+    sum_repeat_bigram_ratio = 0.0
+    sum_repeat_trigram_ratio = 0.0
+    sum_symbol_ratio = 0.0
+    sum_latin_ratio = 0.0
+    sum_digit_ratio = 0.0
+    prompt_leak = 0
 
     with open(questions_path, "r", encoding="utf-8") as src, open(output_path, "w", encoding="utf-8") as dst:
         for line in src:
@@ -84,6 +149,13 @@ def main() -> None:
             sum_len += int(score["response_len"])
             sum_unique_ratio += float(score["unique_char_ratio"])
             sum_repeat_ratio += float(score["repeat_char_ratio"])
+            sum_repeat_bigram_ratio += float(score["repeat_bigram_ratio"])
+            sum_repeat_trigram_ratio += float(score["repeat_trigram_ratio"])
+            sum_symbol_ratio += float(score["symbol_ratio"])
+            sum_latin_ratio += float(score["latin_ratio"])
+            sum_digit_ratio += float(score["digit_ratio"])
+            if score["prompt_leak"]:
+                prompt_leak += 1
             dst.write(json.dumps(payload, ensure_ascii=False) + "\n")
 
     summary = {
@@ -103,11 +175,18 @@ def main() -> None:
             "total": total,
             "empty": empty,
             "empty_rate": round(empty / total, 4) if total else 0.0,
+            "prompt_leak": prompt_leak,
+            "prompt_leak_rate": round(prompt_leak / total, 4) if total else 0.0,
         },
         "response_stats": {
             "avg_len": round(sum_len / total, 2) if total else 0.0,
             "avg_unique_char_ratio": round(sum_unique_ratio / total, 4) if total else 0.0,
             "avg_repeat_char_ratio": round(sum_repeat_ratio / total, 4) if total else 0.0,
+            "avg_repeat_bigram_ratio": round(sum_repeat_bigram_ratio / total, 4) if total else 0.0,
+            "avg_repeat_trigram_ratio": round(sum_repeat_trigram_ratio / total, 4) if total else 0.0,
+            "avg_symbol_ratio": round(sum_symbol_ratio / total, 4) if total else 0.0,
+            "avg_latin_ratio": round(sum_latin_ratio / total, 4) if total else 0.0,
+            "avg_digit_ratio": round(sum_digit_ratio / total, 4) if total else 0.0,
         },
     }
     summary_path = output_path.with_suffix(".summary.json")

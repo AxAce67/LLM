@@ -37,3 +37,25 @@ def read_training_status(metrics_path: str | Path) -> dict[str, int | bool | Non
                 early_stopped = True
                 early_stop_step = row.get("step")
     return {"last_step": last_step, "early_stopped": early_stopped, "early_stop_step": early_stop_step}
+
+
+def build_run_label(
+    work_dir: str | Path | None,
+    *,
+    last_step: int | None,
+    total_steps: int | None,
+    early_stopped: bool,
+    resumed_from_step: int | None = None,
+) -> str:
+    name = Path(work_dir).name if work_dir else "run"
+    parts = [name]
+    if last_step is not None:
+        if total_steps is not None:
+            parts.append(f"step{last_step}of{total_steps}")
+        else:
+            parts.append(f"step{last_step}")
+    if early_stopped:
+        parts.append("early")
+    if resumed_from_step is not None:
+        parts.append(f"resume{resumed_from_step}")
+    return "__".join(parts)

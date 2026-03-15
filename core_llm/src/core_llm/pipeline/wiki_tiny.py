@@ -6,7 +6,7 @@ from pathlib import Path
 
 from core_llm.config import dump_dataclass_jsonable, load_model_config, load_tokenizer_config, load_train_config
 from core_llm.eval.perplexity import evaluate_checkpoint_perplexity
-from core_llm.pipeline.summary_utils import resolve_best_val_perplexity, read_training_status
+from core_llm.pipeline.summary_utils import build_run_label, read_training_status, resolve_best_val_perplexity
 from core_llm.scripts.prepare_dataset import main as prepare_dataset_main
 from core_llm.scripts.prepare_wikipedia_manifest import main as prepare_wikipedia_manifest_main
 from core_llm.scripts.train import main as train_main
@@ -168,9 +168,17 @@ def run_wiki_tiny_pipeline(
         fallback=None if eval_result is None else eval_result.get("val_perplexity"),
     )
     training_status = read_training_status(paths["checkpoint_dir"] / "train_metrics.jsonl")
+    run_label = build_run_label(
+        work_dir,
+        last_step=training_status["last_step"],
+        total_steps=load_train_config(train_config).total_steps,
+        early_stopped=bool(training_status["early_stopped"]),
+    )
     summary = {
         "run_type": "wiki_tiny_sample",
         "created_at": datetime.now(timezone.utc).isoformat(),
+        "run_name": work_dir.name,
+        "run_label": run_label,
         "work_dir": str(work_dir),
         "manifest_path": str(paths["manifest"]),
         "manifest_report_path": str(paths["manifest_report"]),
