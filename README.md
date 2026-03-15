@@ -1,86 +1,64 @@
 # Self-Built LLM Research Repo
 
-このリポジトリの主系統は、[`core_llm`](core_llm) です。  
-目的は、**tokenizer から pretraining まで自前で構築する日本語中心の小型 base model** を研究・実装することです。
+[日本語版はこちら](README.ja.md)
 
-## Current status
+This repository focuses on building a small Japanese-centric base model end-to-end: tokenizer, pretraining, and SFT.  
+Active development lives in [`core_llm/`](core_llm). Legacy infrastructure is frozen under [`legacy/`](legacy).
 
-- 主系統: `core_llm/`
-- 旧系統: crawler / dashboard / DB / HA ベースの運用コード
-- 方針: 旧系統は `legacy` 扱いで凍結し、新規開発は `core_llm` に集約する
+## Structure
 
-## Primary entrypoint
+- [`core_llm/`](core_llm): main research codebase
+- [`docs/`](docs): architecture, data format, training, evaluation
+- [`legacy/`](legacy): frozen legacy system
 
-作業を始めるなら、まず [`core_llm/README.md`](core_llm/README.md) を見てください。
-
-主な実行コマンド:
+## Quickstart
 
 ```bash
 cd core_llm
 source ../venv/bin/activate
 
-PYTHONPATH=src python -m core_llm.scripts.train_tokenizer \
+PYTHONPATH=src python3 -m core_llm.scripts.train_tokenizer \
   --config configs/tokenizer_ja_base.yaml \
   --manifest data/manifests/train_manifest.jsonl
 
-PYTHONPATH=src python -m core_llm.scripts.prepare_dataset \
+PYTHONPATH=src python3 -m core_llm.scripts.prepare_dataset \
   --config configs/model_tiny_ja.yaml \
   --manifest data/manifests/train_manifest.jsonl
 
-PYTHONPATH=src python -m core_llm.scripts.train \
+PYTHONPATH=src python3 -m core_llm.scripts.train \
   --config configs/model_tiny_ja.yaml \
   --train-config configs/train_local_cpu.yaml
 ```
 
-## Repository map
+## Run Tracking
 
-- [`core_llm`](core_llm): 新研究系。今後の本体
-- [`docs/migration_to_core_llm.md`](docs/migration_to_core_llm.md): 移行方針
-- [`docs/legacy_system.md`](docs/legacy_system.md): 旧系統の扱い
-- [`docs/core_llm_architecture.md`](docs/core_llm_architecture.md): 新研究系の構成
-- [`docs/core_llm_data.md`](docs/core_llm_data.md): データ仕様
-- [`docs/core_llm_training.md`](docs/core_llm_training.md): 学習フロー
-- [`docs/core_llm_evaluation.md`](docs/core_llm_evaluation.md): 評価方針
-- [`legacy`](legacy): 旧運用系の退避先
+- Each run produces a `run_summary.json` and a `run_log.jsonl`.
+- A global log is written to `data/runs/run_log.jsonl` (daily rotated as `run_log_YYYYMMDD.jsonl`).
+- Run directories are auto-renamed to include run labels (steps/resume/early stop).
 
-ルート直下には原則として次だけを置く方針です。
+## Evaluation
 
-- `core_llm/`
-- `legacy/`
-- `docs/`
-- `.github/`
-- 最小限の repo 設定ファイル
+- `evaluate_prompt_set` writes `*.summary.json` with heuristic QA metrics.
+- Use `qa_ok_rate` and category stats to compare runs quickly.
 
-## Legacy code
-
-旧運用系は現在 [`legacy`](legacy) に移動済みです。
-
-主な対象:
-
-- [`legacy/app.py`](legacy/app.py)
-- [`legacy/main_controller.py`](legacy/main_controller.py)
-- [`legacy/data_collector`](legacy/data_collector)
-- [`legacy/data_preprocessor`](legacy/data_preprocessor)
-- [`legacy/model`](legacy/model)
-- [`legacy/docker-compose.yml`](legacy/docker-compose.yml)
-- [`legacy/setup.sh`](legacy/setup.sh)
-
-これらは参照用・退避用です。新しい機能追加は行わない前提です。
-
-## Verification
-
-新研究系の現在の確認コマンド:
+## Testing
 
 ```bash
 ./venv/bin/python -m pytest -q
 python3 -m compileall core_llm/src/core_llm
 ```
 
-root の標準 `pytest` は `core_llm/tests` のみを対象にします。`legacy/` は明示的に指定した場合だけ扱います。
+## Legacy
 
-## Next migration steps
+Legacy code is kept for reference only:
 
-1. 旧系統への README 導線を縮小する
-2. CI を `core_llm` 中心に寄せる
-3. 旧系統の残存資産を `legacy` 基準でさらに縮小する
-4. ルートの依存と開発手順を研究系基準に統一する
+- [`legacy/app.py`](legacy/app.py)
+- [`legacy/main_controller.py`](legacy/main_controller.py)
+- [`legacy/docker-compose.yml`](legacy/docker-compose.yml)
+
+## Docs
+
+- [`docs/core_llm_architecture.md`](docs/core_llm_architecture.md)
+- [`docs/core_llm_data.md`](docs/core_llm_data.md)
+- [`docs/core_llm_training.md`](docs/core_llm_training.md)
+- [`docs/core_llm_evaluation.md`](docs/core_llm_evaluation.md)
