@@ -9,7 +9,7 @@ from core_llm.pipeline.run_registry import build_run_index
 
 def main() -> None:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--runs-dir", required=True)
+    ap.add_argument("--runs-dir", default="data/runs")
     ap.add_argument("--output")
     args = ap.parse_args()
 
