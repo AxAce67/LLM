@@ -25,12 +25,17 @@ def build_default_work_dir(
     return Path(base_dir) / name
 
 
-def log_run_event(log_path: str | Path, payload: dict) -> None:
+def log_run_event(log_path: str | Path, payload: dict, *, rotate_daily: bool = False) -> None:
     path = Path(log_path)
     path.parent.mkdir(parents=True, exist_ok=True)
     record = {"ts": datetime.now(timezone.utc).isoformat(), **payload}
     with path.open("a", encoding="utf-8") as f:
         f.write(json.dumps(record, ensure_ascii=False) + "\n")
+    if rotate_daily:
+        date_tag = datetime.now(timezone.utc).strftime("%Y%m%d")
+        rotated = path.with_name(f"{path.stem}_{date_tag}{path.suffix}")
+        with rotated.open("a", encoding="utf-8") as f:
+            f.write(json.dumps(record, ensure_ascii=False) + "\n")
 
 
 def apply_run_label_dir(work_dir: Path, run_label: str) -> Path:

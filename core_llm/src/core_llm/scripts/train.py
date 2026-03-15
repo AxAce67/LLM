@@ -45,6 +45,7 @@ def main() -> None:
             "work_dir": str(Path(args.checkpoint_dir).parent),
             "argv": sys.argv,
         },
+        rotate_daily=True,
     )
     log_run_event(
         run_log,
@@ -133,6 +134,7 @@ def main() -> None:
                 "command": "train",
                 "checkpoint_dir": args.checkpoint_dir,
             },
+            rotate_daily=True,
         )
         log_run_event(
             run_log,
@@ -151,6 +153,7 @@ def main() -> None:
                 "checkpoint_dir": args.checkpoint_dir,
                 "error": str(exc),
             },
+            rotate_daily=True,
         )
         log_run_event(
             run_log,

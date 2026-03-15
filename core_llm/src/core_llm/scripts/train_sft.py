@@ -25,6 +25,7 @@ from core_llm.notify.discord import (
     build_command_progress_message,
     build_command_started_message,
     build_command_success_message,
+    build_run_renamed_message,
     collect_machine_status,
     format_duration,
     format_timestamp,
@@ -99,6 +100,7 @@ def main() -> None:
             "work_dir": str(work_dir),
             "argv": sys.argv,
         },
+        rotate_daily=True,
     )
     log_run_event(
         run_log,
@@ -356,6 +358,7 @@ def main() -> None:
                     "work_dir": str(work_dir),
                     "new_work_dir": str(final_dir),
                 },
+                rotate_daily=True,
             )
             log_run_event(
                 final_dir / "run_log.jsonl",
@@ -366,6 +369,16 @@ def main() -> None:
                 },
             )
             work_dir = final_dir
+            if webhook_url:
+                send_discord_message(
+                    webhook_url,
+                    build_run_renamed_message(
+                        work_dir=str(summary.get("work_dir", "")),
+                        new_work_dir=str(final_dir),
+                        run_type="sft",
+                        mention=mention,
+                    ),
+                )
         if webhook_url:
             success_payload = {
                 "work_dir": str(work_dir),
@@ -391,6 +404,7 @@ def main() -> None:
                 "work_dir": str(work_dir),
                 "summary_path": str(summary_path),
             },
+            rotate_daily=True,
         )
         log_run_event(
             run_log,
@@ -409,6 +423,7 @@ def main() -> None:
                 "work_dir": str(work_dir),
                 "error": str(exc),
             },
+            rotate_daily=True,
         )
         log_run_event(
             run_log,

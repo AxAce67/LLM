@@ -9,6 +9,7 @@ from core_llm.env import load_env_file
 from core_llm.notify.discord import (
     build_failure_message,
     build_run_message,
+    build_run_renamed_message,
     build_run_started_message,
     resolve_discord_settings,
     send_discord_message,
@@ -54,6 +55,7 @@ def main() -> None:
             "work_dir": str(work_dir),
             "argv": sys.argv,
         },
+        rotate_daily=True,
     )
     log_run_event(
         run_log,
@@ -110,6 +112,7 @@ def main() -> None:
                     "work_dir": str(work_dir),
                     "new_work_dir": str(final_dir),
                 },
+                rotate_daily=True,
             )
             log_run_event(
                 final_dir / "run_log.jsonl",
@@ -120,6 +123,16 @@ def main() -> None:
                 },
             )
             run_log = final_dir / "run_log.jsonl"
+            if webhook_url:
+                send_discord_message(
+                    webhook_url,
+                    build_run_renamed_message(
+                        work_dir=str(work_dir),
+                        new_work_dir=str(final_dir),
+                        run_type="pretrain_mix_sample",
+                        mention=mention,
+                    ),
+                )
         log_run_event(
             global_log,
             {
@@ -128,6 +141,7 @@ def main() -> None:
                 "work_dir": str(final_dir),
                 "summary_path": str(final_dir / "run_summary.json"),
             },
+            rotate_daily=True,
         )
         log_run_event(
             run_log,
@@ -146,6 +160,7 @@ def main() -> None:
                 "work_dir": str(work_dir),
                 "error": str(exc),
             },
+            rotate_daily=True,
         )
         log_run_event(
             run_log,

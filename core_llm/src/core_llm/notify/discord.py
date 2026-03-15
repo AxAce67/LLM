@@ -81,6 +81,27 @@ def build_failure_message(
     return "\n".join(lines)
 
 
+def build_run_renamed_message(
+    *,
+    work_dir: str,
+    new_work_dir: str,
+    run_type: str,
+    mention: str | None = None,
+) -> str:
+    lines = []
+    if mention:
+        lines.append(mention)
+    lines.extend(
+        [
+            "🔁 Run renamed",
+            f"run: {work_dir}",
+            f"new_run: {new_work_dir}",
+            f"type: {run_type}",
+        ]
+    )
+    return "\n".join(lines)
+
+
 def build_command_success_message(
     *,
     command_name: str,
