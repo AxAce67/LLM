@@ -169,3 +169,10 @@ def test_evaluate_prompt_set_smoke(tmp_path: Path):
     assert len(rows) == 2
     assert rows[0]["id"] == "eval-001"
     assert "response" in rows[0]
+    assert "scores" in rows[0]
+    assert "qa_ok" in rows[0]["scores"]
+
+    summary_path = output_path.with_suffix(".summary.json")
+    summary = json.loads(summary_path.read_text(encoding="utf-8"))
+    assert summary["counts"]["total"] == 2
+    assert "qa_ok_rate" in summary["counts"]

@@ -4,6 +4,7 @@ import argparse
 import json
 import sys
 import time
+from datetime import datetime, timezone
 from pathlib import Path
 
 import torch
@@ -322,6 +323,7 @@ def main() -> None:
         )
         summary = {
             "run_type": "sft",
+            "created_at": datetime.now(timezone.utc).isoformat(),
             "run_name": work_dir.name,
             "run_label": run_label,
             "work_dir": str(work_dir),
