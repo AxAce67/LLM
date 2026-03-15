@@ -9,6 +9,21 @@ from core_llm.inference.cli import generate_text
 from core_llm.inference.runtime import load_runtime
 
 
+def _score_response(text: str) -> dict[str, float | int | bool]:
+    stripped = text.strip()
+    if not stripped:
+        return {"response_len": 0, "unique_char_ratio": 0.0, "repeat_char_ratio": 1.0, "empty": True}
+    total_chars = len(stripped)
+    unique_chars = len(set(stripped))
+    unique_ratio = unique_chars / total_chars if total_chars else 0.0
+    return {
+        "response_len": total_chars,
+        "unique_char_ratio": round(unique_ratio, 4),
+        "repeat_char_ratio": round(1.0 - unique_ratio, 4),
+        "empty": False,
+    }
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--checkpoint", required=True)
@@ -54,6 +69,7 @@ def main() -> None:
                 "instruction": instruction,
                 "input": input_text,
                 "response": response.strip(),
+                "scores": _score_response(response),
             }
             dst.write(json.dumps(payload, ensure_ascii=False) + "\n")
 

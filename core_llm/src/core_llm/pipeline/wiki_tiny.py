@@ -6,7 +6,7 @@ from pathlib import Path
 
 from core_llm.config import dump_dataclass_jsonable, load_model_config, load_tokenizer_config, load_train_config
 from core_llm.eval.perplexity import evaluate_checkpoint_perplexity
-from core_llm.pipeline.summary_utils import resolve_best_val_perplexity
+from core_llm.pipeline.summary_utils import resolve_best_val_perplexity, read_training_status
 from core_llm.scripts.prepare_dataset import main as prepare_dataset_main
 from core_llm.scripts.prepare_wikipedia_manifest import main as prepare_wikipedia_manifest_main
 from core_llm.scripts.train import main as train_main
@@ -167,6 +167,7 @@ def run_wiki_tiny_pipeline(
         paths["checkpoint_dir"],
         fallback=None if eval_result is None else eval_result.get("val_perplexity"),
     )
+    training_status = read_training_status(paths["checkpoint_dir"] / "train_metrics.jsonl")
     summary = {
         "run_type": "wiki_tiny_sample",
         "created_at": datetime.now(timezone.utc).isoformat(),
@@ -183,6 +184,9 @@ def run_wiki_tiny_pipeline(
         "train_tokens": int(metadata.get("train_tokens", 0)),
         "best_val_perplexity": best_val_perplexity,
         "latest_eval_perplexity": None if eval_result is None else eval_result.get("val_perplexity"),
+        "last_step": training_status["last_step"],
+        "early_stopped": training_status["early_stopped"],
+        "early_stop_step": training_status["early_stop_step"],
         "tokenizer_config_path": str(tokenizer_config),
         "model_config_path": str(model_config),
         "train_config_path": str(train_config),

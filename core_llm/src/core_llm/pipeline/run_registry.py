@@ -33,6 +33,8 @@ def build_run_index(runs_dir: str | Path) -> list[dict[str, Any]]:
                 "kept_docs": summary.get("kept_docs"),
                 "train_tokens": summary.get("train_tokens"),
                 "best_val_perplexity": summary.get("best_val_perplexity"),
+                "last_step": summary.get("last_step"),
+                "early_stopped": summary.get("early_stopped"),
                 "completed_steps": summary.get("steps", []),
             }
         )
@@ -53,6 +55,8 @@ def compare_runs(run_refs: list[str | Path]) -> list[dict[str, Any]]:
                 "kept_docs": summary.get("kept_docs"),
                 "train_tokens": summary.get("train_tokens"),
                 "best_val_perplexity": summary.get("best_val_perplexity"),
+                "last_step": summary.get("last_step"),
+                "early_stopped": summary.get("early_stopped"),
                 "tokenizer_vocab_size": summary.get("tokenizer_config", {}).get("vocab_size"),
                 "model_vocab_size": summary.get("model_config", {}).get("vocab_size"),
                 "block_size": summary.get("model_config", {}).get("block_size"),
