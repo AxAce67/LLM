@@ -28,7 +28,11 @@ def _prepare_base_checkpoint(tmp_path: Path) -> tuple[Path, Path]:
     with open(manifest, "w", encoding="utf-8") as f:
         for row in rows:
             f.write(json.dumps(row, ensure_ascii=False) + "\n")
-    tokenizer_path = train_tokenizer(manifest, tmp_path / "tokenizer", TokenizerConfig(vocab_size=64))
+    tokenizer_path = train_tokenizer(
+        manifest,
+        tmp_path / "tokenizer",
+        TokenizerConfig(vocab_size=64, input_sentence_size=1000),
+    )
     cfg_path = tmp_path / "model.yaml"
     cfg_path.write_text(
         "\n".join(

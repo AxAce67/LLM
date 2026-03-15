@@ -6,7 +6,11 @@ from core_llm.tokenizer.trainer import resolve_tokenizer_threads, train_tokenize
 
 
 def test_tokenizer_roundtrip(sample_manifest, tmp_path: Path):
-    model_path = train_tokenizer(sample_manifest, tmp_path / "tokenizer", TokenizerConfig(vocab_size=64))
+    model_path = train_tokenizer(
+        sample_manifest,
+        tmp_path / "tokenizer",
+        TokenizerConfig(vocab_size=64, input_sentence_size=1000),
+    )
     tokenizer = load_tokenizer(model_path)
     text = "人工知能は面白い分野です。"
     ids = tokenizer.encode_as_ids(text)

@@ -55,7 +55,11 @@ def test_prepare_wikipedia_manifest_and_dataset_pipeline(tmp_path: Path):
     report = json.loads(report_path.read_text(encoding="utf-8"))
     assert report["kept_docs"] > 0
 
-    model_path = train_tokenizer(manifest_path, tmp_path / "tokenizer", TokenizerConfig(vocab_size=64))
+    model_path = train_tokenizer(
+        manifest_path,
+        tmp_path / "tokenizer",
+        TokenizerConfig(vocab_size=64, input_sentence_size=1000),
+    )
     cfg_path = tmp_path / "model.yaml"
     cfg_path.write_text(
         "\n".join(

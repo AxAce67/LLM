@@ -32,17 +32,19 @@ def test_run_wiki_tiny_pipeline_end_to_end(tmp_path: Path):
     _write_dump(dump_path)
     work_dir = tmp_path / "run"
     tokenizer_cfg = tmp_path / "tokenizer.yaml"
-    tokenizer_cfg.write_text(
-        "\n".join(
-            [
-                "vocab_size: 128",
-                "character_coverage: 0.9995",
-                "model_type: bpe",
-                "special_tokens:",
-                "  pad_id: 0",
-                "  unk_id: 1",
-                "  bos_id: 2",
-                "  eos_id: 3",
+        tokenizer_cfg.write_text(
+            "\n".join(
+                [
+                    "vocab_size: 128",
+                    "character_coverage: 0.9995",
+                    "model_type: bpe",
+                    "input_sentence_size: 1000",
+                    "shuffle_input_sentence: true",
+                    "special_tokens:",
+                    "  pad_id: 0",
+                    "  unk_id: 1",
+                    "  bos_id: 2",
+                    "  eos_id: 3",
             ]
         ),
         encoding="utf-8",

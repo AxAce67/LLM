@@ -47,6 +47,7 @@ def _prepare_base_checkpoint(tmp_path: Path) -> tuple[Path, Path]:
             character_coverage=0.9995,
             model_type="bpe",
             special_tokens=DEFAULT_SPECIAL_TOKENS,
+            input_sentence_size=1000,
         ),
     )
 

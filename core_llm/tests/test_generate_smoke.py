@@ -9,7 +9,11 @@ from core_llm.train.loop import train_model
 
 
 def _prepare_training_artifacts(sample_manifest, tmp_path: Path):
-    model_path = train_tokenizer(sample_manifest, tmp_path / "data" / "tokenizer", TokenizerConfig(vocab_size=64))
+    model_path = train_tokenizer(
+        sample_manifest,
+        tmp_path / "data" / "tokenizer",
+        TokenizerConfig(vocab_size=64, input_sentence_size=1000),
+    )
     cfg_path = tmp_path / "model.yaml"
     cfg_path.write_text(
         "\n".join(

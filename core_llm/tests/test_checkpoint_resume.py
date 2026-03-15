@@ -7,7 +7,11 @@ from core_llm.train.loop import train_model
 
 
 def _prepare_dataset(sample_manifest, tmp_path: Path, vocab_size: int = 64, block_size: int = 16):
-    model_path = train_tokenizer(sample_manifest, tmp_path / "tokenizer", TokenizerConfig(vocab_size=vocab_size))
+    model_path = train_tokenizer(
+        sample_manifest,
+        tmp_path / "tokenizer",
+        TokenizerConfig(vocab_size=vocab_size, input_sentence_size=1000),
+    )
     cfg_path = tmp_path / "model.yaml"
     cfg_path.write_text(
         "\n".join(

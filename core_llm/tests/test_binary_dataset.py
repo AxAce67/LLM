@@ -6,7 +6,11 @@ from core_llm.tokenizer.trainer import train_tokenizer
 
 
 def test_binary_dataset_returns_expected_shapes(sample_manifest, tmp_path):
-    model_path = train_tokenizer(sample_manifest, tmp_path / "tokenizer", TokenizerConfig(vocab_size=64))
+    model_path = train_tokenizer(
+        sample_manifest,
+        tmp_path / "tokenizer",
+        TokenizerConfig(vocab_size=64, input_sentence_size=1000),
+    )
     tokenizer_dir = model_path.parent
     cfg_path = tmp_path / "model.yaml"
     cfg_path.write_text(

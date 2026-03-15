@@ -69,7 +69,7 @@ def test_sft_dataset_masks_prompt_tokens(tmp_path: Path):
     tokenizer_path = train_tokenizer(
         tokenizer_manifest,
         tmp_path / "tokenizer",
-        TokenizerConfig(vocab_size=64),
+        TokenizerConfig(vocab_size=64, input_sentence_size=1000),
     )
     dataset = SFTDataset(
         manifest_path=manifest,
