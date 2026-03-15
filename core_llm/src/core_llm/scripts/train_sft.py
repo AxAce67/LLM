@@ -1,15 +1,17 @@
 from __future__ import annotations
 
 import argparse
+import json
 import time
 from pathlib import Path
 
 import torch
 
-from core_llm.config import ModelConfig, TrainConfig, load_train_config
+from core_llm.config import ModelConfig, TrainConfig, dump_dataclass_jsonable, load_train_config
 from core_llm.env import load_env_file
 from core_llm.logging_utils import log_event
 from core_llm.model.transformer import GPT
+from core_llm.pipeline.summary_utils import read_training_status
 from core_llm.notify.discord import (
     build_command_failure_message,
     build_command_progress_message,
@@ -71,6 +73,7 @@ def main() -> None:
     metrics_path = checkpoint_dir / "train_metrics.jsonl"
     latest_path = checkpoint_dir / "latest.pt"
     best_path = checkpoint_dir / "best.pt"
+    summary_path = work_dir / "run_summary.json"
     if args.fresh and latest_path.exists():
         raise SystemExit(f"Refusing to resume: latest.pt exists in {checkpoint_dir}")
 
@@ -123,6 +126,7 @@ def main() -> None:
         scaler = torch.amp.GradScaler("cuda", enabled=use_amp)
 
         start_step = 0
+        resumed_from_step = None
         best_val_perplexity = float("inf")
         if latest_path.exists():
             checkpoint = load_checkpoint(latest_path, device)
@@ -130,6 +134,7 @@ def main() -> None:
             optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
             start_step = int(checkpoint.get("step", 0))
             best_val_perplexity = float(checkpoint.get("best_val_perplexity", float("inf")))
+            resumed_from_step = start_step
         else:
             model.load_state_dict(base_checkpoint["model_state_dict"])
 
@@ -247,6 +252,14 @@ def main() -> None:
                         ),
                     )
             if stale_evals >= effective_train_config.early_stopping_patience:
+                log_event(
+                    metrics_path,
+                    "early_stop",
+                    step=step + 1,
+                    reason="stale_evals",
+                    stale_evals=stale_evals,
+                    best_val_perplexity=best_val_perplexity,
+                )
                 break
 
         result = {
@@ -258,6 +271,25 @@ def main() -> None:
             "amp": use_amp,
             "duration_seconds": time.time() - started_at,
         }
+        training_status = read_training_status(metrics_path)
+        summary = {
+            "run_type": "sft",
+            "work_dir": str(work_dir),
+            "checkpoint_dir": str(checkpoint_dir),
+            "metrics_path": str(metrics_path),
+            "base_checkpoint": args.base_checkpoint,
+            "tokenizer": args.tokenizer,
+            "manifest": args.manifest,
+            "train_config_path": args.train_config,
+            "train_config": dump_dataclass_jsonable(effective_train_config),
+            "model_config": dump_dataclass_jsonable(model_config),
+            "result": result,
+            "last_step": training_status["last_step"],
+            "early_stopped": training_status["early_stopped"],
+            "early_stop_step": training_status["early_stop_step"],
+            "resumed_from_step": resumed_from_step,
+        }
+        summary_path.write_text(json.dumps(summary, ensure_ascii=False, indent=2), encoding="utf-8")
         if webhook_url:
             success_payload = {
                 "work_dir": args.work_dir,

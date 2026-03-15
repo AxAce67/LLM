@@ -44,6 +44,12 @@ def main() -> None:
 
     model, tokenizer, device = load_runtime(args.checkpoint, args.tokenizer, args.device)
 
+    total = 0
+    empty = 0
+    sum_len = 0
+    sum_unique_ratio = 0.0
+    sum_repeat_ratio = 0.0
+
     with open(questions_path, "r", encoding="utf-8") as src, open(output_path, "w", encoding="utf-8") as dst:
         for line in src:
             if not line.strip():
@@ -71,7 +77,41 @@ def main() -> None:
                 "response": response.strip(),
                 "scores": _score_response(response),
             }
+            total += 1
+            score = payload["scores"]
+            if score["empty"]:
+                empty += 1
+            sum_len += int(score["response_len"])
+            sum_unique_ratio += float(score["unique_char_ratio"])
+            sum_repeat_ratio += float(score["repeat_char_ratio"])
             dst.write(json.dumps(payload, ensure_ascii=False) + "\n")
+
+    summary = {
+        "checkpoint": args.checkpoint,
+        "questions": str(questions_path),
+        "output": str(output_path),
+        "tokenizer": args.tokenizer,
+        "device": device,
+        "generation": {
+            "max_new_tokens": args.max_new_tokens,
+            "temperature": args.temperature,
+            "top_k": args.top_k,
+            "top_p": args.top_p,
+            "repetition_penalty": args.repetition_penalty,
+        },
+        "counts": {
+            "total": total,
+            "empty": empty,
+            "empty_rate": round(empty / total, 4) if total else 0.0,
+        },
+        "response_stats": {
+            "avg_len": round(sum_len / total, 2) if total else 0.0,
+            "avg_unique_char_ratio": round(sum_unique_ratio / total, 4) if total else 0.0,
+            "avg_repeat_char_ratio": round(sum_repeat_ratio / total, 4) if total else 0.0,
+        },
+    }
+    summary_path = output_path.with_suffix(".summary.json")
+    summary_path.write_text(json.dumps(summary, ensure_ascii=False, indent=2), encoding="utf-8")
 
     print(
         {
@@ -79,6 +119,7 @@ def main() -> None:
             "questions": str(questions_path),
             "output": str(output_path),
             "device": device,
+            "summary": str(summary_path),
         }
     )
 
