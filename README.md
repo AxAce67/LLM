@@ -1,6 +1,6 @@
 # Self-Built LLM Research Repo
 
-このリポジトリの主系統は、[`core_llm`](\/Users/Akihiro/llm/build-llm-from-scratch/core_llm) です。  
+このリポジトリの主系統は、[`core_llm`](core_llm) です。  
 目的は、**tokenizer から pretraining まで自前で構築する日本語中心の小型 base model** を研究・実装することです。
 
 ## Current status
@@ -11,7 +11,7 @@
 
 ## Primary entrypoint
 
-作業を始めるなら、まず [`core_llm/README.md`](\/Users/Akihiro/llm/build-llm-from-scratch/core_llm/README.md) を見てください。
+作業を始めるなら、まず [`core_llm/README.md`](core_llm/README.md) を見てください。
 
 主な実行コマンド:
 
@@ -34,14 +34,14 @@ PYTHONPATH=src python -m core_llm.scripts.train \
 
 ## Repository map
 
-- [`core_llm`](\/Users/Akihiro/llm/build-llm-from-scratch/core_llm): 新研究系。今後の本体
-- [`docs/migration_to_core_llm.md`](\/Users/Akihiro/llm/build-llm-from-scratch/docs/migration_to_core_llm.md): 移行方針
-- [`docs/legacy_system.md`](\/Users/Akihiro/llm/build-llm-from-scratch/docs/legacy_system.md): 旧系統の扱い
-- [`docs/core_llm_architecture.md`](\/Users/Akihiro/llm/build-llm-from-scratch/docs/core_llm_architecture.md): 新研究系の構成
-- [`docs/core_llm_data.md`](\/Users/Akihiro/llm/build-llm-from-scratch/docs/core_llm_data.md): データ仕様
-- [`docs/core_llm_training.md`](\/Users/Akihiro/llm/build-llm-from-scratch/docs/core_llm_training.md): 学習フロー
-- [`docs/core_llm_evaluation.md`](\/Users/Akihiro/llm/build-llm-from-scratch/docs/core_llm_evaluation.md): 評価方針
-- [`legacy`](\/Users/Akihiro/llm/build-llm-from-scratch/legacy): 旧運用系の退避先
+- [`core_llm`](core_llm): 新研究系。今後の本体
+- [`docs/migration_to_core_llm.md`](docs/migration_to_core_llm.md): 移行方針
+- [`docs/legacy_system.md`](docs/legacy_system.md): 旧系統の扱い
+- [`docs/core_llm_architecture.md`](docs/core_llm_architecture.md): 新研究系の構成
+- [`docs/core_llm_data.md`](docs/core_llm_data.md): データ仕様
+- [`docs/core_llm_training.md`](docs/core_llm_training.md): 学習フロー
+- [`docs/core_llm_evaluation.md`](docs/core_llm_evaluation.md): 評価方針
+- [`legacy`](legacy): 旧運用系の退避先
 
 ルート直下には原則として次だけを置く方針です。
 
@@ -53,17 +53,17 @@ PYTHONPATH=src python -m core_llm.scripts.train \
 
 ## Legacy code
 
-旧運用系は現在 [`legacy`](\/Users/Akihiro/llm/build-llm-from-scratch/legacy) に移動済みです。
+旧運用系は現在 [`legacy`](legacy) に移動済みです。
 
 主な対象:
 
-- [`legacy/app.py`](\/Users/Akihiro/llm/build-llm-from-scratch/legacy/app.py)
-- [`legacy/main_controller.py`](\/Users/Akihiro/llm/build-llm-from-scratch/legacy/main_controller.py)
-- [`legacy/data_collector`](\/Users/Akihiro/llm/build-llm-from-scratch/legacy/data_collector)
-- [`legacy/data_preprocessor`](\/Users/Akihiro/llm/build-llm-from-scratch/legacy/data_preprocessor)
-- [`legacy/model`](\/Users/Akihiro/llm/build-llm-from-scratch/legacy/model)
-- [`legacy/docker-compose.yml`](\/Users/Akihiro/llm/build-llm-from-scratch/legacy/docker-compose.yml)
-- [`legacy/setup.sh`](\/Users/Akihiro/llm/build-llm-from-scratch/legacy/setup.sh)
+- [`legacy/app.py`](legacy/app.py)
+- [`legacy/main_controller.py`](legacy/main_controller.py)
+- [`legacy/data_collector`](legacy/data_collector)
+- [`legacy/data_preprocessor`](legacy/data_preprocessor)
+- [`legacy/model`](legacy/model)
+- [`legacy/docker-compose.yml`](legacy/docker-compose.yml)
+- [`legacy/setup.sh`](legacy/setup.sh)
 
 これらは参照用・退避用です。新しい機能追加は行わない前提です。
 
