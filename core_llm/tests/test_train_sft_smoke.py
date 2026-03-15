@@ -164,4 +164,4 @@ def test_train_sft_smoke(tmp_path: Path):
     summary = json.loads(summary_path.read_text(encoding="utf-8"))
     final_dir = Path(summary["work_dir"])
     assert (final_dir / "checkpoints" / "latest.pt").exists()
-    assert (work_dir / "checkpoints" / "train_metrics.jsonl").exists()
+    assert (final_dir / "checkpoints" / "train_metrics.jsonl").exists()
