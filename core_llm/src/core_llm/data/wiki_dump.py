@@ -8,7 +8,7 @@ import xml.etree.ElementTree as ET
 from collections.abc import Iterator
 from pathlib import Path
 
-from core_llm.data.cleaning import is_usable_text, looks_japanese, normalize_text
+from core_llm.data.cleaning import is_usable_text, looks_japanese, normalize_text, strip_noisy_lines
 from core_llm.data.dedup import is_duplicate
 from core_llm.data.manifest_schema import ManifestRecord
 
@@ -124,6 +124,8 @@ def extract_plaintext_from_revision_text(wikitext: str) -> str:
     text = re.sub(r"^\s*\|.*$", "", text, flags=re.MULTILINE)
     text = re.sub(r"\{\|.*?\|\}", "", text, flags=re.DOTALL)
     text = re.sub(r"''+", "", text)
+    text = normalize_text(text)
+    text = strip_noisy_lines(text)
     return normalize_text(text)
 
 
