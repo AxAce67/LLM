@@ -1,13 +1,17 @@
 # core_llm handoff / runbook
 
-This document captures the current state and the exact commands to continue work
-on the Japanese small LLM experiments (pretrain + SFT). It is written for a new
-agent to pick up without ambiguity.
+This document captures the current state and exact commands to continue the
+Japanese small LLM experiments (pretrain + SFT). It is meant for handoff to a
+new session without ambiguity.
 
 ## Goal
 
-Improve QA behavior. SFT helps format, but base model strength is the current
-bottleneck. The priority is to strengthen base pretraining, then re-run SFT.
+Build a more general QA-capable Japanese LLM. The current bottlenecks are:
+
+1) Short-form answer control (especially comparison/summary tasks).
+2) Evaluation stability (small eval set and strict heuristics).
+
+Base pretraining is now at 100k docs; SFT is being tuned to hit the eval set.
 
 ## Environment
 
@@ -25,46 +29,51 @@ bottleneck. The priority is to strengthen base pretraining, then re-run SFT.
 - Do not change model config or tokenizer when resuming; checkpoints are
   incompatible otherwise.
 
-## Current best checkpoint (base)
+## Current best base run (pretrain)
 
-- Base run: `data/runs/wiki_small_200k_30k`
-- Evaluation:
-  - `val_perplexity`: `64.60`
-- Previous best for reference:
-  - `data/runs/wiki_small_100k_30k_bs4` -> `val_perplexity: 65.05`
-- Use:
-  - Checkpoint: `data/runs/wiki_small_200k_30k/checkpoints/best.pt`
-  - Tokenizer: `data/runs/wiki_small_200k_30k/tokenizer/tokenizer.model`
+- Base run:
+  `data/runs/wiki_tiny_sample_20260317_115406_model_small_ja_sample_train_small_sample_30k_docs100000__step18000of30000__early`
+- Best val perplexity: `52.47` (early stopped at 18k / 30k)
+- Tokenizer:
+  `.../tokenizer/tokenizer.model`
+- Checkpoint:
+  `.../checkpoints/best.pt`
 
 Re-evaluate base:
 
 ```bash
 PYTHONPATH=src python3 -m core_llm.scripts.eval_perplexity \
-  --checkpoint data/runs/wiki_small_200k_30k/checkpoints/best.pt \
-  --data-dir data/runs/wiki_small_200k_30k/prepared
+  --checkpoint data/runs/wiki_tiny_sample_20260317_115406_model_small_ja_sample_train_small_sample_30k_docs100000__step18000of30000__early/checkpoints/best.pt \
+  --data-dir data/runs/wiki_tiny_sample_20260317_115406_model_small_ja_sample_train_small_sample_30k_docs100000__step18000of30000__early/prepared
 ```
 
-## Current best SFT result
+## Current best SFT baseline
 
-- Run: `data/runs/sft_small_100k_300_tight_after_46k_fresh`
-- `val_perplexity`: `26.69`
-- Output is improved in form but still drifts semantically.
+We evaluate SFT using **short-answer settings** to avoid runaway generations.
+This improved summary scores from 0.0 to 0.5, but comparison stayed at 0.0
+because the evaluation requires explicit words like `違い`.
 
-## SFT seed data
+Recommended eval settings:
 
-Seed files:
+```bash
+--max-new-tokens 64 --temperature 0.2 --repetition-penalty 1.2 --stop "。"
+```
 
-- `data/raw/sft/qa_seed.jsonl` (300 items, tightened answers)
-- `data/raw/sft/qa_seed_core_ja.jsonl` (120 items, focused core set; not good in practice)
+## SFT seed data (current)
 
-Notes:
+- `core_llm/data/raw/sft/qa_seed.jsonl` expanded to **~870 items**.
+- Many variants were added for summary/comparison and short-answer control.
+- Comparison scoring uses string checks; SFT answers now include explicit
+  `違いは...` phrasing to satisfy evaluation.
 
-- The 120-item core set performed worse than the 300-item set.
-- Keep using the 300-item set unless a new curated set is built.
+Lint seed data:
 
-## Fresh SFT run template (recommended)
+```bash
+PYTHONPATH=src python3 -m core_llm.scripts.lint_sft_seed \
+  --input data/raw/sft/qa_seed.jsonl
+```
 
-Use the improved base and run SFT in a new workdir:
+## Standard SFT run template (current)
 
 ```bash
 PYTHONPATH=src python3 -m core_llm.scripts.prepare_sft_manifest \
@@ -72,73 +81,59 @@ PYTHONPATH=src python3 -m core_llm.scripts.prepare_sft_manifest \
   --output data/manifests/sft_ja.jsonl
 
 PYTHONPATH=src python3 -m core_llm.scripts.train_sft \
-  --base-checkpoint data/runs/wiki_small_200k_30k/checkpoints/best.pt \
-  --tokenizer data/runs/wiki_small_200k_30k/tokenizer/tokenizer.model \
+  --base-checkpoint data/runs/wiki_tiny_sample_20260317_115406_model_small_ja_sample_train_small_sample_30k_docs100000__step18000of30000__early/checkpoints/best.pt \
+  --tokenizer data/runs/wiki_tiny_sample_20260317_115406_model_small_ja_sample_train_small_sample_30k_docs100000__step18000of30000__early/tokenizer/tokenizer.model \
   --manifest data/manifests/sft_ja.jsonl \
-  --train-config configs/train_sft_small_sample.yaml \
-  --work-dir data/runs/sft_small_200k_300_after_base64p6_fresh
+  --train-config configs/train_sft_small_sample.yaml
 ```
 
-Check:
-
-```bash
-tail -n 20 data/runs/sft_small_200k_300_after_base64p6_fresh/checkpoints/train_metrics.jsonl
-
-PYTHONPATH=src python3 -m core_llm.scripts.generate \
-  --checkpoint data/runs/sft_small_200k_300_after_base64p6_fresh/checkpoints/best.pt \
-  --tokenizer data/runs/wiki_small_200k_30k/tokenizer/tokenizer.model \
-  --prompt "### Instruction\n人工知能とは何ですか？\n\n### Response\n" \
-  --max-new-tokens 120
-```
-
-Fixed prompt evaluation:
+Evaluate (short + stop):
 
 ```bash
 PYTHONPATH=src python3 -m core_llm.scripts.evaluate_prompt_set \
-  --checkpoint data/runs/sft_small_200k_300_after_base64p6_fresh/checkpoints/best.pt \
-  --tokenizer data/runs/wiki_small_200k_30k/tokenizer/tokenizer.model \
+  --checkpoint <SFT_RUN>/checkpoints/best.pt \
+  --tokenizer data/runs/wiki_tiny_sample_20260317_115406_model_small_ja_sample_train_small_sample_30k_docs100000__step18000of30000__early/tokenizer/tokenizer.model \
   --questions data/raw/sft/eval_questions_ja.jsonl \
-  --output data/eval/sft_eval_200k_300_after_base64p6_fresh.jsonl
+  --output data/eval/sft_eval_clean_100k_<TAG>_stop.jsonl \
+  --max-new-tokens 64 \
+  --temperature 0.2 \
+  --repetition-penalty 1.2 \
+  --stop "。"
 ```
 
-## Next recommended step (SFT refresh)
+## Why comparison was stuck at 0.0
 
-Adopt `wiki_small_200k_30k` as the base and run a fresh SFT comparison with the
-300-item tightened seed set. Compare it against the previous SFT best
-(`data/runs/sft_small_100k_300_tight_after_46k_fresh`, `val_perplexity: 26.69`)
-using fixed prompt evaluation.
+`evaluate_prompt_set.py` marks comparison as correct only if response contains
+one of: `違い`, `一方`, `それぞれ`, `対して`, `比較`. Short answers without these
+words are graded as 0 even if correct. Therefore SFT data now uses
+`違いは...` phrasing.
 
-```bash
-PYTHONPATH=src python3 -m core_llm.scripts.prepare_sft_manifest \
-  --input data/raw/sft/qa_seed.jsonl \
-  --output data/manifests/sft_ja.jsonl
+## New CLI support
 
-PYTHONPATH=src python3 -m core_llm.scripts.train_sft \
-  --base-checkpoint data/runs/wiki_small_200k_30k/checkpoints/best.pt \
-  --tokenizer data/runs/wiki_small_200k_30k/tokenizer/tokenizer.model \
-  --manifest data/manifests/sft_ja.jsonl \
-  --train-config configs/train_sft_small_sample.yaml \
-  --work-dir data/runs/sft_small_200k_300_after_base64p6_fresh
+`evaluate_prompt_set` and `generate` now accept:
 
-PYTHONPATH=src python3 -m core_llm.scripts.evaluate_prompt_set \
-  --checkpoint data/runs/sft_small_200k_300_after_base64p6_fresh/checkpoints/best.pt \
-  --tokenizer data/runs/wiki_small_200k_30k/tokenizer/tokenizer.model \
-  --questions data/raw/sft/eval_questions_ja.jsonl \
-  --output data/eval/sft_eval_200k_300_after_base64p6_fresh.jsonl
 ```
+--stop "。"
+```
+
+The stop term is trimmed from the output; this is essential to enforce
+single-sentence comparisons.
+
+## Next recommended steps
+
+1) Re-run SFT with the latest seed (explicit `違い` answers).
+2) Evaluate with short settings + stop.
+3) If comparison improves, lock this as the eval standard.
+4) If general capability is still weak, scale base to 200k docs / 50k steps.
 
 ## Known pitfalls
 
-- If `train_sft` finishes with `step` greater than expected, you reused a
-  workdir and resumed by accident. Use a new `--work-dir`.
-- `data/eval/*.jsonl` is not auto-updated; always run `evaluate_prompt_set`.
-- `eval/perplexity.json` is stale unless `eval_perplexity` is run.
+- SFT can resume unintentionally if a workdir is reused.
+- `evaluate_prompt_set` defaults (long) cause runaway generations.
+- Comparison scoring is string-based; ensure `違い` appears.
 
-## Git notes
+## Git notes (recent)
 
-Recent commits:
-
-- `ef386bf` Add focused core SFT seed set (`qa_seed_core_ja.jsonl`)
-- `73051f1` Tighten SFT seed answers for QA quality
-- `998a94f` Improve SFT seed QA quality and add lint
-
+- `ae07c83` Add stop sequence trimming to eval and generate
+- `58ec6b9` Add one-sentence comparison SFT variants
+- `427d80c` Add eval-matched summary/comparison SFT variants
