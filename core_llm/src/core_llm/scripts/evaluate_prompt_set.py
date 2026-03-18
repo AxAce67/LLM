@@ -86,7 +86,14 @@ def _structure_ok(category: str, response: str, input_text: str) -> bool:
     if category == "definition":
         return "とは" in head or "である" in head or "です" in head
     if category == "comparison":
-        return any(term in response for term in ("違い", "一方", "それぞれ", "対して", "比較"))
+        if any(term in response for term in ("違い", "一方", "それぞれ", "対して", "比較")):
+            return True
+        # Accept common Aは...Bは... comparison form without explicit keywords.
+        if re.search(r"[^。]{0,50}は[^。]{1,80}[、,\s]{0,6}[^。]{0,50}は", response):
+            return True
+        if re.search(r"[^。]{0,50}が[^。]{1,80}[、,\s]{0,6}[^。]{0,50}が", response):
+            return True
+        return False
     if category == "procedure":
         if re.search(r"(^|\n)\s*(\d+\.|[-*]|・)", response):
             return True
