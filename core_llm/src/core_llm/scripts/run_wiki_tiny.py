@@ -159,6 +159,35 @@ def main() -> None:
             },
         )
         print(summary)
+    except KeyboardInterrupt as exc:
+        log_run_event(
+            global_log,
+            {
+                "event": "run_error",
+                "command": "run_wiki_tiny",
+                "work_dir": str(work_dir),
+                "error": "Interrupted (KeyboardInterrupt)",
+            },
+            rotate_daily=True,
+        )
+        log_run_event(
+            run_log,
+            {
+                "event": "run_error",
+                "error": "Interrupted (KeyboardInterrupt)",
+            },
+        )
+        if webhook_url:
+            send_discord_message(
+                webhook_url,
+                build_failure_message(
+                    work_dir=str(work_dir),
+                    run_type="wiki_tiny_sample",
+                    error="Interrupted (KeyboardInterrupt)",
+                    mention=mention,
+                ),
+            )
+        raise SystemExit("Interrupted") from exc
     except Exception as exc:
         log_run_event(
             global_log,

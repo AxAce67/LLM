@@ -414,6 +414,33 @@ def main() -> None:
             },
         )
         print(result)
+    except KeyboardInterrupt as exc:
+        log_run_event(
+            global_log,
+            {
+                "event": "run_error",
+                "command": "train_sft",
+                "work_dir": str(work_dir),
+                "error": "Interrupted (KeyboardInterrupt)",
+            },
+            rotate_daily=True,
+        )
+        log_run_event(
+            run_log,
+            {
+                "event": "run_error",
+                "error": "Interrupted (KeyboardInterrupt)",
+            },
+        )
+        if webhook_url:
+            failure_message = build_command_failure_message(
+                command_name="train_sft",
+                error="Interrupted (KeyboardInterrupt)",
+                mention=mention,
+            )
+            machine_lines = "\n".join(f"{key}: {value}" for key, value in collect_machine_status().items())
+            send_discord_message(webhook_url, f"{failure_message}\n{machine_lines}")
+        raise SystemExit("Interrupted") from exc
     except Exception as exc:
         log_run_event(
             global_log,

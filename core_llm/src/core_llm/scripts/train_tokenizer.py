@@ -55,6 +55,17 @@ def main() -> None:
                 ),
             )
         print(f"Tokenizer saved to {model_path}")
+    except KeyboardInterrupt as exc:
+        if webhook_url:
+            send_discord_message(
+                webhook_url,
+                build_command_failure_message(
+                    command_name="train_tokenizer",
+                    error="Interrupted (KeyboardInterrupt)",
+                    mention=mention,
+                ),
+            )
+        raise SystemExit("Interrupted") from exc
     except Exception as exc:
         if webhook_url:
             send_discord_message(

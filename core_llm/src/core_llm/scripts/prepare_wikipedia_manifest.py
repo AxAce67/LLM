@@ -71,6 +71,17 @@ def main() -> None:
         print(report)
         if report["kept_docs"] <= 0:
             raise SystemExit(1)
+    except KeyboardInterrupt as exc:
+        if webhook_url:
+            send_discord_message(
+                webhook_url,
+                build_command_failure_message(
+                    command_name="prepare_wikipedia_manifest",
+                    error="Interrupted (KeyboardInterrupt)",
+                    mention=mention,
+                ),
+            )
+        raise SystemExit("Interrupted") from exc
     except Exception as exc:
         if webhook_url:
             send_discord_message(
