@@ -12,7 +12,7 @@ import torch
 from core_llm.config import ModelConfig, TrainConfig, dump_dataclass_jsonable, load_train_config
 from core_llm.env import load_env_file
 from core_llm.logging_utils import log_event
-from core_llm.model.transformer import GPT
+from core_llm.model.factory import build_model
 from core_llm.pipeline.run_utils import (
     apply_run_label_dir,
     build_default_work_dir,
@@ -47,7 +47,9 @@ from core_llm.data.sft_dataset import SFTDataset
 
 
 @torch.no_grad()
-def evaluate_sft_loss(model: GPT, dataset: SFTDataset | None, device: str, eval_batches: int = 10) -> float | None:
+def evaluate_sft_loss(
+    model: torch.nn.Module, dataset: SFTDataset | None, device: str, eval_batches: int = 10
+) -> float | None:
     if dataset is None or len(dataset) == 0:
         return None
     was_training = model.training
@@ -165,7 +167,7 @@ def main() -> None:
         if len(train_ds.rows) < effective_train_config.batch_size:
             raise ValueError("SFT training dataset is too small for the configured batch size")
 
-        model = GPT(model_config).to(device)
+        model = build_model(model_config).to(device)
         optimizer = create_optimizer(model, effective_train_config)
         scaler = torch.amp.GradScaler("cuda", enabled=use_amp)
 

@@ -11,7 +11,7 @@ import torch
 from core_llm.config import ModelConfig, TrainConfig
 from core_llm.data.dataset import BinaryTokenDataset
 from core_llm.logging_utils import log_event
-from core_llm.model.transformer import GPT
+from core_llm.model.factory import build_model
 from core_llm.train.checkpoint import checkpoint_payload, load_checkpoint, save_checkpoint
 from core_llm.train.metrics import perplexity_from_loss
 from core_llm.train.optimizer import create_optimizer
@@ -79,7 +79,9 @@ def resolve_batch_size(train_config: TrainConfig, model_config: ModelConfig, dev
 
 
 @torch.no_grad()
-def evaluate_loss(model: GPT, dataset: BinaryTokenDataset | None, device: str, eval_batches: int = 10) -> float | None:
+def evaluate_loss(
+    model: torch.nn.Module, dataset: BinaryTokenDataset | None, device: str, eval_batches: int = 10
+) -> float | None:
     if dataset is None or len(dataset) == 0:
         return None
     was_training = model.training
@@ -126,7 +128,7 @@ def train_model(
     latest_path = checkpoint_dir / "latest.pt"
     best_path = checkpoint_dir / "best.pt"
 
-    model = GPT(model_config).to(device)
+    model = build_model(model_config).to(device)
     optimizer = create_optimizer(model, effective_train_config)
     use_amp = resolve_amp(effective_train_config, device)
     scaler = torch.amp.GradScaler("cuda", enabled=use_amp)

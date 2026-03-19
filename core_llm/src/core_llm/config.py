@@ -33,6 +33,11 @@ class ModelConfig:
     n_embd: int = 384
     dropout: float = 0.1
     bias: bool = False
+    model_type: str = "gpt"
+    rope_theta: float = 10000.0
+    rms_norm_eps: float = 1e-5
+    ffn_multiplier: float = 4.0
+    ffn_multiple_of: int = 256
 
 
 @dataclass
