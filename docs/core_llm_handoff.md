@@ -1,139 +1,202 @@
-# core_llm handoff / runbook
+# core_llm handoff / runbook (2026-03-22)
 
 This document captures the current state and exact commands to continue the
-Japanese small LLM experiments (pretrain + SFT). It is meant for handoff to a
-new session without ambiguity.
+Japanese small LLM experiments (pretrain + SFT), including the new LLaMA
+variant and Ollama/GGUF pipeline.
 
-## Goal
+## Goal (current)
 
-Build a more general QA-capable Japanese LLM. The current bottlenecks are:
-
-1) Short-form answer control (especially comparison/summary tasks).
-2) Evaluation stability (small eval set and strict heuristics).
-
-Base pretraining is now at 100k docs; SFT is being tuned to hit the eval set.
+1) Keep GPT-style pipeline working (baseline).  
+2) Build **LLaMA-style** variant for GGUF → Ollama distribution.  
+3) Evaluate **before** export and only export if eval is stable.
 
 ## Environment
 
 - Workdir: `~/LLM/core_llm`
 - Activate venv: `source ../venv/bin/activate`
-- Use `python3` (no `python` on the machine)
 - Always set `PYTHONPATH=src`
 
 ## Important mechanics
 
-- `train` and `train_sft` resume automatically if `latest.pt` exists.
-- For **fresh comparisons**, always use a **new** `--work-dir`.
-- For **resume**, keep the same `--checkpoint-dir` and only increase
-  `total_steps` in the train config.
-- Do not change model config or tokenizer when resuming; checkpoints are
-  incompatible otherwise.
+- `train` and `train_sft` resume if `latest.pt` exists.
+- Use a new work dir for clean comparisons.
+- Do not change model config or tokenizer when resuming.
 
-## Current best base run (pretrain)
+## Evaluation settings (use these)
 
-- Base run:
-  `data/runs/wiki_tiny_sample_20260317_115406_model_small_ja_sample_train_small_sample_30k_docs100000__step18000of30000__early`
-- Best val perplexity: `52.47` (early stopped at 18k / 30k)
-- Tokenizer:
-  `.../tokenizer/tokenizer.model`
-- Checkpoint:
-  `.../checkpoints/best.pt`
-
-Re-evaluate base:
-
-```bash
-PYTHONPATH=src python3 -m core_llm.scripts.eval_perplexity \
-  --checkpoint data/runs/wiki_tiny_sample_20260317_115406_model_small_ja_sample_train_small_sample_30k_docs100000__step18000of30000__early/checkpoints/best.pt \
-  --data-dir data/runs/wiki_tiny_sample_20260317_115406_model_small_ja_sample_train_small_sample_30k_docs100000__step18000of30000__early/prepared
-```
-
-## Current best SFT baseline
-
-We evaluate SFT using **short-answer settings** to avoid runaway generations.
-This improved summary scores from 0.0 to 0.5, but comparison stayed at 0.0
-because the evaluation requires explicit words like `違い`.
-
-Recommended eval settings:
+Short, low-temp, stop-at-`。`:
 
 ```bash
 --max-new-tokens 64 --temperature 0.2 --repetition-penalty 1.2 --stop "。"
 ```
 
-## SFT seed data (current)
+`evaluate_prompt_set` comparison scoring was relaxed to accept “Aは…Bは…” without explicit keywords.
 
-- `core_llm/data/raw/sft/qa_seed.jsonl` expanded to **~870 items**.
-- Many variants were added for summary/comparison and short-answer control.
-- Comparison scoring uses string checks; SFT answers now include explicit
-  `違いは...` phrasing to satisfy evaluation.
+## Current GPT baseline (for reference)
 
-Lint seed data:
+Baseline GPT is still OK, but **not Ollama-compatible**. It is here for
+comparison only; the current priority is LLaMA.
 
-```bash
-PYTHONPATH=src python3 -m core_llm.scripts.lint_sft_seed \
-  --input data/raw/sft/qa_seed.jsonl
+## LLaMA implementation (added in repo)
+
+Implemented LLaMA-style model in core:
+
+- `core_llm/model/llama.py` (RMSNorm + RoPE + SwiGLU)
+- `core_llm/model/factory.py` (model_type routing)
+- `configs/model_llama_small_ja_sample.yaml` **in repo root** (`~/LLM/configs/`)
+- `model_type: llama` in config
+
+Model selection now uses `build_model()`.
+
+## LLaMA low-LR base run (latest, good)
+
+Base run:
+
+```
+data/runs/wiki_tiny_sample_20260320_042159_model_llama_small_ja_sample_train_small_sample_50k_llama_lowlr_docs200000__step19500of50000__early
 ```
 
-## Standard SFT run template (current)
+- docs: 200k
+- best_val_perplexity: ~27.93
+- early_stop: step 19500
+- config: `../configs/model_llama_small_ja_sample.yaml`
+- train config: `../configs/train_small_sample_50k_llama_lowlr.yaml`
 
-```bash
-PYTHONPATH=src python3 -m core_llm.scripts.prepare_sft_manifest \
-  --input data/raw/sft/qa_seed.jsonl \
-  --output data/manifests/sft_ja.jsonl
+Train config (root `../configs/`):
 
-PYTHONPATH=src python3 -m core_llm.scripts.train_sft \
-  --base-checkpoint data/runs/wiki_tiny_sample_20260317_115406_model_small_ja_sample_train_small_sample_30k_docs100000__step18000of30000__early/checkpoints/best.pt \
-  --tokenizer data/runs/wiki_tiny_sample_20260317_115406_model_small_ja_sample_train_small_sample_30k_docs100000__step18000of30000__early/tokenizer/tokenizer.model \
-  --manifest data/manifests/sft_ja.jsonl \
-  --train-config configs/train_sft_small_sample.yaml
+```yaml
+batch_size: 2
+seq_len: 256
+learning_rate: 1e-4
+weight_decay: 0.1
+grad_accum_steps: 4
+warmup_steps: 1000
+total_steps: 50000
+eval_every: 250
+save_every: 250
+seed: 42
+device: auto
+amp: false
+min_lr_ratio: 0.1
+grad_clip: 1.0
+early_stopping_patience: 30
 ```
 
-Evaluate (short + stop):
+## LLaMA SFT run (latest)
+
+```
+data/runs/sft_20260322_072421_wiki_tiny_sample_20260320_042159_model_llama_sma_train_sft_small_sample_sft_ja__step1500of2000__early
+```
+
+Eval (short+stop):
+
+- qa_ok_rate: **0.90**
+- summary: 0.5
+- comparison: 1.0
+- reasoning: 1.0
+- procedure: 0.5
+
+Evaluate command:
 
 ```bash
 PYTHONPATH=src python3 -m core_llm.scripts.evaluate_prompt_set \
   --checkpoint <SFT_RUN>/checkpoints/best.pt \
-  --tokenizer data/runs/wiki_tiny_sample_20260317_115406_model_small_ja_sample_train_small_sample_30k_docs100000__step18000of30000__early/tokenizer/tokenizer.model \
+  --tokenizer <LLAMA_TOKENIZER>/tokenizer/tokenizer.model \
   --questions data/raw/sft/eval_questions_ja.jsonl \
-  --output data/eval/sft_eval_clean_100k_<TAG>_stop.jsonl \
+  --output data/eval/sft_eval_llama_lowlr_stop.jsonl \
   --max-new-tokens 64 \
   --temperature 0.2 \
   --repetition-penalty 1.2 \
   --stop "。"
 ```
 
-## Why comparison was stuck at 0.0
+## HF export (LLaMA)
 
-`evaluate_prompt_set.py` marks comparison as correct only if response contains
-one of: `違い`, `一方`, `それぞれ`, `対して`, `比較`. Short answers without these
-words are graded as 0 even if correct. Therefore SFT data now uses
-`違いは...` phrasing.
-
-## New CLI support
-
-`evaluate_prompt_set` and `generate` now accept:
+Export script added:
 
 ```
---stop "。"
+core_llm/scripts/export_hf_llama.py
 ```
 
-The stop term is trimmed from the output; this is essential to enforce
-single-sentence comparisons.
+Usage:
 
-## Next recommended steps
+```bash
+PYTHONPATH=src python3 -m core_llm.scripts.export_hf_llama \
+  --checkpoint <SFT_RUN>/checkpoints/best.pt \
+  --tokenizer <BASE_TOKENIZER>/tokenizer/tokenizer.model \
+  --output-dir data/export/llama_sft_lowlr_YYYYMMDD
+```
 
-1) Re-run SFT with the latest seed (explicit `違い` answers).
-2) Evaluate with short settings + stop.
-3) If comparison improves, lock this as the eval standard.
-4) If general capability is still weak, scale base to 200k docs / 50k steps.
+This writes:
+`config.json`, `tokenizer.model`, `tokenizer_config.json`, `special_tokens_map.json`,
+and `pytorch_model.bin` (HF-style tensor names).
 
-## Known pitfalls
+## GGUF conversion (llama.cpp)
 
-- SFT can resume unintentionally if a workdir is reused.
-- `evaluate_prompt_set` defaults (long) cause runaway generations.
-- Comparison scoring is string-based; ensure `違い` appears.
+```bash
+cd ~/llama.cpp
+python3 convert_hf_to_gguf.py ~/LLM/core_llm/data/export/llama_sft_lowlr_YYYYMMDD \
+  --outfile ~/LLM/core_llm/data/export/llama_sft_lowlr_YYYYMMDD.gguf
 
-## Git notes (recent)
+./build/bin/llama-quantize \
+  ~/LLM/core_llm/data/export/llama_sft_lowlr_YYYYMMDD.gguf \
+  ~/LLM/core_llm/data/export/llama_sft_lowlr_YYYYMMDD.Q4_K_M.gguf q4_K_M
+```
 
-- `ae07c83` Add stop sequence trimming to eval and generate
-- `58ec6b9` Add one-sentence comparison SFT variants
-- `427d80c` Add eval-matched summary/comparison SFT variants
+## Ollama (local)
+
+**Ollama server was crashing with EOF. Root cause: runner crash and context mismatch.**
+`num_ctx` must be 256 (model context length), and GPU on MX450 is unstable.
+
+Recommended Modelfile:
+
+```text
+FROM /home/aki/LLM/core_llm/data/export/llama_sft_lowlr_YYYYMMDD.Q4_K_M.gguf
+TEMPLATE """{{ .Prompt }}"""
+PARAMETER temperature 0.2
+PARAMETER top_p 0.95
+PARAMETER num_ctx 256
+PARAMETER num_gpu 0
+```
+
+If Ollama still returns `EOF`, run the server manually with CPU only:
+
+```bash
+sudo snap stop ollama
+OLLAMA_NUM_GPU=0 OLLAMA_LLM_LIBRARY=cpu OLLAMA_CONTEXT_LENGTH=256 ollama serve
+```
+
+Then:
+
+```bash
+ollama run <modelname> < prompt.txt
+```
+
+## Prompt format (important)
+
+The model was trained on **SFT prompt format**:
+
+```
+### Instruction
+...
+
+### Response
+```
+
+If you prompt with raw “こんにちは” it will often degrade.
+
+## Known issues / next steps
+
+1) LLaMA outputs still somewhat garbled when prompted casually.  
+   Use SFT prompt format for evaluation.
+2) Ollama runner crashes on GPU.  
+   Use CPU mode (`num_gpu 0`, manual serve) to avoid EOF.
+3) If quality is still weak, increase dataset to 400k and/or model size.
+
+## Repo changes (recent)
+
+- Added LLaMA model + factory routing.
+- Added HF export script for LLaMA.
+- Added stop support in eval/generate.
+- Added lots of short-summary SFT seeds.
+- Ctrl+C now sends Discord failure notices.
