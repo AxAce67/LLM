@@ -114,7 +114,7 @@ def _save_results(work_dir: Path) -> None:
     gpu="A10G",
     image=image,
     volumes={str(VOL_PATH): volume},
-    secrets=[modal.Secret.from_name("llm-secrets", required=False)],
+    secrets=[modal.Secret.from_name("llm-secrets")],
     timeout=86400,  # 24 hours max
 )
 def pretrain_medium():
