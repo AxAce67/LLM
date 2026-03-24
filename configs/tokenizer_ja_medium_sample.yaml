@@ -1,0 +1,11 @@
+vocab_size: 16000
+character_coverage: 0.9995
+model_type: bpe
+num_threads: 0
+input_sentence_size: 2000000
+shuffle_input_sentence: true
+special_tokens:
+  pad_id: 0
+  unk_id: 1
+  bos_id: 2
+  eos_id: 3
