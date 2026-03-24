@@ -1,0 +1,17 @@
+batch_size: 4
+seq_len: 256
+learning_rate: 5e-5
+weight_decay: 0.01
+grad_accum_steps: 4
+warmup_steps: 100
+total_steps: 5000
+eval_every: 100
+save_every: 100
+seed: 42
+device: auto
+amp: true
+cpu_threads: 0
+interop_threads: 0
+min_lr_ratio: 0.1
+grad_clip: 1.0
+early_stopping_patience: 15

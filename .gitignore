@@ -27,6 +27,7 @@ core_llm/data/manifests/*
 !core_llm/data/manifests/.gitkeep
 core_llm/data/raw/*
 !core_llm/data/raw/.gitkeep
+!core_llm/data/raw/sft/
 core_llm/data/prepared/*
 !core_llm/data/prepared/.gitkeep
 core_llm/data/tokenizer/*
