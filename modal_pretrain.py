@@ -17,6 +17,7 @@ Usage:
 from __future__ import annotations
 
 import os
+import re
 import shutil
 import subprocess
 from pathlib import Path
@@ -55,6 +56,42 @@ image = (
 def _run(cmd: list[str], cwd: str | None = None) -> None:
     print(f"$ {' '.join(cmd)}")
     subprocess.run(cmd, check=True, cwd=cwd)
+
+
+def _auto_batch_size() -> int:
+    """Compute optimal batch_size based on available GPU VRAM.
+
+    Calibrated for 104M LLaMA with seq_len=512 and AMP enabled.
+    Empirical baseline: batch_size=16 uses ~9681MB on A10G (23028MB total).
+      - Fixed overhead (model fp32 + AdamW states): ~8000MB
+      - Per-sample activation: ~105MB
+    """
+    try:
+        import torch
+        if not torch.cuda.is_available():
+            return 4
+        total_mb = torch.cuda.get_device_properties(0).total_memory // (1024 ** 2)
+        gpu_name = torch.cuda.get_device_name(0)
+        available = int(total_mb * 0.90) - 8000
+        if available <= 0:
+            return 1
+        n = available // 105
+        # Round down to nearest power of 2
+        batch_size = max(1, 1 << (n.bit_length() - 1))
+        print(f"GPU: {gpu_name} ({total_mb}MB VRAM) → auto batch_size={batch_size}")
+        return batch_size
+    except Exception as e:
+        print(f"Auto batch_size failed ({e}), falling back to 16")
+        return 16
+
+
+def _make_train_config(base_config: Path, batch_size: int, out_path: Path) -> None:
+    """Write a modified train config with the given batch_size."""
+    text = base_config.read_text()
+    text = re.sub(r"^batch_size:.*$", f"batch_size: {batch_size}", text, flags=re.MULTILINE)
+    text = re.sub(r"^grad_accum_steps:.*$", "grad_accum_steps: 1", text, flags=re.MULTILINE)
+    out_path.write_text(text)
+    print(f"Train config written → {out_path} (batch_size={batch_size})")
 
 
 def _ensure_wikipedia(data_dir: Path) -> Path:
@@ -144,13 +181,20 @@ def pretrain_medium():
 
     # 5. Run pretraining pipeline (Wikipedia 800k + livedoor mix)
     #    Using run_wiki_tiny for Wikipedia base, then we'll add livedoor via merge
+    batch_size = _auto_batch_size()
+    auto_train_cfg = Path("/tmp/train_auto.yaml")
+    _make_train_config(
+        core_dir / "../configs/train_medium_100k_a10g.yaml",
+        batch_size,
+        auto_train_cfg,
+    )
     train_cmd = [
         "python", "src/core_llm/scripts/run_wiki_tiny.py",
         "--dump-path", str(dump_path),
         "--max-docs", "800000",
         "--model-config", "../configs/model_llama_medium_ja_sample.yaml",
         "--tokenizer-config", "../configs/tokenizer_ja_medium_sample.yaml",
-        "--train-config", "../configs/train_medium_100k_a10g.yaml",
+        "--train-config", str(auto_train_cfg),
     ]
     # Pass Discord credentials if available via Modal Secret
     discord_webhook = os.environ.get("DISCORD_WEBHOOK_URL")
