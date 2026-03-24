@@ -89,8 +89,8 @@ def build_livedoor_manifest(
                 continue
             if not filename.endswith(".txt"):
                 continue
-            # skip LICENSE.txt etc.
-            if not filename[0].isdigit():
+            # skip LICENSE.txt, README.txt etc.
+            if filename.upper() in ("LICENSE.TXT", "README.TXT", "CHANGES.TXT"):
                 continue
 
             member = tar.getmember(name)
