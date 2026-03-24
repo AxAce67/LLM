@@ -114,6 +114,7 @@ def _save_results(work_dir: Path) -> None:
     gpu="A10G",
     image=image,
     volumes={str(VOL_PATH): volume},
+    secrets=[modal.Secret.from_name("llm-secrets", required=False)],
     timeout=86400,  # 24 hours max
 )
 def pretrain_medium():
@@ -143,14 +144,23 @@ def pretrain_medium():
 
     # 5. Run pretraining pipeline (Wikipedia 800k + livedoor mix)
     #    Using run_wiki_tiny for Wikipedia base, then we'll add livedoor via merge
-    result = subprocess.run([
+    train_cmd = [
         "python", "src/core_llm/scripts/run_wiki_tiny.py",
         "--dump-path", str(dump_path),
         "--max-docs", "800000",
         "--model-config", "../configs/model_llama_medium_ja_sample.yaml",
         "--tokenizer-config", "../configs/tokenizer_ja_medium_sample.yaml",
         "--train-config", "../configs/train_medium_100k_a10g.yaml",
-    ], cwd=str(core_dir))
+    ]
+    # Pass Discord credentials if available via Modal Secret
+    discord_webhook = os.environ.get("DISCORD_WEBHOOK_URL")
+    discord_mention = os.environ.get("DISCORD_MENTION")
+    if discord_webhook:
+        train_cmd += ["--discord-webhook-url", discord_webhook]
+    if discord_mention:
+        train_cmd += ["--discord-mention", discord_mention]
+
+    result = subprocess.run(train_cmd, cwd=str(core_dir))
 
     # 6. Find latest run dir and save to volume
     runs_dir = data_dir / "runs"
