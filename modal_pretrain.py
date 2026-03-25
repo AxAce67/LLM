@@ -72,7 +72,7 @@ def _auto_batch_size() -> int:
             return 4
         total_mb = torch.cuda.get_device_properties(0).total_memory // (1024 ** 2)
         gpu_name = torch.cuda.get_device_name(0)
-        available = int(total_mb * 0.85) - 6893
+        available = int(total_mb * 0.80) - 6893
         if available <= 0:
             return 1
         n = available // 174
