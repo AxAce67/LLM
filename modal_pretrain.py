@@ -59,54 +59,42 @@ def _run(cmd: list[str], cwd: str | None = None) -> None:
 
 
 def _probe_batch_size(model_config_path: Path, src_path: Path, seq_len: int = 512) -> int:
-    """Find max safe batch_size by actually running a training step.
+    """Find max safe batch_size by running each attempt in a fresh subprocess.
 
-    Starts at 48 (known safe on A10G), tries larger values.
-    Falls back to smaller on OOM.
+    Each subprocess gets a clean CUDA context, avoiding OOM contamination.
     """
-    import torch
-    if not torch.cuda.is_available():
-        return 4
-
-    # Must be set before CUDA initializes
-    os.environ.setdefault("PYTORCH_CUDA_ALLOC_CONF", "expandable_segments:True")
-
-    # pip install -e . runs in subprocess so sys.path isn't updated automatically
     import sys
-    import importlib
-    if str(src_path) not in sys.path:
-        sys.path.insert(0, str(src_path))
-    importlib.invalidate_caches()
 
-    from core_llm.config import load_model_config
-    from core_llm.model.factory import build_model
+    probe_script = f"""
+import sys, os
+sys.path.insert(0, {str(src_path)!r})
+os.environ['PYTORCH_CUDA_ALLOC_CONF'] = 'expandable_segments:True'
+import torch
+from core_llm.config import load_model_config
+from core_llm.model.factory import build_model
+cfg = load_model_config({str(model_config_path)!r})
+model = build_model(cfg).to('cuda')
+optimizer = torch.optim.AdamW(model.parameters(), lr=1e-4)
+scaler = torch.amp.GradScaler('cuda')
+x = torch.randint(0, cfg.vocab_size, ({{batch_size}}, {seq_len}), device='cuda')
+y = torch.randint(0, cfg.vocab_size, ({{batch_size}}, {seq_len}), device='cuda')
+with torch.amp.autocast('cuda'):
+    _, loss = model(x, y)
+scaler.scale(loss).backward()
+scaler.step(optimizer)
+print('OK')
+"""
 
-    cfg = load_model_config(model_config_path)
-    # Start at 48 (known safe), try 64 and 56 first
-    candidates = [64, 56, 48, 40, 32]
-
-    for batch_size in candidates:
-        try:
-            model = build_model(cfg).to("cuda")
-            optimizer = torch.optim.AdamW(model.parameters(), lr=1e-4)
-            scaler = torch.amp.GradScaler("cuda")
-            x = torch.randint(0, cfg.vocab_size, (batch_size, seq_len), device="cuda")
-            y = torch.randint(0, cfg.vocab_size, (batch_size, seq_len), device="cuda")
-            with torch.amp.autocast("cuda"):
-                _, loss = model(x, y)
-            scaler.scale(loss).backward()
-            scaler.step(optimizer)
-            del model, optimizer, scaler, x, y, loss
-            torch.cuda.empty_cache()
+    for batch_size in [64, 56, 48, 40, 32]:
+        script = probe_script.format(batch_size=batch_size)
+        result = subprocess.run(
+            [sys.executable, "-c", script],
+            capture_output=True, text=True,
+        )
+        if result.returncode == 0 and "OK" in result.stdout:
             print(f"Batch size probe: {batch_size} ✓ → using {batch_size}")
             return batch_size
-        except torch.cuda.OutOfMemoryError:
-            try:
-                del model, optimizer, scaler, x, y, loss
-            except Exception:
-                pass
-            torch.cuda.empty_cache()
-            print(f"Batch size probe: {batch_size} OOM, trying smaller")
+        print(f"Batch size probe: {batch_size} OOM, trying smaller")
 
     return 16
 
