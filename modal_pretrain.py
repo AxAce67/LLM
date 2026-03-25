@@ -201,6 +201,21 @@ def _save_preprocess_cache(work_dir: Path) -> None:
         volume.commit()
 
 
+def _find_actual_work_dir(work_dir: Path) -> Path:
+    """Return actual work dir, accounting for pipeline rename (e.g. appending step info)."""
+    if work_dir.exists():
+        return work_dir
+    candidates = sorted(
+        work_dir.parent.glob(work_dir.name + "*"),
+        key=lambda p: p.stat().st_mtime,
+        reverse=True,
+    )
+    if candidates:
+        print(f"Work dir was renamed → {candidates[0]}")
+        return candidates[0]
+    raise FileNotFoundError(f"Work dir not found: {work_dir}")
+
+
 def _save_results(work_dir: Path) -> None:
     """Copy checkpoint and tokenizer to Modal volume."""
     # Find best checkpoint
@@ -301,11 +316,14 @@ def pretrain_medium():
     train_env["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
     subprocess.run(train_cmd, cwd=str(core_dir), env=train_env)
 
-    # 6. Save preprocessing artifacts to Volume cache for next run
-    _save_preprocess_cache(work_dir)
+    # 6. Resolve actual work dir (pipeline may have renamed it)
+    actual_work_dir = _find_actual_work_dir(work_dir)
 
-    # 7. Save checkpoint and tokenizer to Volume
-    _save_results(work_dir)
+    # 7. Save preprocessing artifacts to Volume cache for next run
+    _save_preprocess_cache(actual_work_dir)
+
+    # 8. Save checkpoint and tokenizer to Volume
+    _save_results(actual_work_dir)
     print("\nTraining complete!")
 
 
