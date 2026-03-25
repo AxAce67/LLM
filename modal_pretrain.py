@@ -58,7 +58,7 @@ def _run(cmd: list[str], cwd: str | None = None) -> None:
     subprocess.run(cmd, check=True, cwd=cwd)
 
 
-def _probe_batch_size(model_config_path: Path, seq_len: int = 512) -> int:
+def _probe_batch_size(model_config_path: Path, src_path: Path, seq_len: int = 512) -> int:
     """Find max safe batch_size by actually running a training step.
 
     Starts at 48 (known safe on A10G), tries larger values.
@@ -70,6 +70,13 @@ def _probe_batch_size(model_config_path: Path, seq_len: int = 512) -> int:
 
     # Must be set before CUDA initializes
     os.environ.setdefault("PYTORCH_CUDA_ALLOC_CONF", "expandable_segments:True")
+
+    # pip install -e . runs in subprocess so sys.path isn't updated automatically
+    import sys
+    import importlib
+    if str(src_path) not in sys.path:
+        sys.path.insert(0, str(src_path))
+    importlib.invalidate_caches()
 
     from core_llm.config import load_model_config
     from core_llm.model.factory import build_model
@@ -306,7 +313,7 @@ def pretrain_medium():
 
     # 5. Run pretraining pipeline
     model_config_path = core_dir / "../configs/model_llama_medium_ja_sample.yaml"
-    batch_size = _probe_batch_size(model_config_path)
+    batch_size = _probe_batch_size(model_config_path, core_dir / "src")
     auto_train_cfg = Path("/tmp/train_auto.yaml")
     _make_train_config(
         core_dir / "../configs/train_medium_100k_a10g.yaml",
