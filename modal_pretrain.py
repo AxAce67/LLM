@@ -76,8 +76,8 @@ def _auto_batch_size() -> int:
         if available <= 0:
             return 1
         n = available // 260
-        # Round down to nearest power of 2
-        batch_size = max(1, 1 << (n.bit_length() - 1))
+        # Round down to nearest multiple of 8 (optimal for Tensor Cores)
+        batch_size = max(1, (n // 8) * 8)
         print(f"GPU: {gpu_name} ({total_mb}MB VRAM) → auto batch_size={batch_size}")
         return batch_size
     except Exception as e:
