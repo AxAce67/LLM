@@ -68,6 +68,9 @@ def _probe_batch_size(model_config_path: Path, seq_len: int = 512) -> int:
     if not torch.cuda.is_available():
         return 4
 
+    # Must be set before CUDA initializes
+    os.environ.setdefault("PYTORCH_CUDA_ALLOC_CONF", "expandable_segments:True")
+
     from core_llm.config import load_model_config
     from core_llm.model.factory import build_model
 
