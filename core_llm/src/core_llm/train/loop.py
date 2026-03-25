@@ -142,6 +142,14 @@ def train_model(
         start_step = int(checkpoint.get("step", 0))
         best_val_perplexity = float(checkpoint.get("best_val_perplexity", float("inf")))
 
+    # torch.compile after weight loading for faster training (PyTorch 2.0+, CUDA only)
+    if device == "cuda":
+        try:
+            model = torch.compile(model)
+            print("torch.compile() enabled")
+        except Exception as e:
+            print(f"torch.compile() skipped: {e}")
+
     model.train()
     stale_evals = 0
     latest_train_loss = 0.0

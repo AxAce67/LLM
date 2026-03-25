@@ -24,7 +24,7 @@ def checkpoint_payload(
         "step": step,
         "model_config": dump_dataclass_jsonable(model_config),
         "train_config": dump_dataclass_jsonable(train_config),
-        "model_state_dict": model.state_dict(),
+        "model_state_dict": (model._orig_mod if hasattr(model, "_orig_mod") else model).state_dict(),
         "optimizer_state_dict": optimizer.state_dict(),
         "scheduler_state_dict": {},
         "best_val_perplexity": best_val_perplexity,

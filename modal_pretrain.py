@@ -119,6 +119,51 @@ def _ensure_wikipedia(data_dir: Path) -> Path:
     return dump_path
 
 
+def _restore_preprocess_cache(work_dir: Path) -> list[str]:
+    """Restore manifest/tokenizer/dataset from Volume cache.
+
+    Returns list of --skip-* flags to pass to run_wiki_tiny.py.
+    Cache key 'medium_800k' encodes: max_docs=800000, vocab=16k, seq=512.
+    """
+    vol_cache = VOL_PATH / "cache" / "medium_800k"
+    skip_flags: list[str] = []
+
+    for sub, flag in [
+        ("manifests", "--skip-manifest"),
+        ("tokenizer", "--skip-tokenizer"),
+        ("prepared",  "--skip-dataset"),
+    ]:
+        src = vol_cache / sub
+        if src.exists() and any(src.iterdir()):
+            dst = work_dir / sub
+            dst.mkdir(parents=True, exist_ok=True)
+            shutil.copytree(src, dst, dirs_exist_ok=True)
+            skip_flags.append(flag)
+            print(f"Restored {sub} from Volume cache")
+        else:
+            print(f"No Volume cache for {sub}, will build from scratch")
+
+    return skip_flags
+
+
+def _save_preprocess_cache(work_dir: Path) -> None:
+    """Save manifest/tokenizer/dataset to Volume cache for future runs."""
+    vol_cache = VOL_PATH / "cache" / "medium_800k"
+    saved_any = False
+
+    for sub in ("manifests", "tokenizer", "prepared"):
+        src = work_dir / sub
+        if src.exists():
+            dst = vol_cache / sub
+            dst.mkdir(parents=True, exist_ok=True)
+            shutil.copytree(src, dst, dirs_exist_ok=True)
+            print(f"Cached {sub} → volume:/cache/medium_800k/{sub}")
+            saved_any = True
+
+    if saved_any:
+        volume.commit()
+
+
 def _save_results(work_dir: Path) -> None:
     """Copy checkpoint and tokenizer to Modal volume."""
     # Find best checkpoint
@@ -171,16 +216,19 @@ def pretrain_medium():
     data_dir = core_dir / "data"
     dump_path = _ensure_wikipedia(data_dir)
 
-    # 4. Prepare livedoor news manifest
-    livedoor_manifest = data_dir / "manifests" / "livedoor_ja.jsonl"
-    _run([
-        "python", "src/core_llm/scripts/prepare_livedoor_manifest.py",
-        "--output", str(livedoor_manifest),
-        "--raw-dir", str(data_dir / "raw" / "livedoor"),
-    ], cwd=str(core_dir))
+    # 4. Set up fixed work_dir with preprocessing cache
+    work_dir = Path("/tmp/medium_800k_run")
+    work_dir.mkdir(parents=True, exist_ok=True)
 
-    # 5. Run pretraining pipeline (Wikipedia 800k + livedoor mix)
-    #    Using run_wiki_tiny for Wikipedia base, then we'll add livedoor via merge
+    # Clear previous checkpoints so training always starts fresh
+    checkpoint_dir = work_dir / "checkpoints"
+    if checkpoint_dir.exists():
+        shutil.rmtree(checkpoint_dir)
+
+    # Restore manifest/tokenizer/dataset from Volume cache if available
+    skip_flags = _restore_preprocess_cache(work_dir)
+
+    # 5. Run pretraining pipeline
     batch_size = _auto_batch_size()
     auto_train_cfg = Path("/tmp/train_auto.yaml")
     _make_train_config(
@@ -195,7 +243,9 @@ def pretrain_medium():
         "--model-config", "../configs/model_llama_medium_ja_sample.yaml",
         "--tokenizer-config", "../configs/tokenizer_ja_medium_sample.yaml",
         "--train-config", str(auto_train_cfg),
-    ]
+        "--work-dir", str(work_dir),
+    ] + skip_flags
+
     # Pass Discord credentials if available via Modal Secret
     discord_webhook = os.environ.get("DISCORD_WEBHOOK_URL")
     discord_mention = os.environ.get("DISCORD_MENTION")
@@ -204,20 +254,14 @@ def pretrain_medium():
     if discord_mention:
         train_cmd += ["--discord-mention", discord_mention]
 
-    result = subprocess.run(train_cmd, cwd=str(core_dir))
+    subprocess.run(train_cmd, cwd=str(core_dir))
 
-    # 6. Find latest run dir and save to volume
-    runs_dir = data_dir / "runs"
-    run_dirs = sorted(
-        [d for d in runs_dir.iterdir() if d.is_dir() and "wiki_tiny" in d.name],
-        key=lambda d: d.stat().st_mtime,
-        reverse=True,
-    )
-    if run_dirs:
-        _save_results(run_dirs[0])
-        print(f"\nTraining complete! Run: {run_dirs[0].name}")
-    else:
-        print("Warning: could not find run directory to save results.")
+    # 6. Save preprocessing artifacts to Volume cache for next run
+    _save_preprocess_cache(work_dir)
+
+    # 7. Save checkpoint and tokenizer to Volume
+    _save_results(work_dir)
+    print("\nTraining complete!")
 
 
 # ---------------------------------------------------------------------------
