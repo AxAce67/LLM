@@ -297,6 +297,7 @@ def pretrain_medium():
     # If manifest not cached, build Wikipedia manifest and merge livedoor
     if "--skip-manifest" not in skip_flags:
         _build_merged_manifest(work_dir, data_dir, dump_path, core_dir)
+        _save_preprocess_cache(work_dir)  # Save immediately so restarts skip this
         skip_flags.append("--skip-manifest")
 
     # 5. Run pretraining pipeline
