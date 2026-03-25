@@ -1,5 +1,5 @@
 # A10G GPU (24GB VRAM) 最適化設定 / 104Mモデル用
-batch_size: 64
+batch_size: 32
 seq_len: 512
 learning_rate: 3e-4
 weight_decay: 0.1

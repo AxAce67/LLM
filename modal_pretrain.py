@@ -62,9 +62,9 @@ def _auto_batch_size() -> int:
     """Compute optimal batch_size based on available GPU VRAM.
 
     Calibrated for 104M LLaMA with seq_len=512 and AMP enabled.
-    Empirical baseline: batch_size=16 uses ~9681MB on A10G (23028MB total).
-      - Fixed overhead (model fp32 + AdamW states): ~8000MB
-      - Per-sample activation: ~105MB
+    Empirical: batch=16→9681MB, batch=64→OOM on A10G (23028MB).
+      - Fixed overhead: ~5500MB
+      - Per-sample activation: ~260MB
     """
     try:
         import torch
@@ -72,10 +72,10 @@ def _auto_batch_size() -> int:
             return 4
         total_mb = torch.cuda.get_device_properties(0).total_memory // (1024 ** 2)
         gpu_name = torch.cuda.get_device_name(0)
-        available = int(total_mb * 0.90) - 8000
+        available = int(total_mb * 0.85) - 5500
         if available <= 0:
             return 1
-        n = available // 105
+        n = available // 260
         # Round down to nearest power of 2
         batch_size = max(1, 1 << (n.bit_length() - 1))
         print(f"GPU: {gpu_name} ({total_mb}MB VRAM) → auto batch_size={batch_size}")
