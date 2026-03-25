@@ -58,31 +58,47 @@ def _run(cmd: list[str], cwd: str | None = None) -> None:
     subprocess.run(cmd, check=True, cwd=cwd)
 
 
-def _auto_batch_size() -> int:
-    """Compute optimal batch_size based on available GPU VRAM.
+def _probe_batch_size(model_config_path: Path, seq_len: int = 512) -> int:
+    """Find max safe batch_size by actually running a training step.
 
-    Calibrated for 104M LLaMA with seq_len=512 and AMP enabled.
-    Empirical: batch=16→9681MB, batch=48→15245MB on A10G (23028MB).
-      - Fixed overhead: ~6893MB
-      - Per-sample activation: ~174MB
+    Starts at 48 (known safe on A10G), tries larger values.
+    Falls back to smaller on OOM.
     """
-    try:
-        import torch
-        if not torch.cuda.is_available():
-            return 4
-        total_mb = torch.cuda.get_device_properties(0).total_memory // (1024 ** 2)
-        gpu_name = torch.cuda.get_device_name(0)
-        available = int(total_mb * 0.80) - 6893
-        if available <= 0:
-            return 1
-        n = available // 174
-        # Round down to nearest multiple of 8 (optimal for Tensor Cores)
-        batch_size = max(1, (n // 8) * 8)
-        print(f"GPU: {gpu_name} ({total_mb}MB VRAM) → auto batch_size={batch_size}")
-        return batch_size
-    except Exception as e:
-        print(f"Auto batch_size failed ({e}), falling back to 16")
-        return 16
+    import torch
+    if not torch.cuda.is_available():
+        return 4
+
+    from core_llm.config import load_model_config
+    from core_llm.model.factory import build_model
+
+    cfg = load_model_config(model_config_path)
+    # Start at 48 (known safe), try 64 and 56 first
+    candidates = [64, 56, 48, 40, 32]
+
+    for batch_size in candidates:
+        try:
+            model = build_model(cfg).to("cuda")
+            optimizer = torch.optim.AdamW(model.parameters(), lr=1e-4)
+            scaler = torch.amp.GradScaler("cuda")
+            x = torch.randint(0, cfg.vocab_size, (batch_size, seq_len), device="cuda")
+            y = torch.randint(0, cfg.vocab_size, (batch_size, seq_len), device="cuda")
+            with torch.amp.autocast("cuda"):
+                _, loss = model(x, y)
+            scaler.scale(loss).backward()
+            scaler.step(optimizer)
+            del model, optimizer, scaler, x, y, loss
+            torch.cuda.empty_cache()
+            print(f"Batch size probe: {batch_size} ✓ → using {batch_size}")
+            return batch_size
+        except torch.cuda.OutOfMemoryError:
+            try:
+                del model, optimizer, scaler, x, y
+            except Exception:
+                pass
+            torch.cuda.empty_cache()
+            print(f"Batch size probe: {batch_size} OOM, trying smaller")
+
+    return 16
 
 
 def _make_train_config(base_config: Path, batch_size: int, out_path: Path) -> None:
@@ -286,7 +302,8 @@ def pretrain_medium():
         skip_flags.append("--skip-manifest")
 
     # 5. Run pretraining pipeline
-    batch_size = _auto_batch_size()
+    model_config_path = core_dir / "../configs/model_llama_medium_ja_sample.yaml"
+    batch_size = _probe_batch_size(model_config_path)
     auto_train_cfg = Path("/tmp/train_auto.yaml")
     _make_train_config(
         core_dir / "../configs/train_medium_100k_a10g.yaml",
