@@ -94,6 +94,43 @@ def _make_train_config(base_config: Path, batch_size: int, out_path: Path) -> No
     print(f"Train config written → {out_path} (batch_size={batch_size})")
 
 
+def _build_merged_manifest(work_dir: Path, data_dir: Path, dump_path: Path, core_dir: Path) -> None:
+    """Build Wikipedia manifest, then merge livedoor records into it."""
+    manifest_dir = work_dir / "manifests"
+    manifest_dir.mkdir(parents=True, exist_ok=True)
+
+    # Step A: Wikipedia manifest (800k docs)
+    _run([
+        "python", "src/core_llm/scripts/prepare_wikipedia_manifest.py",
+        "--lang", "ja",
+        "--output", str(manifest_dir / "wikipedia_ja.jsonl"),
+        "--raw-dir", str(data_dir / "raw" / "wikipedia"),
+        "--min-chars", "120",
+        "--max-docs", "800000",
+        "--report-path", str(manifest_dir / "wikipedia_ja.report.json"),
+        "--dump-path", str(dump_path),
+    ], cwd=str(core_dir))
+
+    # Step B: Livedoor manifest (~7k articles)
+    livedoor_tmp = Path("/tmp/livedoor_ja.jsonl")
+    _run([
+        "python", "src/core_llm/scripts/prepare_livedoor_manifest.py",
+        "--output", str(livedoor_tmp),
+        "--raw-dir", str(data_dir / "raw" / "livedoor"),
+    ], cwd=str(core_dir))
+
+    # Step C: Append livedoor into Wikipedia manifest
+    if livedoor_tmp.exists():
+        count = 0
+        with open(manifest_dir / "wikipedia_ja.jsonl", "a", encoding="utf-8") as out:
+            for line in livedoor_tmp.read_text(encoding="utf-8").splitlines():
+                line = line.strip()
+                if line:
+                    out.write(line + "\n")
+                    count += 1
+        print(f"Merged {count} livedoor records into Wikipedia manifest")
+
+
 def _ensure_wikipedia(data_dir: Path) -> Path:
     """Return path to Wikipedia dump, downloading if needed."""
     dump_path = data_dir / "raw" / "wikipedia" / "jawiki-latest-pages-articles.xml.bz2"
@@ -228,6 +265,11 @@ def pretrain_medium():
     # Restore manifest/tokenizer/dataset from Volume cache if available
     skip_flags = _restore_preprocess_cache(work_dir)
 
+    # If manifest not cached, build Wikipedia manifest and merge livedoor
+    if "--skip-manifest" not in skip_flags:
+        _build_merged_manifest(work_dir, data_dir, dump_path, core_dir)
+        skip_flags.append("--skip-manifest")
+
     # 5. Run pretraining pipeline
     batch_size = _auto_batch_size()
     auto_train_cfg = Path("/tmp/train_auto.yaml")
@@ -254,7 +296,10 @@ def pretrain_medium():
     if discord_mention:
         train_cmd += ["--discord-mention", discord_mention]
 
-    subprocess.run(train_cmd, cwd=str(core_dir))
+    # PYTORCH_CUDA_ALLOC_CONF reduces OOM risk from memory fragmentation
+    train_env = os.environ.copy()
+    train_env["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
+    subprocess.run(train_cmd, cwd=str(core_dir), env=train_env)
 
     # 6. Save preprocessing artifacts to Volume cache for next run
     _save_preprocess_cache(work_dir)
