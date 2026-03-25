@@ -102,7 +102,7 @@ def _probe_batch_size(model_config_path: Path, src_path: Path, seq_len: int = 51
             return batch_size
         except torch.cuda.OutOfMemoryError:
             try:
-                del model, optimizer, scaler, x, y
+                del model, optimizer, scaler, x, y, loss
             except Exception:
                 pass
             torch.cuda.empty_cache()
