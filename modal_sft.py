@@ -126,7 +126,10 @@ def sft_medium():
         raise ValueError(f"Too few SFT records: {n_records}")
 
     # 5. Run SFT
+    # Use a fixed checkpoint dir outside work_dir so renaming doesn't affect us
     sft_work_dir = Path("/tmp/sft_run")
+    sft_checkpoint_dir = Path("/tmp/sft_checkpoints")
+    sft_checkpoint_dir.mkdir(parents=True, exist_ok=True)
     sft_work_dir.mkdir(parents=True, exist_ok=True)
 
     train_cmd = [
@@ -150,29 +153,32 @@ def sft_medium():
     subprocess.run(train_cmd, cwd=str(core_dir), env=train_env)
 
     # 6. Save SFT checkpoint to Volume
-    # Find actual work dir (may have been renamed by pipeline)
-    candidates = sorted(
-        sft_work_dir.parent.glob(sft_work_dir.name + "*"),
-        key=lambda p: p.stat().st_mtime,
-        reverse=True,
-    )
-    actual_work_dir = candidates[0] if candidates else sft_work_dir
-
+    # Search all possible locations: original + renamed work dirs
     vol_runs = VOL_PATH / "runs"
     vol_runs.mkdir(parents=True, exist_ok=True)
 
-    sft_best = actual_work_dir / "checkpoints" / "best.pt"
-    if sft_best.exists():
-        shutil.copy(sft_best, vol_runs / "sft_best.pt")
-        print(f"Saved SFT checkpoint → volume:/runs/sft_best.pt")
-    else:
-        # Fallback to latest
-        sft_latest = actual_work_dir / "checkpoints" / "latest.pt"
-        if sft_latest.exists():
-            shutil.copy(sft_latest, vol_runs / "sft_best.pt")
-            print(f"Saved SFT latest → volume:/runs/sft_best.pt")
-        else:
-            print("WARNING: No SFT checkpoint found")
+    candidates = sorted(
+        Path("/tmp").glob("sft_run*"),
+        key=lambda p: p.stat().st_mtime,
+        reverse=True,
+    )
+    print(f"Found work dir candidates: {[str(c) for c in candidates]}")
+
+    saved = False
+    for work_dir_candidate in candidates:
+        sft_best = work_dir_candidate / "checkpoints" / "best.pt"
+        sft_latest = work_dir_candidate / "checkpoints" / "latest.pt"
+        for ckpt in [sft_best, sft_latest]:
+            if ckpt.exists():
+                shutil.copy(ckpt, vol_runs / "sft_best.pt")
+                print(f"Saved {ckpt} → volume:/runs/sft_best.pt")
+                saved = True
+                break
+        if saved:
+            break
+
+    if not saved:
+        print("WARNING: No SFT checkpoint found in any candidate dir")
 
     volume.commit()
     print("\nSFT complete!")
