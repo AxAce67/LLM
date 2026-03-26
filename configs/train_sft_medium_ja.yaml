@@ -5,9 +5,9 @@ learning_rate: 5e-5
 weight_decay: 0.01
 grad_accum_steps: 4
 warmup_steps: 50
-total_steps: 3000
-eval_every: 100
-save_every: 100
+total_steps: 15000
+eval_every: 200
+save_every: 200
 seed: 42
 device: auto
 amp: true

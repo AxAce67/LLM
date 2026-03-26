@@ -34,6 +34,7 @@ image = (
         "torch==2.6.0",
         "sentencepiece>=0.2.0",
         "numpy>=1.26,<3",
+        "datasets>=2.19",
     )
 )
 
@@ -46,23 +47,61 @@ def _run(cmd: list[str], cwd: str | None = None) -> None:
     subprocess.run(cmd, check=True, cwd=cwd)
 
 
-def _merge_sft_data(raw_sft_dir: Path, output_path: Path) -> int:
-    """Merge all SFT seed files into one manifest."""
+def _download_dolly_ja(output_path: Path) -> int:
+    """Download kunishou/databricks-dolly-15k-ja from Hugging Face."""
+    import json
+    from datasets import load_dataset
+
+    print("Downloading databricks-dolly-15k-ja...")
+    ds = load_dataset("kunishou/databricks-dolly-15k-ja", split="train")
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    kept = 0
+    with open(output_path, "w", encoding="utf-8") as out:
+        for i, row in enumerate(ds):
+            instruction = str(row.get("instruction", "")).strip()
+            input_text = str(row.get("context", "")).strip()
+            output = str(row.get("response", "")).strip()
+            if not instruction or not output:
+                continue
+            payload = {
+                "id": f"dolly-{i:05d}",
+                "instruction": instruction,
+                "input": input_text,
+                "output": output,
+            }
+            out.write(json.dumps(payload, ensure_ascii=False) + "\n")
+            kept += 1
+    print(f"dolly-15k-ja: {kept} records → {output_path}")
+    return kept
+
+
+def _merge_sft_data(raw_sft_dir: Path, dolly_path: Path, output_path: Path) -> int:
+    """Merge dolly-15k-ja + seed files into one manifest."""
     import json
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    files = [
-        "qa_seed_core_ja.jsonl",
-        "qa_seed_general_ja.jsonl",
-        "qa_seed.jsonl",
-    ]
     seen_ids: set[str] = set()
     kept = 0
+
     with open(output_path, "w", encoding="utf-8") as out:
-        for fname in files:
+        # 1. dolly-15k-ja (main data)
+        if dolly_path.exists():
+            for line in dolly_path.read_text(encoding="utf-8").splitlines():
+                line = line.strip()
+                if not line:
+                    continue
+                row = json.loads(line)
+                rid = str(row.get("id", ""))
+                if rid in seen_ids:
+                    continue
+                seen_ids.add(rid)
+                out.write(json.dumps(row, ensure_ascii=False) + "\n")
+                kept += 1
+
+        # 2. Seed files (高品質な少量データ)
+        for fname in ["qa_seed_core_ja.jsonl", "qa_seed_general_ja.jsonl", "qa_seed.jsonl"]:
             fpath = raw_sft_dir / fname
             if not fpath.exists():
-                print(f"  skip (not found): {fname}")
                 continue
             for line in fpath.read_text(encoding="utf-8").splitlines():
                 line = line.strip()
@@ -79,7 +118,8 @@ def _merge_sft_data(raw_sft_dir: Path, output_path: Path) -> int:
                     continue
                 out.write(json.dumps(row, ensure_ascii=False) + "\n")
                 kept += 1
-    print(f"SFT manifest: {kept} records → {output_path}")
+
+    print(f"SFT manifest: {kept} records total → {output_path}")
     return kept
 
 
@@ -118,10 +158,12 @@ def sft_medium():
     if not tokenizer.exists():
         raise FileNotFoundError(f"Tokenizer not found: {tokenizer}")
 
-    # 4. Build SFT manifest
+    # 4. Build SFT manifest (dolly-15k-ja + seed files)
     raw_sft_dir = core_dir / "data" / "raw" / "sft"
+    dolly_path = Path("/tmp/dolly_ja.jsonl")
     manifest_path = Path("/tmp/sft_manifest.jsonl")
-    n_records = _merge_sft_data(raw_sft_dir, manifest_path)
+    _download_dolly_ja(dolly_path)
+    n_records = _merge_sft_data(raw_sft_dir, dolly_path, manifest_path)
     if n_records < 10:
         raise ValueError(f"Too few SFT records: {n_records}")
 
