@@ -18,6 +18,7 @@ def generate_text(
     repetition_penalty: float = 1.05,
     device: str = "cpu",
 ) -> str:
+    eos_id = tokenizer.eos_id()
     prompt_ids = tokenizer.encode_as_ids(prompt)
     if not prompt_ids:
         prompt_ids = [tokenizer.bos_id()]
@@ -34,5 +35,10 @@ def generate_text(
             recent_tokens=x[0].tolist(),
         )
         x = torch.cat((x, next_idx), dim=1)
+        if next_idx[0, 0].item() == eos_id:
+            break
     new_ids = x[0].tolist()[len(prompt_ids):]
+    # Strip trailing EOS token from output
+    if new_ids and new_ids[-1] == eos_id:
+        new_ids = new_ids[:-1]
     return tokenizer.decode_ids(new_ids)
